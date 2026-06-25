@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>batchnorm | viz</title>
+</head>
+<body>
+<!-- Concept page: Batch Normalization -- running mean/variance tracking (EMA)
+     during training vs frozen-stats normalization at inference, on a paintable
+     input. Serve over http (ES module imports are blocked on file:// in a
+     normal browser):
+       python3 -m http.server 8099 --directory viz
+       open http://localhost:8099/batchnorm/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

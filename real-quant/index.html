@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>real-quant | viz</title>
+</head>
+<body>
+<!-- Phase 9 (real-model grounding): REAL GPT-2 weight quantization. Range-fetches
+     ONE real weight tensor (~9 MB, not the whole 548 MB), shows its distribution,
+     and applies group-wise int-N quantization to show the REAL error vs bits /
+     group-size — grounding the synthetic `quantization` page in actual weights.
+     Verified vs numpy. Needs network. Serve over http:
+       python3 -m http.server 8099 --directory viz
+       open http://localhost:8099/real-quant/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

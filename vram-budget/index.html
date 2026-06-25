@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vram-budget | viz</title>
+</head>
+<body>
+<!-- Concept page: live VRAM math for LLM inference -- weights + KV cache +
+     activations + overhead vs a GPU's capacity, with the KV-cache-vs-context
+     growth that drives long-context OOM. Serve over http (ES module imports are
+     blocked on file:// in a normal browser):
+       python3 -m http.server 8099 --directory viz
+       open http://localhost:8099/vram-budget/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

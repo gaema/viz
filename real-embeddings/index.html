@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>real-embeddings | viz</title>
+</head>
+<body>
+<!-- Phase 9 (real-model grounding): real sentence embeddings from a small
+     trained model (all-MiniLM-L6-v2), fetched + run in-browser via
+     transformers.js (CDN ES module, no build). The synthetic `embedding/` page
+     shows the row-lookup *mechanism*; this page shows that the semantic
+     structure is *real* — same cosine math, real trained vectors.
+     Needs network for the real model (works on the mesh / online); falls back
+     to a labelled synthetic stand-in offline. Serve over http:
+       python3 -m http.server 8099 --directory viz
+       open http://localhost:8099/real-embeddings/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

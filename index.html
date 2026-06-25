@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>viz — concept visualizations</title>
+<style>
+  body{font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1a1d21;max-width:1080px;margin:0 auto;padding:24px 18px}
+  h1{font-size:24px;margin:0 0 4px} .sub{color:#586069;margin:0 0 20px}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#586069;margin:26px 0 10px;border-bottom:1px solid #e3e6ea;padding-bottom:6px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+  .card{display:block;border:1px solid #e3e6ea;border-radius:10px;padding:12px 14px;text-decoration:none;color:inherit;background:#fff;transition:.12s}
+  a.card:hover{border-color:#1f6feb;box-shadow:0 1px 6px rgba(31,111,235,.12)}
+  .card.planned{background:#fafbfc;color:#9aa4ad;border-style:dashed}
+  .t{font-weight:650;font-size:14px;font-family:ui-monospace,monospace}
+  .d{font-size:12.5px;color:#586069;margin-top:3px;min-height:2.4em}
+  .card.planned .d{color:#aab2ba}
+  .tags{margin-top:8px;display:flex;gap:6px;align-items:center}
+  .badge{font:11px ui-monospace,monospace;border-radius:5px;padding:1px 6px}
+  .b-ok{background:#e6ffec;color:#0a7227;border:1px solid #b7f5c2}
+  .b-plan{background:#f0f2f5;color:#8a93a0;border:1px solid #dfe3e8}
+  .b-tier{background:#eef3ff;color:#1f5fd0;border:1px solid #d4e1ff}
+</style>
+</head>
+<body>
+<h1>viz</h1>
+<p class="sub">Interactive visualizations of CNN/LLM internal math. Each page shows the linear algebra of one mechanism, step by step, following an A1–A12 shape taxonomy.</p>
+<p style="margin:0 0 18px;font-size:14px"><a href="tour.html" style="display:inline-block;background:#1f6feb;color:#fff;text-decoration:none;border-radius:7px;padding:7px 15px;font-weight:600">🎓 New here? Take the guided tour →</a> &nbsp;<span style="color:#586069">— a narrated walkthrough of all the demos in curriculum order, with a progress track.</span></p>
+<div id="root"></div>
+
+<!-- Static (no module imports) so it opens over file:// or http. The page list
+     mirrors plan/curriculum.md; flip `done:true` + add the slug as pages ship. -->
+<script>
+const FAMILIES = [
+  ['A — Foundational primitives', [
+    {slug:'matmul', t:'matmul', tier:'T2', done:true, d:'GEMM as the atom: each output cell is a row·col dot product. Tiling; why everything reduces to this.'},
+    {slug:'dot-product', t:'dot-product', tier:'T1', done:true, d:'a·b term by term + the geometry: projection of b onto a, angle θ, cosine similarity.'},
+    {slug:'dtype-bits', t:'dtype-bits', tier:'T1', done:true, d:'fp32/fp16/bf16/fp8/int8/int4 bit layout; reveal bits to rebuild the value; rounding error vs bit-width.'},
+    {slug:'softmax', t:'softmax', tier:'T1', done:true, d:'Logits → exp(z−max) → normalize → probabilities. Temperature; the max-subtract stability trick.'},
+  ]],
+  ['B — Attention', [
+    {slug:'qkv-projection', t:'qkv-projection', tier:'T1', done:true, d:'One token embedding → Q, K, V via three weight matrices.'},
+    {slug:'scaled-dot-attention', t:'scaled-dot-attention', tier:'T2', done:true, d:'QKᵀ/√d → mask → softmax → ·V, the full single-head pipeline.'},
+    {slug:'multi-head', t:'multi-head', tier:'T2', done:true, d:'Split into heads, attend in parallel, concat + project; head_dim slicing.'},
+    {slug:'gqa-mqa', t:'gqa-mqa', tier:'T1', done:true, d:'KV-head sharing: MHA vs GQA vs MQA — which Q heads read which KV head.'},
+    {slug:'causal-mask', t:'causal-mask', tier:'T1', done:true, d:'Lower-triangular masking; why decode only attends to the past.'},
+    {slug:'attention-patterns', t:'attention-patterns', tier:'T2', done:true, d:'full vs sliding-window vs hybrid-by-layer vs sink; the attended set per query.'},
+    {slug:'kv-cache', t:'kv-cache', tier:'T2', done:true, d:'The cache fills column-by-column during decode; per-layer layout; memory grows with context; paged & quantized KV.'},
+    {slug:'rope', t:'rope', tier:'T2', done:true, d:'Per-pair 2-D rotation by position·θ; dual-theta / M-RoPE; why relative position emerges.'},
+    {slug:'flash-attention', t:'flash-attention', tier:'T3', done:true, d:'Tiled online-softmax: streaming max/sum, never materializing the N×N matrix.'},
+  ]],
+  ['C — Transformer block', [
+    {slug:'tokenization', t:'tokenization', tier:'T1', done:true, d:'BPE: merge the most frequent adjacent pair to build the vocab + shrink the token count; text → token IDs. Drag a word’s freq.'},
+    {slug:'embedding', t:'embedding', tier:'T1', done:true, d:'Token-id → row lookup in the embedding table; tied vs untied lm_head.'},
+    {slug:'mlp-gated', t:'mlp-gated', tier:'T1', done:true, d:'gate+up+down with SwiGLU/GeGLU; element-wise gating.'},
+    {slug:'activations', t:'activations', tier:'T1', done:true, d:'erf-GeLU vs tanh-GeLU vs SiLU/Swish vs Mish, side by side.'},
+    {slug:'normalization', t:'normalization', tier:'T1', done:true, d:'RMSNorm vs LayerNorm; per-row statistics; pre- vs post-norm.'},
+    {slug:'residual-stream', t:'residual-stream', tier:'T1', done:true, d:'The residual highway: how each block reads + writes the stream.'},
+    {slug:'lm-head', t:'lm-head', tier:'T2', done:true, d:'Final projection to vocab logits; tied weights; soft-cap; logit slicing.'},
+    {slug:'transformer-block', t:'transformer-block', tier:'T2', done:true, d:'Full block: norm→attn→residual→norm→mlp→residual, end to end.'},
+    {slug:'prefill-vs-decode', t:'prefill-vs-decode', tier:'T2', done:true, d:'Parallel prefill (big GEMM) vs sequential decode (GEMV + KV read).'},
+    {slug:'sampling', t:'sampling', tier:'T1', done:true, d:'greedy / top-k / top-p / temperature over the logit distribution.'},
+  ]],
+  ['D — Mixture of Experts', [
+    {slug:'moe-routing', t:'moe-routing', tier:'T2', done:true, d:'Router logits → top-k expert pick per token; per-expert load, capacity, drops, balance.'},
+    {slug:'moe-balance', t:'moe-balance', tier:'T1', done:true, d:'Load balancing / capacity / drops / aux loss; collapse + starvation; drag to shift load.'},
+  ]],
+  ['E — Non-transformer sequence (SSM)', [
+    {slug:'ssm-scan', t:'ssm-scan', tier:'T2', done:true, d:'Mamba selective scan: input-dependent Δ gates a recurrent N-dim state swept over the sequence.'},
+    {slug:'mamba-block', t:'mamba-block', tier:'T2', done:true, d:'The full Mamba block: in_proj → conv → SiLU → selective SSM, gated by SiLU, → out_proj + residual.'},
+    {slug:'gated-deltanet', t:'gated-deltanet', tier:'T2', done:true, d:'Linear-attention / GatedDeltaNet: a [d×d] matrix memory with a decay gate + delta write rule.'},
+    {slug:'hybrid-by-layer', t:'hybrid-by-layer', tier:'T1', done:true, d:'Interleaved SSM layers + periodic full attention; where the KV cache lives and where it does not.'},
+  ]],
+  ['F — CNN / vision', [
+    {slug:'convolution', t:'convolution', tier:'T1', done:true, d:'Kernel sliding over an input; stride, padding, dilation; sum-of-products per output pixel.'},
+    {slug:'receptive-field', t:'receptive-field', tier:'T1', done:true, d:'How stacking (and dilating) convs grow the receptive field — the dependency cone.'},
+    {slug:'pooling', t:'pooling', tier:'T1', done:true, d:'max / avg pooling window → one number; downsampling; the argmax cell for max-pool.'},
+    {slug:'feature-maps', t:'feature-maps', tier:'T2', done:true, d:'A conv stack’s channel activations across layers (edges → textures → parts); paint the input.'},
+    {slug:'batchnorm', t:'batchnorm', tier:'T1', done:true, d:'Per-channel normalize + scale/shift; running-stat EMA tracking; train vs inference; paintable input.'},
+    {slug:'residual-block', t:'residual-block', tier:'T1', done:true, d:'ResNet skip y=F(x)+x; the gradient highway (g^L vanishes vs (1+g)^L) — why deep nets train; drag x.'},
+    {slug:'depthwise-separable', t:'depthwise-separable', tier:'T1', done:true, d:'MobileNet depthwise + pointwise vs full conv; the (k²·Cout)/(k²+Cout) FLOP cut; drag channel stacks.'},
+    {slug:'patch-embedding', t:'patch-embedding', tier:'T2', done:true, d:'ViT: image → P×P patches → linear-projected tokens (+CLS +pos); ≡ Conv2d(k=stride=P); drag a patch.'},
+  ]],
+  ['G — Quantization / multimodal', [
+    {slug:'quantization', t:'quantization', tier:'T1', done:true, d:'fp16 → int4 group-wise: scale/zero-point per group, dequant, RMSE vs bits + group-size/outlier tradeoff; drag a weight.'},
+    {slug:'vram-budget', t:'vram-budget', tier:'T1', done:true, d:'Live VRAM math: weights·dtype + KV(ctx·batch) + activations + overhead vs GPU; OOM + KV-vs-context curve; drag context.'},
+    {slug:'multimodal-inject', t:'multimodal-inject', tier:'T2', done:true, d:'encoder + projector MLP → media tokens spliced into the text sequence (LLaVA/Qwen-VL); drag the media block.'},
+  ]],
+  ['H — End to end & training', [
+    {slug:'forward-pass', t:'forward-pass', tier:'T2', done:true, d:'CAPSTONE: one prompt → next token through a tiny real transformer — tokenize→embed→attention→MLP→lm-head→sample, the residual stream transforming at each stage; step it, drag a token.'},
+    {slug:'backprop', t:'backprop', tier:'T1', done:true, d:'The backward pass: gradients flow back through a tiny graph by the chain rule; flip “descend” and watch the loss fall to 0 — training. Drag any leaf node.'},
+  ]],
+  ['I — Real-model grounding (Phase 9)', [
+    {slug:'real-embeddings', t:'real-embeddings', tier:'T1', done:true, d:'REAL vectors: a trained model (all-MiniLM-L6-v2) fetched + run in-browser via transformers.js; type words → real cosine heatmap + 2D semantic map. Real math AND real weights. Offline → labelled synthetic stand-in.'},
+    {slug:'real-attention', t:'real-attention', tier:'T2', done:true, d:'REAL GPT-2 attention: fetch the raw weights, run a verified forward in vanilla JS (transformers.js can’t emit attentions), capture every head. Type a sentence; the head-map finds the induction / prev-token / attention-sink heads. Verified vs PyTorch. WebGPU + CPU.'},
+    {slug:'real-logits', t:'real-logits', tier:'T2', done:true, d:'REAL GPT-2 next-token distribution: the verified forward + ln_f + tied lm_head → logits for a typed prefix; reshape with temperature / top-k / top-p like a sampler. “the cat ran” → up/away/off/out. Verified vs PyTorch. CPU + WebGPU.'},
+    {slug:'logit-lens', t:'logit-lens', tier:'T2', done:true, d:'The logit lens: apply the final ln_f + lm_head to the residual stream at EVERY layer to watch the next-token prediction crystallize across depth (ran→running→through→away→up). Per-layer top-1 ids verified vs PyTorch.'},
+    {slug:'real-quant', t:'real-quant', tier:'T1', done:true, d:'REAL int4 quantization: range-fetch ONE GPT-2 weight tensor (~9 MB, not 548 MB), see its real distribution (Gaussian σ≈0.14 + outliers), apply group-wise int-N quant → real RMSE vs bits/group. Verified vs numpy.'},
+    {slug:'real-generate', t:'real-generate', tier:'T2', done:true, d:'CAPSTONE: watch a REAL GPT-2 WRITE text — logits→sample→append→repeat, streaming token by token, with greedy / temperature / top-k / top-p. Greedy verified token-for-token vs HF generate().'},
+  ]],
+];
+const root = document.getElementById('root');
+let total = 0;
+for (const [name, pages] of FAMILIES) {
+  const h = document.createElement('h2'); h.textContent = name; root.appendChild(h);
+  const g = document.createElement('div'); g.className = 'grid';
+  for (const p of pages) {
+    total++;
+    const el = document.createElement(p.done ? 'a' : 'div');
+    el.className = 'card' + (p.done ? '' : ' planned');
+    if (p.done) el.href = './' + p.slug + '/index.html';
+    el.innerHTML = `<div class="t">${p.t}</div><div class="d">${p.d}</div>`
+      + `<div class="tags">`
+      + `<span class="badge b-tier">${p.tier}</span></div>`;
+    g.appendChild(el);
+  }
+  root.appendChild(g);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>logit-lens | viz</title>
+</head>
+<body>
+<!-- Phase 9 (real-model grounding): the LOGIT LENS. Apply GPT-2's final ln_f +
+     tied lm_head to the residual stream at EVERY layer (not just the last) to
+     watch the next-token prediction crystallize across depth. Runs the verified
+     GPT-2 forward (gpt2.js) in-browser. Needs network + a ~548 MB one-time weight
+     download (browser-cached). Serve over http:
+       python3 -m http.server 8099 --directory viz
+       open http://localhost:8099/logit-lens/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>real-attention | viz</title>
+</head>
+<body>
+<!-- Phase 9 (real-model grounding): REAL GPT-2 attention. transformers.js can't
+     emit attentions (the ONNX export drops them — Optimum #325), so we fetch the
+     raw safetensors and run a verified GPT-2 forward in vanilla JS (gpt2.js),
+     capturing softmax(QKᵀ/√d) at every layer/head. Type any sentence and find the
+     induction / previous-token / attention-sink heads. The synthetic
+     `attention-patterns` page shows idealized versions of these shapes; here they
+     are the real model's. Needs network + a ~548 MB one-time weight download
+     (browser-cached). Serve over http:
+       python3 -m http.server 8099 --directory viz
+       open http://localhost:8099/real-attention/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

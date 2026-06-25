@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>real-generate | viz</title>
+</head>
+<body>
+<!-- Phase 9 (real-model grounding): watch a REAL GPT-2 WRITE TEXT. Autoregressive
+     loop — logits → sample → append → repeat — using the verified forward
+     (gpt2.js). Greedy generation is verified token-for-token vs HF generate().
+     Needs network + a ~548 MB one-time weight download (browser-cached). Serve:
+       python3 -m http.server 8099 --directory viz
+       open http://localhost:8099/real-generate/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>
