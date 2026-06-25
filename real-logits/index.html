@@ -6,13 +6,13 @@
 <title>real-logits | viz</title>
 </head>
 <body>
-<!-- Phase 9 (real-model grounding): REAL GPT-2 next-token distribution. Runs the
+<!-- REAL GPT-2 next-token distribution. Runs the
      verified GPT-2 forward (gpt2.js) + ln_f + tied lm_head to get the logits for a
      typed prefix, then shows the probability distribution and how temperature /
      top-k / top-p reshape it — tying the synthetic lm-head + sampling pages to a
      real model's numbers. Needs network + a ~548 MB one-time weight download
      (browser-cached). Serve over http:
-       python3 -m http.server 8099 --directory viz
+       python3 -m http.server 8099
        open http://localhost:8099/real-logits/ -->
 <script type="module" src="./page.js"></script>
 </body>

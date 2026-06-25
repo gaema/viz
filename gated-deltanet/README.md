@@ -1,6 +1,6 @@
 # gated-deltanet -- the linear-attention delta-rule state update
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the **GatedDeltaNet** recurrence -- a linear-attention variant
 that carries a **matrix** state (an associative key→value memory) and updates it

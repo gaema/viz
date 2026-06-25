@@ -1,11 +1,11 @@
 # lm-head -- hidden state → vocab logits
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the output projection that turns a hidden state into a logit
 per vocabulary token, plus the three tricks around it — tied weights, logit
 soft-capping, and decode-time logit slicing. **Anchor**: A9 lm_head structure /
-A10 vocab (Family C6, Phase 3; see `../plan/curriculum.md`).
+A10 vocab (Family C6).
 
 ## What it shows
 

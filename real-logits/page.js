@@ -1,4 +1,4 @@
-// real-logits concept page — Phase 9 (real-model grounding).
+// real-logits concept page.
 //
 // The synthetic lm-head + sampling pages show the mechanism (hidden → vocab
 // logits → softmax → pick a token) on seeded numbers. This page shows the REAL
@@ -8,7 +8,7 @@
 // top-p exactly as a sampler would. "the cat ran" → up / away / off / out, real.
 //
 // Breadcrumbs to ../design/architectures.md A5 (lm_head) + the sampling concept.
-// Plan: ../plan/phase9.md. Reuses the real-attention GPT-2 loader (gpt2.js).
+// Reuses the real-attention GPT-2 loader (gpt2.js).
 //
 // Offline / no network: an idealized synthetic distribution (clearly labelled)
 // over plausible continuations, so the sampling controls still teach; the real
@@ -118,7 +118,7 @@ mount({
   mount: 'body',
   slug: 'real-logits',
   title: 'real logits — what GPT-2 actually predicts next',
-  blurb: 'Phase 9 (real-model grounding). The synthetic lm-head + sampling pages show the mechanism on seeded numbers; this page runs a REAL GPT-2 in your browser — the verified forward + ln_f + the tied lm_head — to get the actual next-token logits for a prefix you type, then draws the probability distribution. Reshape it with temperature, top-k, and top-p exactly as a sampler would, and watch which tokens survive. Offline it shows an idealized stand-in; the real model needs a ~548 MB one-time download.',
+  blurb: 'The synthetic lm-head + sampling pages show the mechanism on seeded numbers; this page runs a REAL GPT-2 in your browser — the verified forward + ln_f + the tied lm_head — to get the actual next-token logits for a prefix you type, then draws the probability distribution. Reshape it with temperature, top-k, and top-p exactly as a sampler would, and watch which tokens survive. Offline it shows an idealized stand-in; the real model needs a ~548 MB one-time download.',
   prefer: 'canvas2d',
   aspect: '16 / 10',
   controls: (c, page) => {

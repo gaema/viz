@@ -1,12 +1,11 @@
 # sampling -- greedy / top-k / top-p / temperature
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how the next token is actually chosen from the lm-head's
 logits -- temperature, then a truncation strategy (greedy, top-k, top-p), then a
 draw. **Anchor**: the decode-time companion to [lm-head](../lm-head/README.md)
-(which produces the logits); Family C (Phase 3; see
-`../plan/curriculum.md`).
+(which produces the logits); Family C.
 
 ## What it shows
 

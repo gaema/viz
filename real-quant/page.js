@@ -1,4 +1,4 @@
-// real-quant concept page — Phase 9 (real-model grounding).
+// real-quant concept page.
 //
 // The synthetic `quantization` page shows int4 group-quant on seeded weights;
 // this one shows it on REAL GPT-2 weights. It range-fetches a single weight
@@ -8,7 +8,7 @@
 // per-group scales + more bits drop the RMSE — exactly why low-bit quant works.
 //
 // Math in ./quant.js (verified vs numpy by quant.test.mjs). Breadcrumbs to A-attr
-// quantization. Plan: ../plan/phase9.md. Reuses ../real-attention/gpt2.js fetchTensor.
+// quantization. Reuses ../real-attention/gpt2.js fetchTensor.
 //
 // Offline: a synthetic Gaussian+outliers tensor (labelled), so the bits/group
 // controls still teach. ?real=0 forces it.
@@ -50,7 +50,7 @@ mount({
   mount: 'body',
   slug: 'real-quant',
   title: 'real quant — int4 on actual GPT-2 weights',
-  blurb: 'Phase 9 (real-model grounding). The synthetic quantization page shows int4 group-quant on seeded weights; this one runs it on REAL GPT-2 weights — it range-fetches a single weight tensor (~9 MB, not the whole 548 MB) and shows its distribution + the real quantization error. Real weights are a tight Gaussian (σ≈0.14) with a few big outliers, so per-group scales and more bits drop the error fast — exactly why int4/int8 work. Pick a tensor, drag bits and group size.',
+  blurb: 'The synthetic quantization page shows int4 group-quant on seeded weights; this one runs it on REAL GPT-2 weights — it range-fetches a single weight tensor (~9 MB, not the whole 548 MB) and shows its distribution + the real quantization error. Real weights are a tight Gaussian (σ≈0.14) with a few big outliers, so per-group scales and more bits drop the error fast — exactly why int4/int8 work. Pick a tensor, drag bits and group size.',
   prefer: 'canvas2d',
   aspect: '16 / 9',
   controls: (c, page) => {

@@ -54,7 +54,7 @@ export const ORDER = [
   // H -- End-to-end (capstone) + training
   { slug: 'forward-pass', family: 'H' },
   { slug: 'backprop', family: 'H' },
-  // I -- Real-model grounding (Phase 9): real weights, fetched at runtime
+  // I -- Real-model grounding: real weights, fetched at runtime
   { slug: 'real-embeddings', family: 'I' },
   { slug: 'real-attention', family: 'I' },
   { slug: 'real-logits', family: 'I' },

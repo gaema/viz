@@ -1,10 +1,9 @@
 # scaled-dot-attention -- the single-head pipeline
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the full scaled dot-product attention computation over a
-sequence, stage by stage. **Anchor**: A3 attention pattern (Family B2; see
-`../plan/curriculum.md`).
+sequence, stage by stage. **Anchor**: A3 attention pattern (Family B2).
 
 ## What it shows
 

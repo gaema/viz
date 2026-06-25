@@ -1,4 +1,4 @@
-// real-attention concept page — Phase 9 (real-model grounding).
+// real-attention concept page.
 //
 // REAL GPT-2 attention. transformers.js can't emit attentions (the ONNX export
 // drops them — Optimum #325), so gpt2.js fetches the raw safetensors and runs a
@@ -13,7 +13,7 @@
 //
 // The synthetic `attention-patterns` page shows IDEALIZED versions of these
 // shapes; this page shows the real model's. Breadcrumbs to ../design/
-// architectures.md A2 (attention). Plan: ../plan/phase9.md.
+// architectures.md A2 (attention).
 //
 // Offline / no network: renders a clearly-labelled IDEALIZED synthetic stand-in
 // (the same three head shapes, hand-built) on the default sentence, and swaps in
@@ -159,7 +159,7 @@ mount({
   mount: 'body',
   slug: 'real-attention',
   title: 'real attention — finding GPT-2’s heads',
-  blurb: 'Phase 9 (real-model grounding). The synthetic attention pages show idealized head shapes on seeded numbers; this page runs a REAL GPT-2 in your browser — we fetch the raw weights and run a verified forward in vanilla JS (transformers.js can’t emit attentions), capturing softmax(QKᵀ/√d) at every layer/head. Type a sentence; the 12×12 head-map colours each head by what it does. Hunt for the previous-token head (sub-diagonal), the induction head (attends to what followed a repeated token last time — the in-context-learning trick), and the attention-sink head (dumps on token 0). Offline it shows a labelled idealized stand-in; the real model needs a ~548 MB one-time download.',
+  blurb: 'The synthetic attention pages show idealized head shapes on seeded numbers; this page runs a REAL GPT-2 in your browser — we fetch the raw weights and run a verified forward in vanilla JS (transformers.js can’t emit attentions), capturing softmax(QKᵀ/√d) at every layer/head. Type a sentence; the 12×12 head-map colours each head by what it does. Hunt for the previous-token head (sub-diagonal), the induction head (attends to what followed a repeated token last time — the in-context-learning trick), and the attention-sink head (dumps on token 0). Offline it shows a labelled idealized stand-in; the real model needs a ~548 MB one-time download.',
   prefer: 'canvas2d',
   aspect: '16 / 9',
   controls: (c, page) => {

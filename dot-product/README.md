@@ -1,11 +1,10 @@
 # dot-product -- a · b (projection + cosine)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the dot product of two vectors, built term-by-term, with the
 geometric meaning shown alongside. **Anchor**: foundational primitive (Family
-A2; the inner loop of every matmul / attention score / projection). See
-`../plan/curriculum.md`.
+A2; the inner loop of every matmul / attention score / projection). See.
 
 ## What it shows
 

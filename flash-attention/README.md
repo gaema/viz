@@ -1,11 +1,11 @@
 # flash-attention -- tiled online softmax (never materialize N×N)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how FlashAttention computes exact attention without ever
 storing the full `N×N` score matrix, by streaming K/V in tiles and keeping a
 running ("online") softmax. **Anchor**: A3 attention pattern (Family B9, the
-T3 capstone; see `../plan/curriculum.md`).
+T3 capstone).
 
 ## What it shows
 

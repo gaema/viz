@@ -1,12 +1,12 @@
 # batchnorm -- running mean/variance + train vs inference
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: **Batch Normalization** -- normalize each channel's activations,
 **track** a running mean/variance during training (an exponential moving
 average), and at **inference** use that tracked average instead of the batch's
 own statistics. **Anchor**: F (CNN / vision); Family F, builds on
-[convolution](../convolution/README.md) (see `../plan/curriculum.md`).
+[convolution](../convolution/README.md) ().
 
 ## What it shows
 

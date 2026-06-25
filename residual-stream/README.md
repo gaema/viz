@@ -1,11 +1,10 @@
 # residual-stream -- the residual highway
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the residual stream — the tensor that runs straight through
 the transformer, that every block reads from and writes back to by **adding**
-(never overwriting). **Anchor**: A8 (Family C5, Phase 3; see
-`../plan/curriculum.md`).
+(never overwriting). **Anchor**: A8 (Family C5).
 
 ## What it shows
 

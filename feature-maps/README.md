@@ -4,8 +4,7 @@ Interactive page: the channel **activations** (feature maps) a convolutional sta
 produces at each depth -- the famous progression from **edges** (shallow) to
 **textures** (mid) to **parts/blobs** (deep). **Anchor**: F (CNN / vision);
 Family F, builds on [convolution](../convolution/README.md) and
-[receptive-field](../receptive-field/README.md) (see
-`../plan/curriculum.md`).
+[receptive-field](../receptive-field/README.md) ().
 
 ## What it shows
 

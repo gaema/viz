@@ -1,10 +1,10 @@
 # qkv-projection -- one embedding → Q, K, V
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how a token's embedding is projected into query, key, and
 value vectors by three learned weight matrices. **Anchor**: A5 embedding / A2
-head_dim (Family B1; see `../plan/curriculum.md`).
+head_dim (Family B1).
 
 ## What it shows
 

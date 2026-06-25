@@ -1,11 +1,10 @@
 # vram-budget -- where the GPU memory goes
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: **live VRAM math for LLM inference** -- the four things that
 consume GPU memory, to scale against a chosen GPU, and *why* a long prompt runs
-out of memory. **Anchor**: G (quantization / deployment); Family G (see
-`../plan/curriculum.md`).
+out of memory. **Anchor**: G (quantization / deployment); Family G ().
 
 ## What it shows
 

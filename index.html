@@ -90,7 +90,7 @@ const FAMILIES = [
     {slug:'forward-pass', t:'forward-pass', tier:'T2', done:true, d:'CAPSTONE: one prompt → next token through a tiny real transformer — tokenize→embed→attention→MLP→lm-head→sample, the residual stream transforming at each stage; step it, drag a token.'},
     {slug:'backprop', t:'backprop', tier:'T1', done:true, d:'The backward pass: gradients flow back through a tiny graph by the chain rule; flip “descend” and watch the loss fall to 0 — training. Drag any leaf node.'},
   ]],
-  ['I — Real-model grounding (Phase 9)', [
+  ['I — Real-model grounding', [
     {slug:'real-embeddings', t:'real-embeddings', tier:'T1', done:true, d:'REAL vectors: a trained model (all-MiniLM-L6-v2) fetched + run in-browser via transformers.js; type words → real cosine heatmap + 2D semantic map. Real math AND real weights. Offline → labelled synthetic stand-in.'},
     {slug:'real-attention', t:'real-attention', tier:'T2', done:true, d:'REAL GPT-2 attention: fetch the raw weights, run a verified forward in vanilla JS (transformers.js can’t emit attentions), capture every head. Type a sentence; the head-map finds the induction / prev-token / attention-sink heads. Verified vs PyTorch. WebGPU + CPU.'},
     {slug:'real-logits', t:'real-logits', tier:'T2', done:true, d:'REAL GPT-2 next-token distribution: the verified forward + ln_f + tied lm_head → logits for a typed prefix; reshape with temperature / top-k / top-p like a sampler. “the cat ran” → up/away/off/out. Verified vs PyTorch. CPU + WebGPU.'},

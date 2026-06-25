@@ -1,13 +1,12 @@
 # dtype-bits -- floating-point & integer bit layouts
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how a number is stored in fp32 / fp16 / bf16 / fp8 / int8 /
 int4, and why fewer bits means more rounding error. **Click any bit to flip it**
 and watch the reconstructed value rebuild bit by bit; hover a bit for its field +
 place value, or a field label to decode it. **Anchor**: A11 special
-pre-quant transforms / precision (Family A3 foundational; see
-`../plan/curriculum.md`).
+pre-quant transforms / precision (Family A3 foundational).
 
 ## What it shows
 

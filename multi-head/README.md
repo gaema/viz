@@ -1,11 +1,10 @@
 # multi-head -- split into heads, attend in parallel, concat
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how multi-head attention slices the model dimension into H
 independent heads, each running its own scaled-dot-attention, then concatenates
-the results. **Anchor**: A2 head_dim layout (Family B3; see
-`../plan/curriculum.md`).
+the results. **Anchor**: A2 head_dim layout (Family B3).
 
 ## What it shows
 

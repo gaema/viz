@@ -1,10 +1,10 @@
 # rope -- rotary position embedding (per-pair 2-D rotation)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how RoPE encodes position by rotating each dimension-pair of a
 query/key vector by an angle proportional to position. **Anchor**: A1 RoPE
-shape (Family B8; see `../plan/curriculum.md`).
+shape (Family B8).
 
 ## What it shows
 

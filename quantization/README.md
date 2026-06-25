@@ -1,11 +1,11 @@
 # quantization -- fp16 → int4, group-wise
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: **group-wise affine weight quantization** -- how fp16 weights
 become low-bit integers (int4, even int3/int2) so a large model fits in a small
 amount of memory, and what error that costs. **Anchor**: G (quantization /
-deployment); Family G (see `../plan/curriculum.md`).
+deployment); Family G ().
 
 ## What it shows
 

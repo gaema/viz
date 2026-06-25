@@ -1,10 +1,10 @@
 # multimodal-inject -- vision/audio tokens in the text stream
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: **multimodal injection** -- how a vision-language / audio-language
 model feeds a non-text input into a text LLM. **Anchor**: G (multimodal /
-deployment); Family G (see `../plan/curriculum.md`).
+deployment); Family G ().
 
 ## What it shows
 

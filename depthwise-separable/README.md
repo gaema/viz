@@ -1,13 +1,12 @@
 # depthwise-separable -- MobileNet conv, the FLOP cut
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the **depthwise-separable convolution** (MobileNet) -- factorize
 a standard conv into a **depthwise** conv (one `k×k` filter per input channel, no
 channel mixing) followed by a **pointwise** `1×1` conv (mixes channels, no spatial
 extent), and see the MAC/FLOP reduction it buys. **Anchor**: F (CNN / vision);
-Family F, builds on [convolution](../convolution/README.md) (see
-`../plan/curriculum.md`).
+Family F, builds on [convolution](../convolution/README.md) ().
 
 ## What it shows
 

@@ -1,12 +1,11 @@
-# real-quant -- int4 on actual GPT-2 weights (Phase 9)
+# real-quant -- int4 on actual GPT-2 weights
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + network (range-fetches ~9 MB): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + network (range-fetches ~9 MB): `python3 -m http.server 8099`
 
 Interactive page: the **real** counterpart to the synthetic
 [`quantization`](../quantization/README.md) page. It runs group-wise integer
 quantization on **actual GPT-2 weights** and shows the real error. **Anchor**:
-quantization. Part of **Phase 9 — real-model grounding**
-(`../plan/phase9.md`).
+quantization. Part of **real-model grounding**.
 
 ## What it shows
 

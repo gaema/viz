@@ -1,11 +1,10 @@
 # causal-mask -- why decode only attends to the past
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the lower-triangular causal mask, and the reason for it —
 an autoregressive LM predicting the next token must not peek at it.
-**Anchor**: A3 attention pattern (Family B; see
-`../plan/curriculum.md`).
+**Anchor**: A3 attention pattern (Family B).
 
 ## What it shows
 

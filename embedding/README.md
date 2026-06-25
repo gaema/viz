@@ -1,11 +1,11 @@
 # embedding -- token-id → row lookup (and the tied lm_head)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how a token id becomes a vector (a row lookup in the
 embedding table), and how the same table is reused as the output projection
-when weights are tied. **Anchor**: A5 embedding shape (Family C1, Phase 3
-transformer block; see `../plan/curriculum.md`).
+when weights are tied. **Anchor**: A5 embedding shape (Family C1
+transformer block).
 
 ## What it shows
 

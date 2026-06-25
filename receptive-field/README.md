@@ -1,11 +1,11 @@
 # receptive-field -- how stacked convs grow what each output sees
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the **receptive field** -- the patch of input that a single
 output unit depends on -- and how **stacking** convolution layers (and
 **dilating** them) grows it. **Anchor**: F (CNN / vision); Family F, companion to
-[convolution](../convolution/README.md) (see `../plan/curriculum.md`).
+[convolution](../convolution/README.md) ().
 
 ## What it shows
 

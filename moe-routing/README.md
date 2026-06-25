@@ -1,13 +1,13 @@
 # moe-routing -- router, top-k experts, load balancing
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how a Mixture-of-Experts layer routes each token to a few
 experts -- router logits → softmax gate → top-k selection → per-expert load,
 capacity, and dropped tokens. **Anchor**: A6 MLP / MoE variant (the gated-MLP
 sublayer replaced by routed experts); Family D (see
 `../../design/emerging-architectures.md`
-MoE and `../plan/curriculum.md`).
+MoE and).
 
 ## What it shows
 

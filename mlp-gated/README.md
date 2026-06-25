@@ -1,11 +1,10 @@
 # mlp-gated -- the SwiGLU / GeGLU feed-forward block
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the gated MLP used in modern transformers (Llama, etc.) —
 two parallel up-projections, an element-wise gate, and a down-projection.
-**Anchor**: A6 MLP shape / A7 activation (Family C2, Phase 3; see
-`../plan/curriculum.md`).
+**Anchor**: A6 MLP shape / A7 activation (Family C2).
 
 ## What it shows
 

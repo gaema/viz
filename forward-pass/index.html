@@ -10,7 +10,7 @@
      to predict the next token -- tokenize -> embed -> attention -> MLP -> lm-head
      -> sample, with the residual stream transforming at each stage. Serve over
      http (ES module imports are blocked on file:// in a normal browser):
-       python3 -m http.server 8099 --directory viz
+       python3 -m http.server 8099
        open http://localhost:8099/forward-pass/ -->
 <script type="module" src="./page.js"></script>
 </body>

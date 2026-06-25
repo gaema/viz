@@ -1,4 +1,4 @@
-// real-embeddings concept page — Phase 9 (real-model grounding).
+// real-embeddings concept page.
 //
 // The synthetic `embedding/` page shows the *mechanism* (a token id is a row
 // lookup in E[V×D]); the numbers there come from a seed. This page shows the
@@ -16,7 +16,7 @@
 // the centered vectors (PCA scores), so nearby points = similar meaning.
 //
 // Breadcrumbs to ../design/architectures.md A1 (token embedding) — same
-// attribute as the synthetic `embedding` sibling. Plan: ../plan/phase9.md.
+// attribute as the synthetic `embedding` sibling.
 //
 // Offline / no-network (file:// with no fetch, CDN blocked): the page never
 // goes blank — it renders a deterministic *synthetic stand-in* (clearly
@@ -176,7 +176,7 @@ mount({
   mount: 'body',
   slug: 'real-embeddings',
   title: 'real embeddings — a trained model’s semantic geometry',
-  blurb: 'Phase 9 (real-model grounding). The synthetic embedding page shows the row-lookup mechanism on seeded numbers; this one runs a REAL trained model (all-MiniLM-L6-v2) in your browser — fetched at runtime via transformers.js, no build — and embeds the words you type. The cosine-similarity heatmap and the 2D map below are real semantic geometry: words that mean similar things (king·queen, paris·tokyo) sit close, with no demo trickery. Type your own words. Offline, it renders a clearly-labelled synthetic stand-in and swaps in the real vectors once the model downloads.',
+  blurb: 'The synthetic embedding page shows the row-lookup mechanism on seeded numbers; this one runs a REAL trained model (all-MiniLM-L6-v2) in your browser — fetched at runtime via transformers.js, no build — and embeds the words you type. The cosine-similarity heatmap and the 2D map below are real semantic geometry: words that mean similar things (king·queen, paris·tokyo) sit close, with no demo trickery. Type your own words. Offline, it renders a clearly-labelled synthetic stand-in and swaps in the real vectors once the model downloads.',
   prefer: 'canvas2d',
   aspect: '2 / 1',
   controls: (c, page) => {

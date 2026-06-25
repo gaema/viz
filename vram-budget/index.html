@@ -10,7 +10,7 @@
      activations + overhead vs a GPU's capacity, with the KV-cache-vs-context
      growth that drives long-context OOM. Serve over http (ES module imports are
      blocked on file:// in a normal browser):
-       python3 -m http.server 8099 --directory viz
+       python3 -m http.server 8099
        open http://localhost:8099/vram-budget/ -->
 <script type="module" src="./page.js"></script>
 </body>

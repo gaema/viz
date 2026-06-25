@@ -1,11 +1,11 @@
 # backprop -- the backward pass (how a model learns)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: **backpropagation / autograd** -- the *backward* pass, the
 training counterpart to the [forward-pass](../forward-pass/README.md) capstone (and
 the only page about how a model *learns*, not just runs). **Anchor**: H (end to end
-/ training). Family H (see `../plan/curriculum.md`).
+/ training). Family H ().
 
 ## What it shows
 

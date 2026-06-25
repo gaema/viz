@@ -1,11 +1,10 @@
 # normalization -- RMSNorm vs LayerNorm (and pre/post-norm)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the two normalizations used in transformers, applied per
 token (per row), and where the norm sits relative to the residual.
-**Anchor**: A8 normalization (Family C4, Phase 3; see
-`../plan/curriculum.md`).
+**Anchor**: A8 normalization (Family C4).
 
 ## What it shows
 

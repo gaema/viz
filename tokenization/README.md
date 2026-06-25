@@ -1,10 +1,10 @@
 # tokenization -- Byte-Pair Encoding builds the vocab
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: **Byte-Pair Encoding (BPE)** -- the step that turns text into the
 integer token IDs a model consumes, the step *before* [`embedding`](../embedding/README.md).
-**Anchor**: C (transformer block input). Family C (see `../plan/curriculum.md`).
+**Anchor**: C (transformer block input). Family C ().
 
 ## What it shows
 

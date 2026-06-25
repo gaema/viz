@@ -1,11 +1,10 @@
 # softmax -- logits → probabilities
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how a vector of logits becomes a probability distribution,
 step by step, with temperature and the numerical-stability max-subtract shown.
-**Anchor**: A9/A10 (lm_head logits + vocab → sampling; Family A4 foundational;
-see `../plan/curriculum.md`).
+**Anchor**: A9/A10 (lm_head logits + vocab → sampling; Family A4 foundational).
 
 ## What it shows
 

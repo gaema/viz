@@ -1,11 +1,11 @@
 # prefill-vs-decode -- two inference regimes
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the two phases of autoregressive inference, side by side --
 **prefill** (process the whole prompt in one parallel pass) vs **decode**
 (generate one token at a time). **Anchor**: A4 KV cache / runtime shape (Family
-C, Phase 3; see `../plan/curriculum.md`). Companion to
+C). Companion to
 [kv-cache](../kv-cache/README.md), which shows the cache itself filling.
 
 ## What it shows

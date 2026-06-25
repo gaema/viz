@@ -196,7 +196,7 @@ export async function mount(opts = {}) {
   const controls = new Controls(panel, { onChange: () => { api.redraw(); syncURL(); } });
   api.controls = controls;
 
-  // A/B compare (Phase 8): render the page twice, side by side, with ONE
+  // A/B compare: render the page twice, side by side, with ONE
   // parameter set to two values. opts.compare = { key, a, b } overrides a state
   // key; { stepA, stepB } (numbers or 'first'/'last') overrides the transport
   // index. labelA/labelB caption each pane. A "⇄ A/B compare" nav button toggles.
@@ -225,7 +225,7 @@ export async function mount(opts = {}) {
     nav.insertBefore(cmpBtn, copyBtn);
   }
 
-  // Challenge mode (Phase 8): optional goals with a live pass/fail check. A page
+  // Challenge mode: optional goals with a live pass/fail check. A page
   // declares mount({ challenges: [{goal, check, hint}] }); check(api) reads
   // api.state + api.probe (set by draw) and returns {solved, detail}. The card
   // toggles open; chEval runs after each draw.

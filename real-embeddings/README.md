@@ -1,14 +1,13 @@
-# real-embeddings -- a trained model's semantic geometry (Phase 9)
+# real-embeddings -- a trained model's semantic geometry
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + network for the real model: `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + network for the real model: `python3 -m http.server 8099`
 
 Interactive page: the **real** counterpart to [`embedding/`](../embedding/README.md).
 The synthetic page shows the *mechanism* (a token id is a row lookup in a seeded
 table `E[V×D]`); this page shows the numbers are **real** by fetching a small
 trained sentence-embedding model and running it in your browser on the words you
 type. **Anchor**: A1 token embedding (same attribute as the synthetic sibling).
-First increment of **Phase 9 — real-model grounding** (see
-`../plan/phase9.md`).
+First increment of **real-model grounding**.
 
 ## What it shows
 
@@ -24,7 +23,7 @@ You type a list of words. Each becomes a unit vector from
   close: `king·queen·prince`, `paris·tokyo·berlin`, `cat·dog·horse` form visible
   clusters with **no demo trickery** — that structure is in the trained weights.
 
-The point of Phase 9: every page through Phase 8 runs *real math on synthetic
+The point: every other page runs *real math on synthetic
 weights*; here both the math **and** the weights are real.
 
 ## Real model, fetched at runtime (no build, no committed weights)

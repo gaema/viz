@@ -1,4 +1,4 @@
-// real-generate concept page — Phase 9 (real-model grounding). The capstone.
+// real-generate concept page. The capstone.
 //
 // Watch a REAL GPT-2 write text. Autoregressive generation is just the verified
 // next-token step (gpt2.js logits()) in a loop: logits → sample a token → append
@@ -10,7 +10,7 @@
 // down the hall …" (GPT-2's famous greedy loop).
 //
 // Breadcrumbs to ../design/architectures.md (A5 lm_head) + the sampling +
-// prefill-vs-decode concepts. Plan: ../plan/phase9.md. Reuses gpt2.js.
+// prefill-vs-decode concepts. Reuses gpt2.js.
 //
 // Offline: streams a clearly-labelled synthetic continuation so the animation
 // still teaches; the real model writes real text once the weights download.
@@ -100,7 +100,7 @@ mount({
   mount: 'body',
   slug: 'real-generate',
   title: 'real generate — watch GPT-2 write',
-  blurb: 'Phase 9 (real-model grounding). The capstone: a REAL GPT-2 writing text in your browser. Generation is just the verified next-token step in a loop — logits → sample → append → repeat. Greedy (argmax) is deterministic and verified token-for-token against the reference; temperature / top-k / top-p (with a seed) make it creative. Type a prompt, hit generate, and watch it write one token at a time. Offline it streams a labelled synthetic continuation.',
+  blurb: 'The capstone: a REAL GPT-2 writing text in your browser. Generation is just the verified next-token step in a loop — logits → sample → append → repeat. Greedy (argmax) is deterministic and verified token-for-token against the reference; temperature / top-k / top-p (with a seed) make it creative. Type a prompt, hit generate, and watch it write one token at a time. Offline it streams a labelled synthetic continuation.',
   prefer: 'canvas2d',
   aspect: '16 / 9',
   controls: (c, page) => {

@@ -1,6 +1,6 @@
 # moe-balance -- load balancing, collapse, and why experts starve
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the MoE **balance problem** over a whole batch -- without a
 balancing pressure the router *collapses* (a few experts get everything, the

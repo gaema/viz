@@ -1,11 +1,10 @@
-# real-generate -- watch GPT-2 write (Phase 9 capstone)
+# real-generate -- watch GPT-2 write
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
 
 Interactive page: the **capstone** of the real-* family — a **real GPT-2 (124M)**
 writing text in your browser, one token at a time. **Anchor**: A5 lm_head + the
-sampling + prefill-vs-decode concepts. Closes **Phase 9 — real-model grounding**
-(`../plan/phase9.md`).
+sampling + prefill-vs-decode concepts. Closes **real-model grounding**.
 
 ## What it shows
 

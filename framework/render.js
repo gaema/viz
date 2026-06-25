@@ -8,7 +8,7 @@
 // WebGL2/WebGPU canvas, or pure 2D) and blitted into the visible canvas.
 //
 // All three tiers map scalars to color through ONE shared 256-entry LUT, so
-// a heatmap is pixel-identical across Canvas2D and WebGL2 -- the Phase-1
+// a heatmap is pixel-identical across Canvas2D and WebGL2 -- the
 // gate. The tier only changes WHERE the raster's scaling/compositing runs.
 //
 // No build step: import as an ES module, or load via <script> and use the

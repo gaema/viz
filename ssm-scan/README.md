@@ -1,6 +1,6 @@
 # ssm-scan -- the selective state-space scan (Mamba / S6)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how a selective state-space model carries a recurrent state
 through a sequence -- the **scan** `hₜ = Āₜ ⊙ hₜ₋₁ + B̄ₜ · xₜ`, `yₜ = C · hₜ` --

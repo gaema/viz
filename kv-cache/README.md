@@ -1,11 +1,10 @@
 # kv-cache -- the KV cache during decode
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: why autoregressive decode keeps a per-layer cache of past
 keys and values, how it fills, and how its memory grows with context.
-**Anchor**: A4 KV cache layout (Family B7, the headline attention page; see
-`../plan/curriculum.md`).
+**Anchor**: A4 KV cache layout (Family B7, the headline attention page).
 
 ## What it shows
 

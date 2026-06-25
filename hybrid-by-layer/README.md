@@ -1,6 +1,6 @@
 # hybrid-by-layer -- interleaved SSM + periodic full attention
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how **hybrid** models (Jamba, Zamba, Qwen3-Next, …) stack
 cheap **SSM / linear-attention** layers and sprinkle in **full-attention** layers

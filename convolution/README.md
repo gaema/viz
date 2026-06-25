@@ -1,12 +1,11 @@
 # convolution -- kernel sliding over input (stride / padding / dilation)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: 2-D convolution as a small kernel sliding across an input
 feature map, each output pixel a **sum of products** over the receptive field --
 with the geometry knobs that set the output size: **stride**, **padding**, and
-**dilation**. **Anchor**: F (CNN / vision); Family F (see
-`../plan/curriculum.md`).
+**dilation**. **Anchor**: F (CNN / vision); Family F ().
 
 ## What it shows
 

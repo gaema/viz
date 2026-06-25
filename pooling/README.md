@@ -1,12 +1,11 @@
 # pooling -- max / average pooling, downsampling
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: spatial **pooling** -- a window slides over the input and
 reduces each window to one number (its **max** or its **average**), shrinking the
 feature map. The cheap, parameter-free downsampler in a CNN. **Anchor**: F (CNN /
-vision); Family F, companion to [convolution](../convolution/README.md) (see
-`../plan/curriculum.md`).
+vision); Family F, companion to [convolution](../convolution/README.md) ().
 
 ## What it shows
 

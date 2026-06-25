@@ -1,6 +1,6 @@
 # mamba-block -- the full Mamba block
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the whole Mamba block end to end -- the macro view that wraps
 the selective scan ([ssm-scan](../ssm-scan/README.md)) in a causal conv, a gated

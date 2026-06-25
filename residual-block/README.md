@@ -1,11 +1,11 @@
 # residual-block -- the skip connection y = F(x) + x
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099 --directory viz`
+> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the **ResNet residual block** -- a small learned function `F`
 runs in parallel with an **identity shortcut** that copies the input straight to
 the output, so `y = F(x) + x`. **Anchor**: F (CNN / vision); Family F, builds on
-[convolution](../convolution/README.md) (see `../plan/curriculum.md`).
+[convolution](../convolution/README.md) ().
 
 ## What it shows
 
