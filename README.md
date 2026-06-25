@@ -55,3 +55,7 @@ framework/          shared runtime: layout.mount() chrome, controls, render, ten
 ```
 
 Static site, no build step — every page is plain HTML + ES modules.
+
+## License
+
+Licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) — see [`LICENSE`](LICENSE).
