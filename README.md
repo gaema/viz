@@ -3,7 +3,7 @@
 Interactive HTML pages that show the **math** of CNN/LLM internals — one page per
 mechanism, no build step. Hover to inspect, drag to scrub, watch the tensors flow.
 
-**Live:** <https://viz.gaema.ai>
+**Live:** <https://viz.math.gaema.ai>
 
 ## ▶ Open the demos
 
