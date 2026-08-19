@@ -8,10 +8,10 @@
 <script src="framework/theme-boot.js"></script>
 <style>
   html{background:var(--vz-n0)}
-  .vz-theme{display:inline-flex;border:1px solid var(--vz-n6);border-radius:6px;overflow:hidden;vertical-align:middle}
-  .vz-theme-btn{font:12px ui-monospace,monospace;line-height:1.6;border:0;background:var(--vz-n0);color:var(--vz-n11);padding:2px 8px;cursor:pointer}
-  .vz-theme-btn+.vz-theme-btn{border-left:1px solid var(--vz-n6)}
-  .vz-theme-btn[aria-pressed="true"]{background:var(--vz-accent);color:var(--vz-n0)}
+  .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .topctl{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  .vz-theme-btn{font:13px ui-monospace,monospace;line-height:1;border:1px solid var(--vz-n6);border-radius:7px;background:var(--vz-n0);color:var(--vz-n11);padding:6px 10px;cursor:pointer}
+  .vz-theme-btn:hover{border-color:var(--vz-accent);color:var(--vz-accent)}
 
   body{font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--vz-n14);max-width:1080px;margin:0 auto;padding:24px 18px;background:var(--vz-n0)}
 
@@ -38,13 +38,16 @@
 </style>
 </head>
 <body>
-<h1>viz</h1>
+<div class="topbar">
+  <h1>viz</h1>
+  <div class="topctl">
+    <span class="modes" id="modes"><button id="m-plain" aria-pressed="true">Plain English</button><button id="m-tech" aria-pressed="false">Technical</button></span>
+    <span data-theme-switch></span>
+  </div>
+</div>
 <p class="sub">Interactive visualizations of CNN/LLM internal math. Each page shows the linear algebra of one mechanism, step by step, following an A1–A12 shape taxonomy.</p>
 <p style="margin:0 0 18px;font-size:14px"><a href="tour.html" style="display:inline-block;background:var(--vz-accent);color:var(--vz-n0);text-decoration:none;border-radius:7px;padding:7px 15px;font-weight:600">🎓 New here? Take the guided tour →</a> &nbsp;<span style="color:var(--vz-n11)">— a narrated walkthrough of all the demos in curriculum order, with a progress track.</span></p>
-<p style="margin:0 0 18px;font-size:13.5px;color:var(--vz-n12)">Describe each demo in
-  <span class="modes" id="modes"><button id="m-plain" aria-pressed="true">Plain English</button><button id="m-tech" aria-pressed="false">Technical</button></span>
-  &nbsp;<span style="color:var(--vz-n11)">— plain English says <b>why it matters in the real world</b>; technical says what the page shows mathematically.</span>
-  &nbsp;&nbsp;<span style="color:var(--vz-n11)">Theme</span> <span data-theme-switch></span></p>
+<p style="margin:0 0 18px;font-size:13.5px;color:var(--vz-n11)">Card descriptions are in <b>plain English</b> (why each one matters in the real world) or <b>technical</b> (what the page shows mathematically) — switch at the top right, with the theme.</p>
 <div id="root"></div>
 
 <!-- PLAIN:BEGIN -->

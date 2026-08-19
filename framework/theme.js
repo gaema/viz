@@ -75,6 +75,21 @@ const MODES = ['light', 'dark', 'auto'];
 let mode = 'auto';
 const listeners = new Set();
 
+// ONE control that cycles, not three radio buttons: the state is a single
+// setting, and three buttons spend three times the width to say so. The glyph
+// shows what is in force NOW and the tooltip says what a click does -- which
+// also carries the piece a glyph cannot, namely what `auto` currently resolves
+// to.
+const GLYPH = { light: '\u2600', dark: '\u263e', auto: 'A' };
+const NEXT_MODE = { light: 'dark', dark: 'auto', auto: 'light' };
+const MODE_WORD = { light: 'light', dark: 'dark', auto: 'auto' };
+
+/** "Theme: auto (system: dark) -- click for light" */
+export function themeTitle() {
+  const now = mode === 'auto' ? `auto (system: ${effectiveTheme()})` : MODE_WORD[mode];
+  return `Theme: ${now} \u2014 click for ${MODE_WORD[NEXT_MODE[mode]]}`;
+}
+
 const mql = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
 
 /** The mode the user asked for: 'light' | 'dark' | 'auto'. */
@@ -249,24 +264,16 @@ export function inkOn(color) {
  * Returns an element; the caller decides where it goes.
  */
 export function themeSwitch(doc = document) {
-  const wrap = doc.createElement('span');
-  wrap.className = 'vz-theme';
-  wrap.setAttribute('role', 'group');
-  wrap.setAttribute('aria-label', 'colour theme');
-  const btns = MODES.map((m) => {
-    const b = doc.createElement('button');
-    b.type = 'button';
-    b.className = 'vz-theme-btn';
-    b.dataset.mode = m;
-    b.textContent = { light: '☀', dark: '☾', auto: 'A' }[m];
-    b.title = { light: 'light theme', dark: 'dark theme', auto: 'follow the system theme' }[m];
+  const b = doc.createElement('button');
+  b.type = 'button';
+  b.className = 'vz-theme-btn';
+  b.onclick = () => setTheme(NEXT_MODE[mode]);
+  const sync = () => {
+    b.textContent = GLYPH[mode];
+    b.title = themeTitle();
     b.setAttribute('aria-label', b.title);
-    b.onclick = () => setTheme(m);
-    wrap.appendChild(b);
-    return b;
-  });
-  const sync = () => btns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+  };
   onThemeChange(sync);
   sync();
-  return wrap;
+  return b;
 }

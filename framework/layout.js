@@ -39,10 +39,8 @@ const CSS = `
 :root{color-scheme:light}
 html,body{background:var(--vz-n0);margin:0}
 .vz-page{font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--vz-n14);max-width:1100px;margin:0 auto;padding:16px}
-.vz-theme{display:inline-flex;border:1px solid var(--vz-n6);border-radius:6px;overflow:hidden}
-.vz-theme-btn{font:12px ui-monospace,monospace;line-height:1.5;border:0;background:var(--vz-n0);color:var(--vz-n11);padding:2px 7px;cursor:pointer}
-.vz-theme-btn+.vz-theme-btn{border-left:1px solid var(--vz-n6)}
-.vz-theme-btn[aria-pressed="true"]{background:var(--vz-accent);color:var(--vz-n0)}
+.vz-theme-btn{font:12px ui-monospace,monospace;line-height:1.5;border:1px solid var(--vz-n6);border-radius:6px;background:var(--vz-n0);color:var(--vz-n11);padding:2px 8px;cursor:pointer}
+.vz-theme-btn:hover{border-color:var(--vz-accent);color:var(--vz-accent)}
 .vz-nav{display:flex;align-items:center;gap:10px;font:12px ui-monospace,monospace;margin-bottom:10px;flex-wrap:wrap}
 .vz-nav a{color:var(--vz-accent);text-decoration:none;border:1px solid var(--vz-accentBg);background:var(--vz-accentBg);border-radius:6px;padding:2px 9px;white-space:nowrap}
 .vz-nav a:hover{background:var(--vz-accentBg);border-color:var(--vz-accentLine)}

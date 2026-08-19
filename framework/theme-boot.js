@@ -12,7 +12,19 @@
 (function () {
   var KEY = 'vz-theme';
   var MODES = ['light', 'dark', 'auto'];
+  var GLYPH = { light: '\u2600', dark: '\u263e', auto: 'A' };
+  var NEXT = { light: 'dark', dark: 'auto', auto: 'light' };
   var mode = 'auto';
+
+  // What `auto` actually resolves to right now -- the tooltip has to say it,
+  // because the glyph cannot.
+  function systemTheme() {
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  function title() {
+    var now = mode === 'auto' ? 'auto (system: ' + systemTheme() + ')' : mode;
+    return 'Theme: ' + now + ' \u2014 click for ' + NEXT[mode];
+  }
 
   function stored() {
     try {
@@ -35,7 +47,9 @@
     else root.setAttribute('data-vz-theme', mode);
     var btns = document.querySelectorAll('.vz-theme-btn');
     for (var i = 0; i < btns.length; i++) {
-      btns[i].setAttribute('aria-pressed', String(btns[i].getAttribute('data-mode') === mode));
+      btns[i].textContent = GLYPH[mode];
+      btns[i].title = title();
+      btns[i].setAttribute('aria-label', btns[i].title);
     }
   }
 
@@ -59,20 +73,11 @@
       host.className = (host.className ? host.className + ' ' : '') + 'vz-theme';
       host.setAttribute('role', 'group');
       host.setAttribute('aria-label', 'colour theme');
-      var glyph = { light: '☀', dark: '☾', auto: 'A' };
-      var title = { light: 'light theme', dark: 'dark theme', auto: 'follow the system theme' };
-      for (var i = 0; i < MODES.length; i++) {
-        var m = MODES[i];
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'vz-theme-btn';
-        b.setAttribute('data-mode', m);
-        b.textContent = glyph[m];
-        b.title = title[m];
-        b.setAttribute('aria-label', title[m]);
-        b.onclick = (function (mm) { return function () { set(mm); }; })(m);
-        host.appendChild(b);
-      }
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'vz-theme-btn';
+      b.onclick = function () { set(NEXT[mode]); };
+      host.appendChild(b);
     }
     apply();
   }
