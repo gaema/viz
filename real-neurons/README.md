@@ -1,6 +1,6 @@
 # real-neurons -- which MLP units fire
 
-> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a ~548 MB weight download: `python3 -m http.server 8099` The model host sends `no-store` and a per-request download URL, so the browser cannot reuse these weights between pages: each real-model page fetches its own copy.
 
 Interactive page: real **MLP neuron activations** in GPT-2. Each transformer
 block's MLP has 3072 "neurons" — the post-gelu units between the two projections,

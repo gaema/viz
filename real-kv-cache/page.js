@@ -113,7 +113,7 @@ mount({
 
     const ban = (() => {
       if (M.status === 'loading-tok') return { t: '↓ loading tokenizer…', c: T.goldDeep };
-      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB, one time)`, c: T.goldDeep };
+      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB)`, c: T.goldDeep };
       if (M.generating) return { t: '✍ decoding — appending one cache column per token…', c: T.goldDeep };
       if (M.source === 'real') return { t: '● real GPT-2 (124M) — KV cache from the actual model', c: T.okDeep };
       if (M.status === 'offline') return { t: '○ offline — synthetic K cache (real dims/memory; click “load real GPT-2”)', c: T.goldDeep };
@@ -161,7 +161,7 @@ mount({
   },
   challenges: [
     { goal: 'Ground it in the REAL model — load GPT-2 so the cache is the actual K/V (needs network; “load real GPT-2”).',
-      hint: 'The banner turns green “● real GPT-2” after the ~548 MB one-time download.',
+      hint: 'The banner turns green “● real GPT-2” after the ~548 MB download.',
       check: (api) => ({ solved: api.probe.source === 'real', detail: `source = ${api.probe.source}` }) },
     { goal: 'Watch the cache grow — generate so the sequence reaches at least the prompt length + 8 (the decode phase appends one column per token).',
       hint: 'Set gen tokens ≥ 8 and press generate; each token adds one position to the cache.',

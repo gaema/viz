@@ -1,6 +1,6 @@
 # real-kv-cache -- what fills up as GPT-2 generates
 
-> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a ~548 MB weight download: `python3 -m http.server 8099` The model host sends `no-store` and a per-request download URL, so the browser cannot reuse these weights between pages: each real-model page fetches its own copy.
 
 Interactive page: the **real** counterpart to the synthetic
 [`kv-cache`](../kv-cache/README.md) page. It shows GPT-2's **actual** KV cache as

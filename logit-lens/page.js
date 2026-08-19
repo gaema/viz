@@ -105,7 +105,7 @@ mount({
 
     const ban = (() => {
       if (M.status === 'loading-tok') return { t: '↓ loading tokenizer…', c: T.goldDeep };
-      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB, one time)`, c: T.goldDeep };
+      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB)`, c: T.goldDeep };
       if (M.status === 'running') return { t: '⟳ running GPT-2…', c: T.goldDeep };
       if (M.source === 'real') return { t: '● real GPT-2 (124M) — logit lens computed in-browser', c: T.okDeep };
       if (M.status === 'offline') return { t: '○ offline — idealized synthetic trajectory (click “load real GPT-2”)', c: T.goldDeep };
@@ -149,7 +149,7 @@ mount({
   },
   challenges: [
     { goal: 'Ground it in the REAL model — compute the lens from GPT-2’s actual layers (needs network; “load real GPT-2”).',
-      hint: 'The banner turns green “● real GPT-2” after the ~548 MB one-time download.',
+      hint: 'The banner turns green “● real GPT-2” after the ~548 MB download.',
       check: (api) => ({ solved: api.probe.source === 'real', detail: `source = ${api.probe.source}` }) },
     { goal: 'Find a CONFIDENT prediction — type a prefix whose final-layer top token exceeds 50% probability.',
       hint: 'Open-ended prompts ("the cat ran …") are flat. Try something the model is sure of, e.g. "The Eiffel Tower is in the city of".',

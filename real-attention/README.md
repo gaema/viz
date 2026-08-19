@@ -1,6 +1,6 @@
 # real-attention -- finding GPT-2's heads (real weights)
 
-> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a ~548 MB weight download: `python3 -m http.server 8099` The model host sends `no-store` and a per-request download URL, so the browser cannot reuse these weights between pages: each real-model page fetches its own copy.
 
 Interactive page: the **real** counterpart to the synthetic attention pages
 ([`attention-patterns`](../attention-patterns/), [`scaled-dot-attention`](../scaled-dot-attention/)).

@@ -65,7 +65,7 @@ mount({
   controls: (c, page) => {
     c.select('image', { label: 'image', options: Object.keys(IMAGES), value: 'cats' });
     c.button('classify', () => { if (clf) classify(page, page.state.image); else page.redraw(); });
-    c.button('load real ViT (~340 MB)', () => ensureReal(page));
+    c.button('load real ViT (~88 MB)', () => ensureReal(page));
   },
   onPointer: () => {},
   draw: (page) => {
@@ -78,7 +78,7 @@ mount({
     page.probe = { source: M.source, image: M.image, topLabel: top[0], topScore: top[1], nPatches: GRID * GRID };
 
     const ban = (() => {
-      if (M.status === 'loading-model') return { t: `↓ downloading ViT… ${(M.progress * 100 | 0)}% (~340 MB, one time)`, c: T.goldDeep };
+      if (M.status === 'loading-model') return { t: `↓ downloading ViT… ${(M.progress * 100 | 0)}% (~88 MB)`, c: T.goldDeep };
       if (M.status === 'running') return { t: '⟳ classifying…', c: T.goldDeep };
       if (M.source === 'real') return { t: '● real ViT-base (Xenova/vit-base-patch16-224) — in-browser', c: T.okDeep };
       if (M.status === 'offline') return { t: '○ offline — synthetic stand-in (click “load real ViT”)', c: T.goldDeep };
@@ -120,10 +120,10 @@ mount({
   },
   challenges: [
     { goal: 'Ground it in the REAL model — run the actual ViT on the image (needs network; “load real ViT”).',
-      hint: 'The banner turns green “● real ViT-base” after the ~340 MB one-time download.',
+      hint: 'The banner turns green “● real ViT-base” after the ~88 MB download.',
       check: (api) => ({ solved: api.probe.source === 'real', detail: `source = ${api.probe.source}` }) },
     { goal: 'Classify the cats image correctly — the real ViT’s top class should be a cat (e.g. “Egyptian cat”).',
-      hint: 'Load the real model with the “cats” image selected; ViT-base predicts “Egyptian cat” at ~94%.',
+      hint: 'Load the real model with the “cats” image selected; this int8-quantized ViT-base predicts “Egyptian cat” at ~90%.',
       check: (api) => ({ solved: api.probe.source === 'real' && /cat/i.test(api.probe.topLabel || ''), detail: `top = "${api.probe.topLabel}"` }) },
   ],
 }).then((page) => {

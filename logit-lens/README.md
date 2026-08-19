@@ -1,6 +1,6 @@
 # logit-lens -- watching a prediction form across layers
 
-> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a ~548 MB weight download: `python3 -m http.server 8099` The model host sends `no-store` and a per-request download URL, so the browser cannot reuse these weights between pages: each real-model page fetches its own copy.
 
 Interactive page: the **logit lens** (nostalgebraist) on a **real GPT-2 (124M)**.
 It applies the model's final `ln_f` + tied lm_head to the residual stream at

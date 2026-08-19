@@ -118,7 +118,7 @@ mount({
   mount: 'body',
   slug: 'real-logits',
   title: 'real logits — what GPT-2 actually predicts next',
-  blurb: 'The synthetic lm-head + sampling pages show the mechanism on seeded numbers; this page runs a REAL GPT-2 in your browser — the verified forward + ln_f + the tied lm_head — to get the actual next-token logits for a prefix you type, then draws the probability distribution. Reshape it with temperature, top-k, and top-p exactly as a sampler would, and watch which tokens survive. Offline it shows an idealized stand-in; the real model needs a ~548 MB one-time download.',
+  blurb: 'The synthetic lm-head + sampling pages show the mechanism on seeded numbers; this page runs a REAL GPT-2 in your browser — the verified forward + ln_f + the tied lm_head — to get the actual next-token logits for a prefix you type, then draws the probability distribution. Reshape it with temperature, top-k, and top-p exactly as a sampler would, and watch which tokens survive. Offline it shows an idealized stand-in; the real model needs a ~548 MB download.',
   prefer: 'canvas2d',
   aspect: '16 / 10',
   controls: (c, page) => {
@@ -140,7 +140,7 @@ mount({
 
     const ban = (() => {
       if (M.status === 'loading-tok') return { t: '↓ loading tokenizer…', c: T.goldDeep };
-      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB, one time)`, c: T.goldDeep };
+      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB)`, c: T.goldDeep };
       if (M.status === 'running') return { t: '⟳ running GPT-2…', c: T.goldDeep };
       if (M.source === 'real') {
         const be = M.backend === 'gpu' ? 'WebGPU' : 'CPU', mism = M.gpuCheck && !M.gpuCheck.ok;
@@ -186,7 +186,7 @@ mount({
   },
   challenges: [
     { goal: 'Ground it in the REAL model — compute true next-token logits in-browser (needs network; “load real GPT-2”).',
-      hint: 'The banner turns green “● real GPT-2” after the ~548 MB one-time download.',
+      hint: 'The banner turns green “● real GPT-2” after the ~548 MB download.',
       check: (api) => ({ solved: api.probe.source === 'real', detail: `source = ${api.probe.source}` }) },
     { goal: 'Use nucleus (top-p) sampling — lower top-p until the sampler keeps 5 or fewer tokens (the grey ones are cut).',
       hint: 'Top-p keeps the smallest set whose probabilities sum to p. Drag top-p down from 1.0.',

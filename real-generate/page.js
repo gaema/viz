@@ -122,7 +122,7 @@ mount({
 
     const ban = (() => {
       if (M.status === 'loading-tok') return { t: '↓ loading tokenizer…', c: T.goldDeep };
-      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB, one time)`, c: T.goldDeep };
+      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB)`, c: T.goldDeep };
       if (M.generating) return { t: '✍ generating…', c: T.goldDeep };
       if (M.source === 'real') return { t: '● real GPT-2 (124M) — generating in-browser', c: T.okDeep };
       if (M.status === 'offline') return { t: '○ offline — synthetic continuation (click “load real GPT-2”)', c: T.goldDeep };
@@ -156,7 +156,7 @@ mount({
   },
   challenges: [
     { goal: 'Ground it in the REAL model — write text with the actual GPT-2 (needs network; “load real GPT-2”).',
-      hint: 'The banner turns green “● real GPT-2” after the ~548 MB one-time download.',
+      hint: 'The banner turns green “● real GPT-2” after the ~548 MB download.',
       check: (api) => ({ solved: api.probe.source === 'real', detail: `source = ${api.probe.source}` }) },
     { goal: 'Generate at least 12 tokens of text — hit ▶ generate.',
       hint: 'Set tokens ≥ 12 and press generate; greedy is deterministic, or turn it off to sample.',

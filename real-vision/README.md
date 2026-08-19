@@ -1,6 +1,6 @@
 # real-vision -- a ViT classifying a real image
 
-> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a one-time ~340 MB model download: `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a ~88 MB model download: `python3 -m http.server 8099`
 
 Interactive page: the **vision entry** to the real-* family. A real **Vision
 Transformer** (ViT-base) classifies a real photo in your browser. **Anchor**:
@@ -26,11 +26,18 @@ vision forward; the page's job is to show the patches and the real predictions.
 
 ## Verified against PyTorch
 
-The top class is checked against `ViTForImageClassification`
+The top CLASS is checked against `ViTForImageClassification`
 (`google/vit-base-patch16-224`): on the sample images the page agrees with
-PyTorch — **cats → "Egyptian cat" (~94%)**, **tiger → "tiger" (~89%)** (reference
+PyTorch — **cats → "Egyptian cat"**, **tiger → "tiger"** (reference
 [`vit-groundtruth.fixture.json`](vit-groundtruth.fixture.json)). Live-verified in
 a real browser by.
+
+The CONFIDENCE differs from that reference on purpose, and the page says the
+number it actually produces: transformers.js fetches the **int8-quantized** ONNX
+export (~88 MB, against ~347 MB unquantized), so the cats photo comes out around
+**90%** where the fp32 PyTorch reference gives ~94%. Same top-1 class, same top-5
+— quantization moved the confidence, not the answer, which is the trade this
+tree's own `quantization` and `real-quant` pages are about.
 
 > Deeper future extension (noted in the plan): a hand-written ViT forward to show
 > real *attention over patches* / feature maps — transformers.js can't emit
