@@ -59,9 +59,11 @@ export const ORDER = [
   { slug: 'real-attention', family: 'I' },
   { slug: 'real-logits', family: 'I' },
   { slug: 'logit-lens', family: 'I' },
+  { slug: 'real-neurons', family: 'I' },
   { slug: 'real-quant', family: 'I' },
+  { slug: 'real-kv-cache', family: 'I' },
   { slug: 'real-generate', family: 'I' },
-  // J -- Deployment & planning: how a model maps onto real hardware
+  { slug: 'real-vision', family: 'I' },
 ];
 
 // Resolve the current page's slug from an explicit override or the URL path

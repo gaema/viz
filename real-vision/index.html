@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>real-vision | viz</title>
+</head>
+<body>
+<!-- Phase 9 (real-model grounding): REAL vision — extends real grounding to the
+     image family. Runs a real Vision Transformer (Xenova/vit-base-patch16-224)
+     in-browser via transformers.js on a real photo, shows how the image is cut
+     into 16×16 patches (the ViT tokenization — grounds patch-embedding), and the
+     real top-5 class predictions. Verified vs PyTorch ViT. Needs network. Serve:
+       python3 -m http.server 8099
+       open http://localhost:8099/real-vision/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

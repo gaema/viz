@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>real-neurons | viz</title>
+</head>
+<body>
+<!-- Phase 9 (real-model grounding): REAL MLP neuron activations. Each transformer
+     block's MLP has 3072 "neurons" (post-gelu units); this page runs GPT-2 in the
+     browser (GPT2.mlp(), verified vs PyTorch) and shows which neurons fire for
+     which tokens — the basis of mechanistic interpretability. Needs network.
+     Serve over http:
+       python3 -m http.server 8099
+       open http://localhost:8099/real-neurons/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

@@ -138,15 +138,24 @@ export async function mount(opts = {}) {
 
   // In-demo navigation strip: back to the catalogue + prev/next across the
   // curriculum order (order.js), a position indicator, and a copy-link button.
+  //
+  // `opts.curriculum: false` drops the catalogue / prev / next / position part
+  // and keeps only the theme switch + copy link. That is for a page that REUSES
+  // this framework from OUTSIDE this tree (ai/models/shard-planner does) and is
+  // therefore not in order.js: without it the strip renders a dead
+  // `../catalogue.html` link and a permanently dimmed "start / end" pair.
   const slug = currentSlug(opts.slug);
   const nb = neighbours(slug);
+  const inCurriculum = opts.curriculum !== false;
   const nav = document.createElement('div'); nav.className = 'vz-nav';
   const mkLink = (href, text, cls) => { const a = document.createElement('a'); a.href = href; a.textContent = text; if (cls) a.className = cls; return a; };
   const mkDim = (text) => { const s = document.createElement('span'); s.className = 'vz-nav-copy vz-nav-dim'; s.textContent = text; return s; };
-  nav.append(mkLink('../catalogue.html', '← all demos', 'vz-nav-home'));
-  nav.append(nb.prev ? mkLink('../' + nb.prev.slug + '/index.html', '‹ ' + nb.prev.slug) : mkDim('‹ start'));
-  nav.append(nb.next ? mkLink('../' + nb.next.slug + '/index.html', nb.next.slug + ' ›') : mkDim('end ›'));
-  if (nb.index >= 0) { const pos = document.createElement('span'); pos.className = 'vz-nav-pos'; pos.textContent = `${nb.index + 1} / ${nb.total}`; nav.append(pos); const fam = document.createElement('span'); fam.className = 'vz-nav-fam'; fam.textContent = 'Family ' + nb.family; nav.append(fam); }
+  if (inCurriculum) {
+    nav.append(mkLink('../catalogue.html', '← all demos', 'vz-nav-home'));
+    nav.append(nb.prev ? mkLink('../' + nb.prev.slug + '/index.html', '‹ ' + nb.prev.slug) : mkDim('‹ start'));
+    nav.append(nb.next ? mkLink('../' + nb.next.slug + '/index.html', nb.next.slug + ' ›') : mkDim('end ›'));
+    if (nb.index >= 0) { const pos = document.createElement('span'); pos.className = 'vz-nav-pos'; pos.textContent = `${nb.index + 1} / ${nb.total}`; nav.append(pos); const fam = document.createElement('span'); fam.className = 'vz-nav-fam'; fam.textContent = 'Family ' + nb.family; nav.append(fam); }
+  }
   const spacer = document.createElement('span'); spacer.className = 'vz-nav-sp'; nav.append(spacer);
   const copyBtn = document.createElement('span'); copyBtn.className = 'vz-nav-copy'; copyBtn.style.cursor = 'pointer'; copyBtn.style.borderRadius = '6px'; copyBtn.style.padding = '2px 9px'; copyBtn.textContent = '\u{1F517} copy link';
   copyBtn.addEventListener('click', () => { try { navigator.clipboard.writeText(location.href); const o = copyBtn.textContent; copyBtn.textContent = '✓ copied'; setTimeout(() => { copyBtn.textContent = o; }, 1200); } catch (_) {} });
@@ -160,7 +169,7 @@ export async function mount(opts = {}) {
   // Global keyboard nav: ←/→ move between demos, '/' jumps to the catalogue.
   // Ignored while a form control (slider/select) is focused so it doesn't fight
   // the widgets.
-  if (typeof document !== 'undefined') document.addEventListener('keydown', (e) => {
+  if (inCurriculum && typeof document !== 'undefined') document.addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const t = document.activeElement, tag = t && t.tagName;
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;

@@ -1,13 +1,12 @@
 # ssm-scan -- the selective state-space scan (Mamba / S6)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how a selective state-space model carries a recurrent state
 through a sequence -- the **scan** `hₜ = Āₜ ⊙ hₜ₋₁ + B̄ₜ · xₜ`, `yₜ = C · hₜ` --
 and what makes it **selective**: the timestep `Δₜ` (hence the decay `Āₜ` and the
 input gain `B̄ₜ`) depends on the input. **Anchor**: N1 sequence mixer / N2
-recurrent state (Family E; see
-`../../design/emerging-architectures.md`
+recurrent state (Family E
 Mamba/SSM).
 
 ## What it shows
@@ -16,13 +15,13 @@ A scalar input sequence `x [L]` is scanned into an `N`-dim hidden state. At each
 step:
 
 - **Δₜ = softplus(bias + selectivity · xₜ)** -- the input-dependent timestep.
-  Large `Δ` on a *salient* token ⇒ **write** (the state captures `xₜ`); small `Δ`
-  on filler ⇒ **hold** (the state coasts, retaining memory). With selectivity 0
-  it is a plain linear SSM (constant `Δ`).
+ Large `Δ` on a *salient* token ⇒ **write** (the state captures `xₜ`); small `Δ`
+ on filler ⇒ **hold** (the state coasts, retaining memory). With selectivity 0
+ it is a plain linear SSM (constant `Δ`).
 - discretize: **Āₜ,ₙ = exp(Δₜ · Aₙ)** (per-dim decay in (0,1)),
-  **B̄ₜ,ₙ = (Āₜ,ₙ − 1)/Aₙ · Bₙ**;
+ **B̄ₜ,ₙ = (Āₜ,ₙ − 1)/Aₙ · Bₙ**;
 - recurrence: **hₜ,ₙ = Āₜ,ₙ · hₜ₋₁,ₙ + B̄ₜ,ₙ · xₜ** -- slow dims (small |Aₙ|)
-  remember for a long time, fast dims forget quickly;
+ remember for a long time, fast dims forget quickly;
 - output: **yₜ = Σₙ Cₙ · hₜ,ₙ**.
 
 The panels share a horizontal time axis: input `x`, the selective `Δ`, the state
@@ -41,6 +40,6 @@ axis, and the recurrence inset).
 
 ## Wiring
 
-`layout.mount()` + controls (`N`, `L`, `sel`, `dbias`, `seed`) + an `L`-step
+`layout.mount` + controls (`N`, `L`, `sel`, `dbias`, `seed`) + an `L`-step
 `Transport` (scan step by step) + `onPointer` input-bar drag + hover.
 `?step` / `?drag` / `?sel` / `?hover` hooks. Source: [`page.js`](page.js).

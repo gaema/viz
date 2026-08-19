@@ -1,12 +1,12 @@
 # real-attention -- finding GPT-2's heads (real weights, Phase 9)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
 
 Interactive page: the **real** counterpart to the synthetic attention pages
 ([`attention-patterns`](../attention-patterns/), [`scaled-dot-attention`](../scaled-dot-attention/)).
 It runs a **real GPT-2 (124M)** in your browser and lets you hunt its attention
 heads on any sentence you type. **Anchor**: A2 attention. Second increment of
-**Phase 9 — real-model grounding** (`../plan/phase9.md`).
+**Phase 9 — real-model grounding**.
 
 ## Why a hand-written forward pass
 
@@ -17,10 +17,10 @@ init). So this page does NOT use transformers.js for inference. Instead
 [`gpt2.js`](gpt2.js):
 
 1. fetches the raw GPT-2 **safetensors** weights (HF, CORS-enabled) and parses
-   them in vanilla JS, and
+ them in vanilla JS,
 2. runs a **minimal GPT-2 forward pass** (token+pos embed → 12 blocks of
-   LayerNorm + Conv1D QKV + causal attention + Conv1D MLP with `gelu_new`),
-   capturing `A[layer][head] = softmax(QKᵀ/√d + causal mask)` at every layer.
+ LayerNorm + Conv1D QKV + causal attention + Conv1D MLP with `gelu_new`),
+ capturing `A[layer][head] = softmax(QKᵀ/√d + causal mask)` at every layer.
 
 transformers.js is still used — but only for the small **tokenizer** (real
 GPT-2 BPE), not the model.
@@ -32,10 +32,10 @@ GPT-2 BPE), not the model.
 fixture ([`gpt2-groundtruth.fixture.json`](gpt2-groundtruth.fixture.json)):
 
 - attention matrices at layers 0 / 4 / 5 / 11 match within **max|Δ| ≈ 5e-5**
-  (the fixture's 4-dp rounding floor), and
+ (the fixture's 4-dp rounding floor),
 - the JS head detectors independently pick the **same literature heads** PyTorch
-  does: previous-token = **L4·H11** (score 1.00), induction = **L5·H5** (0.41),
-  attention-sink = **L7·H2** (0.98).
+ does: previous-token = **L4·H11** (score 1.00), induction = **L5·H5** (0.41),
+ attention-sink = **L7·H2** (0.98).
 
 Run it (548 MB weights not committed):
 `GPT2_WEIGHTS=~/.cache/huggingface/hub/models--gpt2/snapshots/*/model.safetensors node real-attention/gpt2.test.mjs`
@@ -61,21 +61,21 @@ random model under any WebGPU runtime (e.g. Deno) and skips cleanly where
 > Deno (WebGPU via radv on an AMD Radeon 610M) reproduces the CPU forward within
 > **worst attn |Δ| = 5.96e-7**. Plus the in-page self-check on a real browser, with
 > the PyTorch-pinned CPU forward (`gpt2.test.mjs`) as the ground-truth and the
-> automatic fallback. (Headless chromium here doesn't expose `navigator.gpu`, and
+> automatic fallback. (Headless chromium here doesn't expose `navigator.gpu`,
 > a host with a broken headless Intel GPU wedges Deno's Vulkan adapter init — use a
 > clean AMD/radv host for the Deno run.)
 
 ## What it shows
 
-Type a sentence (the default `the cat sat on the mat . the cat ran` repeats
+Type a sentence (the default `the cat sat on the mat. the cat ran` repeats
 "the cat" so an induction head fires). Two linked views:
 
 - **attention heatmap** for the selected `layer`/`head` — a causal (lower-
-  triangular) `token × token` grid; hover a cell for the exact weight + the
-  query→key token pair.
+ triangular) `token × token` grid; hover a cell for the exact weight + the
+ query→key token pair.
 - **12×12 head-map** — every head, coloured by its role (blue = previous-token,
-  green = induction, amber = attention-sink, grey = none), intensity by score.
-  Click any cell to inspect that head. This is how you *find* the famous heads.
+ green = induction, amber = attention-sink, grey = none), intensity by score.
+ Click any cell to inspect that head. This is how you *find* the famous heads.
 
 ## Render tier
 
@@ -83,10 +83,10 @@ T2 (Canvas2D heatmap + head-map; the "compute" tier is the GPT-2 forward in JS).
 
 ## Wiring
 
-`layout.mount()` + `controls.text('sentence')` + `layer`/`head` steppers + a
+`layout.mount` + `controls.text('sentence')` + `layer`/`head` steppers + a
 "jump to induction head" button + a "WebGPU compute" toggle + "load real GPT-2".
 The forward runs on the CPU ([`gpt2.js`](gpt2.js)) or the GPU
-([`gpt2-webgpu.js`](gpt2-webgpu.js)); it is async and
+([`gpt2-webgpu.js`](gpt2-webgpu.js)); it is async
 degrades to a **labelled idealized synthetic stand-in** offline (the three head
 shapes, hand-built on the default sentence) — never blank, headless-verifiable.
 A 25 s timeout guards the tokenizer import. Two **challenges** (`?ch=N`): load the

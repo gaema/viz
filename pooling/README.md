@@ -1,12 +1,11 @@
 # pooling -- max / average pooling, downsampling
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server (ES modules): `python3 -m http.server 8099`
 
-Interactive page: spatial **pooling** -- a window slides over the input and
+Interactive page: spatial **pooling** -- a window slides over the input
 reduces each window to one number (its **max** or its **average**), shrinking the
 feature map. The cheap, parameter-free downsampler in a CNN. **Anchor**: F (CNN /
-vision); Family F, companion to [convolution](../convolution/README.md) (see
-`../plan/curriculum.md`).
+vision); Family F, companion to [convolution](../convolution/README.md).
 
 ## What it shows
 
@@ -15,7 +14,7 @@ the windows **tile** the input without overlap). Each window becomes one output
 cell:
 
 - **max pooling**: `out = max(window)` -- keeps the strongest activation in the
-  window (the *argmax* cell is highlighted); translation-tolerant, drops the rest.
+ window (the *argmax* cell is highlighted); translation-tolerant, drops the rest.
 - **avg pooling**: `out = mean(window)` -- smooths the window into its average.
 
 Output size = `⌊(n − k)/s⌋ + 1`, so a `2×2` pool with stride 2 **halves** each
@@ -34,7 +33,7 @@ per-window reduction).
 
 ## Wiring
 
-`layout.mount()` + controls (`n`, `k`, `stride`, `pool`, `seed`) + an
-output-position `Transport` (slide the window) + `onPointer` input-cell drag +
+`layout.mount` + controls (`n`, `k`, `stride`, `pool`, `seed`) + an
+output-position `Transport` (slide the window) + `onPointer` input-cell drag
 hover. `?step` / `?n` / `?k` / `?stride` / `?pool` / `?drag` / `?hover` hooks.
 Source: [`page.js`](page.js).

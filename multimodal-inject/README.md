@@ -1,10 +1,10 @@
 # multimodal-inject -- vision/audio tokens in the text stream
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: **multimodal injection** -- how a vision-language / audio-language
 model feeds a non-text input into a text LLM. **Anchor**: G (multimodal /
-deployment); Family G (see `../plan/curriculum.md`).
+deployment); Family G.
 
 ## What it shows
 
@@ -12,18 +12,18 @@ There is no separate "image input" to an LLM -- the image is turned into **token
 that live in the **same embedding space as words**:
 
 1. **Encode** -- a ViT (image) or audio encoder turns the input into per-patch /
-   per-frame feature vectors.
+ per-frame feature vectors.
 2. **Project** -- a **projector MLP** (`D_enc → D`) maps those features into the
-   LLM's token-embedding dimension `D`.
+ LLM's token-embedding dimension `D`.
 3. **Inject** -- the resulting "soft" media tokens are **spliced into the text
-   token sequence** at a `<image>` / `<audio>` placeholder.
+ token sequence** at a `<image>` / `<audio>` placeholder.
 4. **Attend** -- the merged sequence (text embeddings + media tokens, every column
-   the same `D`-dim vector) is run through ordinary **self-attention**, which
-   attends across text and media **uniformly** -- the model never sees a "modality
-   type", only token vectors.
+ the same `D`-dim vector) is run through ordinary **self-attention**, which
+ attends across text and media **uniformly** -- the model never sees a "modality
+ type", only token vectors.
 
 This is exactly how LLaVA, Qwen-VL, and audio-LMs work. The merged-sequence heatmap
-colour-codes each column by source (text = blue, image = orange, audio = green) and
+colour-codes each column by source (text = blue, image = orange, audio = green)
 brackets the injected media block.
 
 A **causal self-attention grid** below the LLM bar makes the "uniform attention"
@@ -46,6 +46,6 @@ causal self-attention grid with its per-modality query-row breakdown).
 
 ## Wiring
 
-`layout.mount()` + controls (`modality`, `N`, `prompt`, `seed`) + `animate` (the
+`layout.mount` + controls (`modality`, `N`, `prompt`, `seed`) + `animate` (the
 injection flow dot) + `onPointer` drag-the-media-block + hover. `?modality` / `?N` /
 `?prompt` / `?seed` / `?inject` / `?hover` hooks. Source: [`page.js`](page.js).

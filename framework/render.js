@@ -50,11 +50,18 @@ const _sequential = _rampFromStops([
 function _hex2rgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
 function _divergingRamp() {
   const dark = effectiveTheme() === 'dark';
-  return _rampFromStops([
+  const f = _rampFromStops([
     [0.0, dark ? [88, 150, 226] : [33, 102, 172]],
     [0.5, _hex2rgb(T.n0)],
     [1.0, dark ? [229, 83, 75] : [178, 24, 43]],
   ]);
+  // TAG, because identity no longer works: this builds a NEW function on every
+  // access (it has to -- the ramp depends on the live theme), so `ramp ===
+  // _diverging` can never be true again. _domain() needs to know a ramp is
+  // diverging to centre the domain on zero, and silently losing that would
+  // un-centre every signed heatmap without erroring.
+  f.diverging = true;
+  return f;
 }
 
 // Getters, not fixed functions: a page reads `ramps.diverging` inside draw(), so
@@ -115,13 +122,13 @@ function _coerce(data, rows, cols) {
 }
 
 // Resolve a [lo,hi] domain. 'auto' picks symmetric-around-0 for the diverging
-// ramp (so 0 lands on white) and min..max otherwise.
+// ramp (so 0 lands on the page ground) and min..max otherwise.
 function _domain(flat, domain, ramp) {
   if (Array.isArray(domain)) return domain;
   let lo = Infinity, hi = -Infinity;
   for (let i = 0; i < flat.length; i++) { const v = flat[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
   if (!isFinite(lo)) { lo = 0; hi = 1; }
-  if (ramp === _diverging) { const m = Math.max(Math.abs(lo), Math.abs(hi)) || 1; return [-m, m]; }
+  if (ramp && ramp.diverging) { const m = Math.max(Math.abs(lo), Math.abs(hi)) || 1; return [-m, m]; }
   if (lo === hi) hi = lo + 1;
   return [lo, hi];
 }

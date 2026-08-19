@@ -1,10 +1,10 @@
 # qkv-projection -- one embedding → Q, K, V
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server (ES modules): `python3 -m http.server 8099`
 
-Interactive page: how a token's embedding is projected into query, key, and
+Interactive page: how a token's embedding is projected into query, key,
 value vectors by three learned weight matrices. **Anchor**: A5 embedding / A2
-head_dim (Family B1; see `../plan/curriculum.md`).
+head_dim (Family B1).
 
 ## What it shows
 
@@ -33,9 +33,9 @@ T1 (Canvas2D heatmaps for the embedding, weight matrices, and outputs).
 ## Wiring
 
 `layout.mount({autoplay, onPointer})` + controls (`dim`, `seed`) + a
-per-output-dim `Transport` (`loop:true`), drawn with `render.heatmap`/`cell` +
+per-output-dim `Transport` (`loop:true`), drawn with `render.heatmap`/`cell`
 `ctx` and `tensor.seededRandn`. Interactive per the framework contract: hover
-(`setTip` + `cellAt`), drag an embedding cell (`onPointer` + re-project), and
+(`setTip` + `cellAt`), drag an embedding cell (`onPointer` + re-project),
 autoplay+loop. Headless hooks: `?step=N`/`?play=1` plus `?hover=x,y` (set
 pointer + pause) and `?drag=d,val` (set `x[d]`, re-project, pause). Source:
 [`page.js`](page.js).

@@ -1,11 +1,11 @@
 # forward-pass -- one prompt → the next token, end to end
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: **the capstone.** Every other page shows one mechanism in
 isolation; this one **chains them**, running a short prompt all the way through a
 tiny (but real) transformer to predict the next token. **Anchor**: synthesis of
-Families A–G; Family H (see `../plan/curriculum.md`).
+Families A–G; Family H.
 
 ## What it shows
 
@@ -15,16 +15,16 @@ each stage (the strip on the left is the through-line):
 
 1. **tokenize** — prompt words → integer IDs (vocab indices).
 2. **embed** — `X₀[i] = E[id[i]] + position[i]` (a table lookup + a positional
-   offset) → the residual stream.
-3. **attention** — `softmax(QKᵀ/√dₕ)` (causal) · `V`, projected by `Wₒ` and
-   **added back**: `X₁ = X₀ + attnOut`. The `[n×n]` attention matrix is shown.
+ offset) → the residual stream.
+3. **attention** — `softmax(QKᵀ/√dₕ)` (causal) · `V`, projected by `Wₒ`
+ **added back**: `X₁ = X₀ + attnOut`. The `[n×n]` attention matrix is shown.
 4. **gated MLP** — `down( silu(x·W_g) ⊙ (x·W_u) )`, **added back**:
-   `X₂ = X₁ + mlp`.
+ `X₂ = X₁ + mlp`.
 5. **lm-head** — the **last** token's final (normed) hidden is projected onto
-   every vocab embedding → one logit per word.
+ every vocab embedding → one logit per word.
 6. **sample** — `softmax(logits / T)` → the next token.
 
-The recurring idea — every block **reads the stream, computes a correction, and
+The recurring idea — every block **reads the stream, computes a correction,
 adds it back** (the residual stream) — is made literal: the left strip shows `X₀ →
 X₁ → X₂` as you step.
 
@@ -43,6 +43,6 @@ distribution).
 
 ## Wiring
 
-`layout.mount()` + a 6-step `transport` (the stages) + controls (`prompt`, `temp`,
+`layout.mount` + a 6-step `transport` (the stages) + controls (`prompt`, `temp`,
 `head`, `seed`) + `onPointer` drag-a-token + hover. `?step` / `?prompt` / `?temp` /
 `?head` / `?seed` hooks. Source: [`page.js`](page.js).

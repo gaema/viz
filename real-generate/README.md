@@ -1,11 +1,10 @@
 # real-generate -- watch GPT-2 write (Phase 9 capstone)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
 
 Interactive page: the **capstone** of the real-* family — a **real GPT-2 (124M)**
 writing text in your browser, one token at a time. **Anchor**: A5 lm_head + the
-sampling + prefill-vs-decode concepts. Closes **Phase 9 — real-model grounding**
-(`../plan/phase9.md`).
+sampling + prefill-vs-decode concepts. Closes **Phase 9 — real-model grounding**.
 
 ## What it shows
 
@@ -14,12 +13,12 @@ Autoregressive generation is just the verified next-token step in a loop:
 and watch the model write, token by token, the new tokens highlighted as they land.
 
 - **greedy** (argmax) — deterministic; the same prompt always gives the same text.
-  `the cat sat on the mat . the cat ran` → ` up and down the hall and down the
-  hall …` (GPT-2's famous greedy loop).
+ `the cat sat on the mat. the cat ran` → ` up and down the hall and down the
+ hall …` (GPT-2's famous greedy loop).
 - **sampling** — turn greedy off for temperature / top-k / top-p with a **seed**;
-  change the seed for different continuations from the same prompt.
+ change the seed for different continuations from the same prompt.
 
-It reuses [`../real-attention/gpt2.js`](../real-attention/gpt2.js) `logits()` —
+It reuses [`../real-attention/gpt2.js`](../real-attention/gpt2.js) `logits` —
 the same forward verified against PyTorch — so the generation is real, not faked.
 
 ## Verified against PyTorch
@@ -27,7 +26,7 @@ the same forward verified against PyTorch — so the generation is real, not fak
 Greedy generation is deterministic, so it must reproduce HF
 `model.generate(do_sample=False)` exactly.
 `../real-attention/gpt2.test.mjs` runs the JS
-loop (argmax of `logits()` → append → repeat) and checks **all 12 generated token
+loop (argmax of `logits` → append → repeat) and checks **all 12 generated token
 ids match** the reference.
 
 ## Render tier
@@ -37,7 +36,7 @@ JS — one full forward per generated token, no KV cache).
 
 ## Wiring
 
-`layout.mount()` + `controls.text('prompt')` + `tokens` / `greedy` / `temperature`
+`layout.mount` + `controls.text('prompt')` + `tokens` / `greedy` / `temperature`
 / `top-k` / `top-p` / `seed` + a generate/stop button + "load real GPT-2". Sampling
 uses a seeded RNG (reproducible). Async streaming loop; degrades to a labelled
 synthetic continuation offline. Two **challenges** (`?ch=N`): load the real model,

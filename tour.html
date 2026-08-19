@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Guided tour | viz</title>
-<!-- Guided, narrated walkthrough of the 52 concept demos in curriculum order.
+<!-- Guided, narrated walkthrough of the 51 concept demos in curriculum order.
      STATIC shell (no module imports) so it opens over file:// or http, like
      catalogue.html. The embedded demo PREVIEW is an <iframe> of each live demo,
      which (like every demo) needs http to run its ES modules:
@@ -93,7 +93,6 @@ const FAM = {
   G:['Quantization & multimodal','The deployment reality: shrink the weights to int4, budget the VRAM, and feed images/audio into a text model as tokens.'],
   H:['End to end & training','Put every piece together: one prompt flowing through the whole pipeline to predict the next word — and then the backward pass that lets it learn.'],
   I:['Real-model grounding','Everything so far ran real math on synthetic (seeded) weights. Now ground it: fetch a real trained model in the browser and watch its real numbers show the same structure.'],
-  J:['Deployment & planning','One question is left once the math makes sense: what hardware does it take to actually run one of these? Split a real model across real accelerator cards and see what fits, what overflows, and what the split costs in traffic — every figure here is a planning ESTIMATE from published specs, never a measurement.'],
 };
 const STOPS = [
   ['A','matmul','Every layer of every model is, underneath, matrix multiplication — the dot product of rows and columns. Start here.'],
@@ -142,8 +141,11 @@ const STOPS = [
   ['I','real-attention','Real GPT-2, running in your browser: we fetch the weights and run a verified forward to capture every head\'s attention. Hunt the head-map for the induction, previous-token, and attention-sink heads the synthetic pages only sketched.'],
   ['I','real-logits','The same real GPT-2 forward, finished — ln_f + the tied lm_head turn the last hidden state into a real next-token distribution. Type a prefix, see what the model actually predicts, and reshape it with temperature / top-k / top-p like a real sampler.'],
   ['I','logit-lens','Peek inside: apply that same lm_head to EVERY layer, not just the last, and watch the prediction form with depth — early layers echo the input, the answer locks in near the top. The "logit lens".'],
+  ['I','real-neurons','Look inside the MLP: each block has 3072 "neurons", and on the real model you can see which ones fire for which tokens. Different neurons light up for different words — the raw material of mechanistic interpretability.'],
   ['I','real-quant','Deployment reality, on real numbers: range-fetch one actual GPT-2 weight tensor and watch it get quantized to int4. Real weights are a tight bell curve with a few outliers, so per-group scales + a few more bits crush the error — why int4/int8 work.'],
+  ['I','real-kv-cache','Why generation is fast and why long context costs memory, on the real model: watch GPT-2\'s actual KV cache fill — the prompt in one shot (prefill), then one column per generated token (decode) — with the real megabytes climbing.'],
   ['I','real-generate','A real GPT-2 writing text in your browser. Generation is just the next-token step fed back in a loop — logits, sample, append, repeat. Greedy is deterministic (and verified token-for-token vs the reference); turn it off to sample creatively.'],
+  ['I','real-vision','The modality jump: a real Vision Transformer classifying a real photo in your browser. See the image cut into 16×16 patches — the ViT "tokens", the image analog of the BPE tokens you started with — and the model\'s real predictions. The same transformer machinery, now on pixels.'],
 ];
 const N = STOPS.length;
 const seen = new Set(JSON.parse(localStorage.getItem('vz-tour-seen') || '[]'));

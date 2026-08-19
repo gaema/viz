@@ -1,10 +1,10 @@
 # rope -- rotary position embedding (per-pair 2-D rotation)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how RoPE encodes position by rotating each dimension-pair of a
 query/key vector by an angle proportional to position. **Anchor**: A1 RoPE
-shape (Family B8; see `../plan/curriculum.md`).
+shape (Family B8).
 
 ## What it shows
 
@@ -28,8 +28,8 @@ rotation planes, arrows, and spirals).
 
 ## Wiring
 
-`layout.mount()` + controls (`head_dim`, `positions`, `base`, `seed`) + a
-per-position `Transport`, drawn with `render.heatmap`/`arrow` + `ctx` and
+`layout.mount` + controls (`head_dim`, `positions`, `base`, `seed`) + a
+per-position `Transport`, drawn with `render.heatmap`/`arrow` + `ctx`
 `tensor.rope`/`ropeAngles`/`seededRandn`. Direct-manipulable per the interaction
 contract: **drag horizontally** (or the position track) to move the token
 position so every pair’s `Δ = p·θᵢ` updates live; **hover** a rotation plane for

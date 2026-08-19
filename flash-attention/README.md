@@ -1,11 +1,11 @@
 # flash-attention -- tiled online softmax (never materialize N×N)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how FlashAttention computes exact attention without ever
 storing the full `N×N` score matrix, by streaming K/V in tiles and keeping a
 running ("online") softmax. **Anchor**: A3 attention pattern (Family B9, the
-T3 capstone; see `../plan/curriculum.md`).
+T3 capstone).
 
 ## What it shows
 
@@ -15,7 +15,7 @@ online-softmax update, per query row `i`:
 
 - `mᵢ ← max(mᵢ, rowmax(Sⱼ))` — running max (for numerical stability)
 - `rescale = exp(mᵢ_old − mᵢ_new)` — shrink the prior contributions when the
-  max grows (shown when a new max appears)
+ max grows (shown when a new max appears)
 - `lᵢ ← rescale·lᵢ + Σ exp(Sⱼ − mᵢ)` — running denominator
 - `Oᵢ ← rescale·Oᵢ + Σ exp(Sⱼ − mᵢ)·Vⱼ` — running output accumulator
 
@@ -33,7 +33,7 @@ overlays/ghosting are Canvas2D regardless).
 
 ## Wiring
 
-`layout.mount()` + controls (`keys N`, `tile size`, `seed`) + a per-tile
+`layout.mount` + controls (`keys N`, `tile size`, `seed`) + a per-tile
 `Transport` that runs the online-softmax algorithm in `page.js` (uses
 `tensor.seededRandn`), drawn with `render.heatmap` + `ctx`. Auto-plays + loops
 the tile sweep; hover a score tile cell for its value + the running stats

@@ -1,0 +1,67 @@
+{
+ "model": "google/vit-base-patch16-224",
+ "patch": 16,
+ "grid": 14,
+ "images": {
+  "cats": {
+   "url": "https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/cats.jpg",
+   "top5": [
+    [
+     285,
+     "Egyptian cat",
+     0.9381
+    ],
+    [
+     281,
+     "tabby, tabby cat",
+     0.038
+    ],
+    [
+     282,
+     "tiger cat",
+     0.0143
+    ],
+    [
+     287,
+     "lynx, catamount",
+     0.0032
+    ],
+    [
+     284,
+     "Siamese cat, Siamese",
+     0.0007
+    ]
+   ]
+  },
+  "tiger": {
+   "url": "https://huggingface.co/datasets/Xenova/transformers.js-docs/resolve/main/tiger.jpg",
+   "top5": [
+    [
+     292,
+     "tiger, Panthera tigris",
+     0.8858
+    ],
+    [
+     282,
+     "tiger cat",
+     0.1094
+    ],
+    [
+     290,
+     "jaguar, panther, Panthera onca, Felis onca",
+     0.0006
+    ],
+    [
+     274,
+     "dhole, Cuon alpinus",
+     0.0004
+    ],
+    [
+     291,
+     "lion, king of beasts, Panthera leo",
+     0.0003
+    ]
+   ]
+  }
+ }
+}

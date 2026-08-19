@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>real-kv-cache | viz</title>
+</head>
+<body>
+<!-- Phase 9 (real-model grounding): the REAL KV cache. As GPT-2 generates, each
+     layer caches K and V for every past position; the cache grows one position
+     per token. This page shows the actual cached K values (GPT2.cache()) + the
+     real memory math (GPT-2's dims) growing live. Grounds the synthetic kv-cache
+     page. Needs network. Serve over http:
+       python3 -m http.server 8099
+       open http://localhost:8099/real-kv-cache/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

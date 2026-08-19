@@ -1,10 +1,9 @@
 # gqa-mqa -- KV-head sharing (MHA / GQA / MQA)
 
-> **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
+> **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how query heads share key/value heads, and why that shrinks
-the KV cache. **Anchor**: A2 head_dim layout / A4 KV cache (Family B4; see
-`../plan/curriculum.md`).
+the KV cache. **Anchor**: A2 head_dim layout / A4 KV cache (Family B4).
 
 ## What it shows
 
@@ -14,7 +13,7 @@ query head to the KV head it reads. Scrub the transport through the schemes
 
 - **MHA** (`n_kv = n_q`) — every query head has its own K,V head.
 - **GQA** (`1 < n_kv < n_q`) — query heads are grouped; each group of
-  `n_q / n_kv` query heads shares one KV head (e.g. Llama-2/3-70B: 64 Q → 8 KV).
+ `n_q / n_kv` query heads shares one KV head (e.g. Llama-2/3-70B: 64 Q → 8 KV).
 - **MQA** (`n_kv = 1`) — all query heads share a single KV head (PaLM, Falcon).
 
 Query heads are colored by their group, so the grouping is obvious. A
@@ -28,7 +27,7 @@ T1 (Canvas2D — boxes, connecting lines, a memory bar).
 
 ## Wiring
 
-`layout.mount()` + controls (`query heads`) + a per-scheme `Transport` built in
+`layout.mount` + controls (`query heads`) + a per-scheme `Transport` built in
 `page.js` (the divisors of `n_q`), drawn with `ctx` + `render.arrow`/`label`.
 Direct-manipulable per the framework interaction contract: **drag the handle on
 the KV-cache bar** to morph MHA → GQA → MQA (snaps to the divisors of `n_q`);
