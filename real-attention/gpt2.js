@@ -1,5 +1,5 @@
 // Minimal GPT-2 forward pass in vanilla JS — enough to compute REAL attention
-// matrices for the real-attention viz page. We can't get attentions
+// matrices for the real-attention viz page (Phase 9). We can't get attentions
 // out of transformers.js (the ONNX export drops them — Optimum #325), so we
 // fetch the raw safetensors weights and run the forward ourselves, capturing the
 // softmaxed attention A[layer][head] = softmax(QKᵀ/√d + causal mask) at every
@@ -73,7 +73,7 @@ export class GPT2 {
   // _run(ids, wantAttn, wantHidden) -> { x, attentions: A[L][H]|null,
   //   hiddens: (Float32Array[n×D])[L+1]|null (residual stream: embed, then after
   //   each block), n }. Block math is identical regardless of what's captured.
-  _run(ids, wantAttn, wantHidden) {
+  _run(ids, wantAttn, wantHidden, wantKV, wantMLP) {
     const { nLayer: L, nHead: H, nEmbd: D } = this.cfg, n = ids.length, dh = D / H, scale = 1 / Math.sqrt(dh);
     const wte = this.g('wte.weight'), wpe = this.g('wpe.weight');
     let x = new Float32Array(n * D);
@@ -81,11 +81,14 @@ export class GPT2 {
 
     const attentions = wantAttn ? [] : null;
     const hiddens = wantHidden ? [x.slice()] : null;   // residual stream: pre-block embedding
+    const kv = wantKV ? [] : null;                      // per-layer K/V cache, each [n×D]
+    const mlps = wantMLP ? [] : null;                   // per-layer post-gelu MLP activations [n×4D]
     for (let l = 0; l < L; l++) {
       const p = `h.${l}.`;
       // --- attention ---
       const xn = layernorm(x, n, D, this.g(p + 'ln_1.weight'), this.g(p + 'ln_1.bias'));
       const qkv = linear(xn, n, D, this.g(p + 'attn.c_attn.weight'), this.g(p + 'attn.c_attn.bias'), 3 * D);
+      if (wantKV) { const K = new Float32Array(n * D), V = new Float32Array(n * D); for (let j = 0; j < n; j++) for (let c = 0; c < D; c++) { K[j * D + c] = qkv[j * 3 * D + D + c]; V[j * D + c] = qkv[j * 3 * D + 2 * D + c]; } kv.push({ K, V }); }
       const ctx = new Float32Array(n * D), Alayer = [];
       for (let h = 0; h < H; h++) {
         const qo = h * dh, ko = D + h * dh, vo = 2 * D + h * dh;
@@ -111,12 +114,13 @@ export class GPT2 {
       // --- MLP ---
       const xn2 = layernorm(x, n, D, this.g(p + 'ln_2.weight'), this.g(p + 'ln_2.bias'));
       const hid = geluNew(linear(xn2, n, D, this.g(p + 'mlp.c_fc.weight'), this.g(p + 'mlp.c_fc.bias'), 4 * D));
+      if (wantMLP) mlps.push(hid.slice());   // post-gelu MLP activation (the "neurons")
       const mlpOut = linear(hid, n, 4 * D, this.g(p + 'mlp.c_proj.weight'), this.g(p + 'mlp.c_proj.bias'), D);
       for (let i = 0; i < n * D; i++) x[i] += mlpOut[i]; // residual
       if (wantAttn) attentions.push(Alayer);
       if (wantHidden) hiddens.push(x.slice());
     }
-    return { x, attentions, hiddens, n };
+    return { x, attentions, hiddens, kv, mlps, n };
   }
 
   // forward(ids) -> { n, nLayer, nHead, attentions: A[L][H] each Float32Array(n*n) }
@@ -145,6 +149,22 @@ export class GPT2 {
     const { nEmbd: D } = this.cfg, r = this._run(ids, false, true), n = r.n;
     const perLayer = r.hiddens.map((h) => this._head(h.subarray((n - 1) * D, n * D)));
     return { perLayer, V: this.g('wte.weight').length / D, n, nLayer: this.cfg.nLayer };
+  }
+
+  // cache(ids) -> { layers: [{K,V}] (each Float32Array(n×D), heads concatenated),
+  //   logits: Float32Array(V) for the last position, n, nLayer, nHead }. The KV
+  //   cache an autoregressive run would hold after processing `ids`, plus the
+  //   next-token logits — both from one forward.
+  cache(ids) {
+    const { nEmbd: D } = this.cfg, r = this._run(ids, false, false, true), n = r.n;
+    return { layers: r.kv, logits: this._head(r.x.subarray((n - 1) * D, n * D)), V: this.g('wte.weight').length / D, n, nLayer: this.cfg.nLayer, nHead: this.cfg.nHead };
+  }
+
+  // mlp(ids) -> { layers: Float32Array(n×4D)[nLayer], n, dFF, nLayer } — the
+  // post-gelu MLP activations (the "neurons"; dFF = 4·nEmbd = 3072) per layer.
+  mlp(ids) {
+    const r = this._run(ids, false, false, false, true);
+    return { layers: r.mlps, n: r.n, dFF: 4 * this.cfg.nEmbd, nLayer: this.cfg.nLayer };
   }
 }
 

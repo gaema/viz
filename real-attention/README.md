@@ -1,4 +1,4 @@
-# real-attention -- finding GPT-2's heads (real weights)
+# real-attention -- finding GPT-2's heads (real weights, Phase 9)
 
 > **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
 
@@ -6,7 +6,7 @@ Interactive page: the **real** counterpart to the synthetic attention pages
 ([`attention-patterns`](../attention-patterns/), [`scaled-dot-attention`](../scaled-dot-attention/)).
 It runs a **real GPT-2 (124M)** in your browser and lets you hunt its attention
 heads on any sentence you type. **Anchor**: A2 attention. Second increment of
-**real-model grounding**.
+**Phase 9 — real-model grounding** (`../plan/phase9.md`).
 
 ## Why a hand-written forward pass
 
@@ -28,7 +28,7 @@ GPT-2 BPE), not the model.
 ## Verified against PyTorch
 
 "Real" has to mean real, so the JS forward is checked against PyTorch GPT-2
-(`output_attentions`, eager) by [`gpt2.test.mjs`](gpt2.test.mjs) over a committed
+(`output_attentions`, eager) by `gpt2.test.mjs` over a committed
 fixture ([`gpt2-groundtruth.fixture.json`](gpt2-groundtruth.fixture.json)):
 
 - attention matrices at layers 0 / 4 / 5 / 11 match within **max|Δ| ≈ 5e-5**
@@ -53,7 +53,7 @@ It is **self-verifying**. On the first GPU run the page also runs the CPU forwar
 and reports `max|Δ|` over every attention weight in the banner; on any mismatch (a
 shader bug, a flaky adapter) it **falls back to the CPU path automatically**. Both
 forward timings are shown so the GPU speedup is visible.
-[`gpt2-webgpu.test.mjs`](gpt2-webgpu.test.mjs) runs that GPU-vs-CPU check on a tiny
+`gpt2-webgpu.test.mjs` runs that GPU-vs-CPU check on a tiny
 random model under any WebGPU runtime (e.g. Deno) and skips cleanly where
 `navigator.gpu` is absent.
 

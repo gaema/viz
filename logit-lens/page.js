@@ -1,4 +1,4 @@
-// logit-lens concept page.
+// logit-lens concept page — Phase 9 (real-model grounding).
 //
 // The "logit lens" (nostalgebraist): apply the model's FINAL ln_f + tied lm_head
 // to the residual stream at EVERY layer, not just the last, to watch the
@@ -9,18 +9,19 @@
 // "the cat sat on the mat . the cat ran" →
 //   ran → running → through → away → … → up   (the real model's trajectory)
 //
+// Breadcrumbs to the shape taxonomy (residual stream + attribute A5, lm_head).
 // Reuses the real-attention GPT-2 loader (gpt2.js).
 //
 // Offline: an idealized synthetic trajectory (clearly labelled) that converges to
 // a target token, so the depth-by-depth view still teaches. ?real=0 forces it.
 import { mount } from '../framework/layout.js';
+import { T } from '../framework/theme.js';
 import { loadGPT2, GPT2_CONFIG } from '../real-attention/gpt2.js';
 
 const TFJS = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2';
 const TOK_MODEL = 'Xenova/gpt2';
 const WEIGHTS_URL = 'https://huggingface.co/gpt2/resolve/main/model.safetensors';
 const CFG = GPT2_CONFIG.gpt2;
-const GREEN = '#0a7227', AMBER = '#9a6700', BLUE = '#1f6feb', INK = '#24292e';
 
 const DEFAULT_PROMPT = 'the cat sat on the mat . the cat ran';
 // idealized synthetic trajectory (per depth: top token + final-token prob), the
@@ -85,7 +86,7 @@ mount({
   mount: 'body',
   slug: 'logit-lens',
   title: 'logit lens — watching a prediction form across layers',
-  blurb: 'The logit lens applies GPT-2’s final ln_f + tied lm_head to the residual stream at EVERY layer — not just the last — so you can watch the next-token prediction crystallize with depth. Early layers echo the input or guess generically; the answer locks in near the top. Runs a REAL GPT-2 in your browser. Type a prefix and read the trajectory bottom-up (embedding → layer 12). Offline it shows an idealized stand-in.',
+  blurb: 'Phase 9 (real-model grounding). The logit lens applies GPT-2’s final ln_f + tied lm_head to the residual stream at EVERY layer — not just the last — so you can watch the next-token prediction crystallize with depth. Early layers echo the input or guess generically; the answer locks in near the top. Runs a REAL GPT-2 in your browser. Type a prefix and read the trajectory bottom-up (embedding → layer 12). Offline it shows an idealized stand-in.',
   prefer: 'canvas2d',
   aspect: '4 / 3',
   controls: (c, page) => {
@@ -96,19 +97,19 @@ mount({
   onPointer: () => {},
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const d = M.depths, nD = d.length;
     // lock-in depth: first depth (from the top) whose top-1 == the final token
     let lockIn = -1; for (let i = 0; i < nD; i++) if (d[i] && M.finalTok && d[i].topTok === M.finalTok) { lockIn = i; break; }
     page.probe = { source: M.source, nDepths: nD, lockInDepth: lockIn, topProbLast: nD ? d[nD - 1].topProb : 0, finalProbLast: nD ? d[nD - 1].finalProb : 0 };
 
     const ban = (() => {
-      if (M.status === 'loading-tok') return { t: '↓ loading tokenizer…', c: AMBER };
-      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB, one time)`, c: AMBER };
-      if (M.status === 'running') return { t: '⟳ running GPT-2…', c: AMBER };
-      if (M.source === 'real') return { t: '● real GPT-2 (124M) — logit lens computed in-browser', c: GREEN };
-      if (M.status === 'offline') return { t: '○ offline — idealized synthetic trajectory (click “load real GPT-2”)', c: AMBER };
-      return { t: '○ idealized synthetic trajectory — click “load real GPT-2” for the real lens', c: '#586069' };
+      if (M.status === 'loading-tok') return { t: '↓ loading tokenizer…', c: T.goldDeep };
+      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB, one time)`, c: T.goldDeep };
+      if (M.status === 'running') return { t: '⟳ running GPT-2…', c: T.goldDeep };
+      if (M.source === 'real') return { t: '● real GPT-2 (124M) — logit lens computed in-browser', c: T.okDeep };
+      if (M.status === 'offline') return { t: '○ offline — idealized synthetic trajectory (click “load real GPT-2”)', c: T.goldDeep };
+      return { t: '○ idealized synthetic trajectory — click “load real GPT-2” for the real lens', c: T.n11 };
     })();
     ctx.save(); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = ban.c; ctx.fillText(ban.t, 14, 9); ctx.restore();
     if (!nD) { page.setReadout('…'); return; }
@@ -116,8 +117,8 @@ mount({
     // header: final prediction
     const pad = 16, headY = 34;
     ctx.save(); ctx.textBaseline = 'middle'; ctx.font = '13px ui-monospace, monospace';
-    ctx.fillStyle = '#3a4047'; ctx.fillText(M.source === 'real' ? `“${(M.prompt || '').slice(0, 56)}”` : '“…”', pad, headY);
-    ctx.fillStyle = BLUE; ctx.fillText(`→ ${M.finalTok ? `"${M.finalTok.trim() || M.finalTok}"` : ''}`, pad + 360, headY); ctx.restore();
+    ctx.fillStyle = T.n12; ctx.fillText(M.source === 'real' ? `“${(M.prompt || '').slice(0, 56)}”` : '“…”', pad, headY);
+    ctx.fillStyle = T.accent; ctx.fillText(`→ ${M.finalTok ? `"${M.finalTok.trim() || M.finalTok}"` : ''}`, pad + 360, headY); ctx.restore();
 
     // rows: deepest (final) at TOP, embedding at BOTTOM — read bottom-up = shallow→deep
     const top = headY + 22, labW = 64, rowH = Math.max(13, Math.min(26, (page.H - top - 30) / nD));
@@ -126,15 +127,15 @@ mount({
     for (let i = 0; i < nD; i++) {
       const e = d[nD - 1 - i], depth = nD - 1 - i;        // i=0 row → deepest
       const y = top + i * rowH, locked = M.finalTok && e.topTok === M.finalTok;
-      ctx.fillStyle = '#9aa4ad'; ctx.textAlign = 'right';
+      ctx.fillStyle = T.n9; ctx.textAlign = 'right';
       ctx.fillText(depth === 0 ? 'embed' : 'L' + depth, barX - 6, y + rowH / 2);
       // bar = probability the FINAL token has at this depth (the convergence curve)
       const w = Math.max(1, Math.min(1, e.finalProb / Math.max(0.02, d[nD - 1].finalProb)) * barW * 0.6);
-      ctx.fillStyle = locked ? GREEN : '#cdd3da'; ctx.fillRect(barX, y + 1, w, rowH - 3);
+      ctx.fillStyle = locked ? T.okDeep : T.n6; ctx.fillRect(barX, y + 1, w, rowH - 3);
       // the depth's own top-1 token
-      ctx.fillStyle = locked ? GREEN : INK; ctx.textAlign = 'left';
+      ctx.fillStyle = locked ? T.okDeep : T.n13; ctx.textAlign = 'left';
       ctx.fillText(`${td(e.topTok).slice(0, 12)}`, barX + w + 6, y + rowH / 2);
-      ctx.fillStyle = '#9aa4ad'; ctx.fillText(`  ${(e.finalProb * 100).toFixed(1)}%`, barX + w + 6 + 96, y + rowH / 2);
+      ctx.fillStyle = T.n9; ctx.fillText(`  ${(e.finalProb * 100).toFixed(1)}%`, barX + w + 6 + 96, y + rowH / 2);
     }
     ctx.restore();
 
@@ -160,5 +161,5 @@ mount({
   if (q.has('prompt')) page.controls.set('prompt', q.get('prompt'));
   if (q.has('ids')) injected = q.get('ids').split(',').map((x) => parseInt(x, 10)).filter((x) => Number.isFinite(x));
   runSynthetic('init'); page.redraw();
-  if (q.get('real') !== '0') ensureReal(page);
+  if (q.get('real') === '1' || q.get('autoload') === '1') ensureReal(page);   // large download: opt-in only
 });

@@ -1,10 +1,11 @@
-# real-generate -- watch GPT-2 write
+# real-generate -- watch GPT-2 write (Phase 9 capstone)
 
 > **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
 
 Interactive page: the **capstone** of the real-* family — a **real GPT-2 (124M)**
 writing text in your browser, one token at a time. **Anchor**: A5 lm_head + the
-sampling + prefill-vs-decode concepts. Closes **real-model grounding**.
+sampling + prefill-vs-decode concepts. Closes **Phase 9 — real-model grounding**
+(`../plan/phase9.md`).
 
 ## What it shows
 
@@ -25,7 +26,7 @@ the same forward verified against PyTorch — so the generation is real, not fak
 
 Greedy generation is deterministic, so it must reproduce HF
 `model.generate(do_sample=False)` exactly.
-[`../real-attention/gpt2.test.mjs`](../real-attention/gpt2.test.mjs) runs the JS
+`../real-attention/gpt2.test.mjs` runs the JS
 loop (argmax of `logits()` → append → repeat) and checks **all 12 generated token
 ids match** the reference.
 

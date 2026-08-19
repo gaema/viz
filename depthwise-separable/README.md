@@ -6,7 +6,8 @@ Interactive page: the **depthwise-separable convolution** (MobileNet) -- factori
 a standard conv into a **depthwise** conv (one `k×k` filter per input channel, no
 channel mixing) followed by a **pointwise** `1×1` conv (mixes channels, no spatial
 extent), and see the MAC/FLOP reduction it buys. **Anchor**: F (CNN / vision);
-Family F, builds on [convolution](../convolution/README.md) ().
+Family F, builds on [convolution](../convolution/README.md) (see
+`../plan/curriculum.md`).
 
 ## What it shows
 

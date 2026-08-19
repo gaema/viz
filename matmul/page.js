@@ -2,15 +2,16 @@
 // layout.mount() chrome + controls (dims/seed/per-term) + the step Transport
 // walking tensor.matmulSteps, drawn with render.heatmap/cell/label.
 //
-// Interactive per the framework contract (plan/framework.md): drag any A or B
+// Interactive per the shared render framework's contract: drag any A or B
 // cell vertically to change its value and watch C (and the active dot product)
 // recompute live; hover any cell for its value, or hover a C cell for its full
 // derivation (row·col = a0·b0 + …); the row·col sweep auto-plays + loops.
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { seededRandn, matmul, matmulSteps, collectSteps } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const BLUE = '#1f6feb', ORANGE = '#d2691e', INK = '#111';
+
 
 // Shared state between compute() (builds the steps), draw() (renders them), and
 // onPointer() (hit-tests + edits). layout rebuilds the transport (=> compute())
@@ -49,13 +50,13 @@ const fx = (v) => (v >= 0 ? ' ' : '') + v.toFixed(2);
 function drawMatrix(r, M, rect, m, title) {
   const dom = m; // symmetric domain (fixed) so colors don't rescale per step
   r.heatmap(M, { rect, ramp: ramps.diverging, domain: [-dom, dom] });
-  r.grid({ stroke: 'rgba(0,0,0,0.10)' });
+  r.grid({ stroke: alphaOf(T.n14, 0.10) });
   const L = r.layout;
-  r.label(title, rect.x, rect.y - 6, { color: '#586069', font: '12px ui-monospace, monospace' });
+  r.label(title, rect.x, rect.y - 6, { color: T.n11, font: '12px ui-monospace, monospace' });
   if (L.cellW >= 26 && L.cellH >= 16 && M.rows * M.cols <= 64) {
     for (let i = 0; i < M.rows; i++) for (let j = 0; j < M.cols; j++) {
       const v = M.data[i * M.cols + j];
-      r.cell(i, j, { stroke: false, label: v.toFixed(1), labelColor: Math.abs(v) > dom * 0.6 ? '#fff' : '#222', font: '10px ui-monospace, monospace' });
+      r.cell(i, j, { stroke: false, label: v.toFixed(1), labelColor: Math.abs(v) > dom * 0.6 ? T.n0 : T.n13, font: '10px ui-monospace, monospace' });
     }
   }
 }
@@ -100,7 +101,7 @@ mount({
     const r = page.renderer, st = page.state;
     const { A, B, final } = cur;
     if (!A) return;
-    r.clear('#ffffff');
+    r.clear(T.n0);
 
     // Corner layout: A bottom-left (m×k), B top-right (k×n), C bottom-right (m×n).
     const m = st.m, k = st.k, n = st.n, gap = 18, padL = 16, padT = 26, padR = 12, padB = 12;
@@ -120,27 +121,27 @@ mount({
 
     // A + highlight active row i (and active element on per-term).
     drawMatrix(r, A, rA, maxAbs(A), `A  (${m}×${k})`);
-    if (i >= 0) for (let c = 0; c < k; c++) r.cell(i, c, { stroke: BLUE, width: 1.5 });
-    if (term) r.cell(i, kk, { stroke: ORANGE, width: 2.5 });
+    if (i >= 0) for (let c = 0; c < k; c++) r.cell(i, c, { stroke: T.accent, width: 1.5 });
+    if (term) r.cell(i, kk, { stroke: T.warn, width: 2.5 });
 
     // B + highlight active col j.
     drawMatrix(r, B, rB, maxAbs(B), `B  (${k}×${n})`);
-    if (j >= 0) for (let rr = 0; rr < k; rr++) r.cell(rr, j, { stroke: BLUE, width: 1.5 });
-    if (term) r.cell(kk, j, { stroke: ORANGE, width: 2.5 });
+    if (j >= 0) for (let rr = 0; rr < k; rr++) r.cell(rr, j, { stroke: T.accent, width: 1.5 });
+    if (term) r.cell(kk, j, { stroke: T.warn, width: 2.5 });
 
     // C = partial (fixed domain so colors are stable as it fills).
     r.heatmap(partial, { rect: rC, ramp: ramps.diverging, domain: [-dC, dC] });
-    r.grid({ stroke: 'rgba(0,0,0,0.10)' });
-    r.label(`C = A·B  (${m}×${n})`, rC.x, rC.y - 6, { color: '#586069', font: '12px ui-monospace, monospace' });
+    r.grid({ stroke: alphaOf(T.n14, 0.10) });
+    r.label(`C = A·B  (${m}×${n})`, rC.x, rC.y - 6, { color: T.n11, font: '12px ui-monospace, monospace' });
     if (r.layout.cellW >= 26 && m * n <= 64) {
       for (let a = 0; a < m; a++) for (let b = 0; b < n; b++) {
         const done = s && (a < i || (a === i && b <= j) || s.done);
         if (!done && !(a === i && b === j)) continue;
         const v = partial.data[a * n + b];
-        r.cell(a, b, { stroke: false, label: v.toFixed(1), labelColor: Math.abs(v) > dC * 0.6 ? '#fff' : '#222', font: '10px ui-monospace, monospace' });
+        r.cell(a, b, { stroke: false, label: v.toFixed(1), labelColor: Math.abs(v) > dC * 0.6 ? T.n0 : T.n13, font: '10px ui-monospace, monospace' });
       }
     }
-    if (i >= 0) r.cell(i, j, { stroke: INK, width: 2.5 });
+    if (i >= 0) r.cell(i, j, { stroke: T.n14, width: 2.5 });
 
     // Hover-to-inspect: A/B cell -> value; C cell -> full row·col derivation.
     if (page.pointer.over && !grab) {

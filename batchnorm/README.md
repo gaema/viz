@@ -6,7 +6,7 @@ Interactive page: **Batch Normalization** -- normalize each channel's activation
 **track** a running mean/variance during training (an exponential moving
 average), and at **inference** use that tracked average instead of the batch's
 own statistics. **Anchor**: F (CNN / vision); Family F, builds on
-[convolution](../convolution/README.md) ().
+[convolution](../convolution/README.md) (see `../plan/curriculum.md`).
 
 ## What it shows
 

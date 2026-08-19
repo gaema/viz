@@ -1,7 +1,7 @@
 // attention-patterns concept page -- full / sliding-window / hybrid / sink.
 // Uses the verified framework: layout.mount() + controls + per-pattern Transport.
 //
-// Interactive per the framework contract (plan/framework.md):
+// Interactive per the shared render framework's contract:
 //   - HOVER any (query i, key j) cell -> whether it is attended and WHY for the
 //     current pattern (within window / sink / blocked-future / outside-window).
 //   - DRAG the current-query handle down the rows to move the highlighted query
@@ -12,8 +12,8 @@
 //     the pattern); the pattern transport auto-plays + loops too.
 import { mount } from '../framework/layout.js';
 import { cellAt } from '../framework/render.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', LIGHT = '#dbeafe', DARK = 'rgba(55,60,68,0.80)', ORANGE = '#d2691e';
 
 const PATTERNS = [
   { key: 'full', name: 'Full (causal)', desc: 'every query attends to all past keys (j ≤ i) — O(i) per query; the KV cache grows unbounded with context' },
@@ -75,17 +75,18 @@ function drawGrid(ctx, rect, N, fn, qi, sinkCols) {
   const cw = rect.w / N, ch = rect.h / N;
   for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
     const att = fn(i, j);
-    ctx.fillStyle = att ? (i === qi ? BLUE : LIGHT) : DARK;
+    // masked-cell wash: a dark scrim on a light page, a LIGHT one on a dark page.
+    ctx.fillStyle = att ? (i === qi ? T.accent : T.accentBg) : alphaOf('n12', 0.80);
     ctx.fillRect(rect.x + j * cw, rect.y + i * ch, cw - 1, ch - 1);
   }
-  if (sinkCols > 0) { ctx.save(); ctx.fillStyle = ORANGE; for (let j = 0; j < sinkCols; j++) ctx.fillRect(rect.x + j * cw, rect.y - 3, cw - 1, 2.5); ctx.restore(); }
-  if (qi >= 0 && qi < N) { ctx.save(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.strokeRect(rect.x - 1, rect.y + qi * ch - 1, N * cw, ch); ctx.restore(); }
+  if (sinkCols > 0) { ctx.save(); ctx.fillStyle = T.warn; for (let j = 0; j < sinkCols; j++) ctx.fillRect(rect.x + j * cw, rect.y - 3, cw - 1, 2.5); ctx.restore(); }
+  if (qi >= 0 && qi < N) { ctx.save(); ctx.strokeStyle = T.n14; ctx.lineWidth = 2; ctx.strokeRect(rect.x - 1, rect.y + qi * ch - 1, N * cw, ch); ctx.restore(); }
 }
 
 mount({
   mount: 'body',
   title: 'attention-patterns — who attends to whom',
-  blurb: 'The mask decides which keys each query may read. Scrub: full (causal) → sliding-window → hybrid-by-layer → attention-sink. Lit = attended, dark = masked. Drag the current-query handle (◀ on the left) down the rows to move the highlighted query; on sliding-window / sink, drag the window edge to widen or narrow w. Hover any cell for whether it is attended and WHY. The query auto-sweeps down (generation) and the pattern transport loops. Fewer attended keys ⇒ cheaper decode + smaller KV cache.',
+  blurb: 'The mask decides which keys each query may read. Scrub: full (causal) → sliding-window → hybrid-by-layer → attention-sink. Tinted = attended, greyed out = masked. Drag the current-query handle (◀ on the left) down the rows to move the highlighted query; on sliding-window / sink, drag the window edge to widen or narrow w. Hover any cell for whether it is attended and WHY. The query auto-sweeps down (generation) and the pattern transport loops. Fewer attended keys ⇒ cheaper decode + smaller KV cache.',
   prefer: 'webgl2',
   aspect: '2 / 1',
   autoplay: true,
@@ -137,7 +138,7 @@ mount({
   },
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const N = st.N, w = st.w, s = st.s;
     const step = page.step(), kind = step ? step.key : 'full';
     const pad = 16, topY = 56;
@@ -159,30 +160,30 @@ mount({
       const cell = Math.max(12, Math.min(34, Math.min((page.W * 0.46) / N, (page.H - topY - 70) / N)));
       const rect = { x: pad + 34, y: topY, w: N * cell, h: N * cell };
       gridRect = rect; gridN = N; gridKind = kind;        // capture for hit-testing
-      r.label('keys →', rect.x, topY - 12, { color: '#586069', font: '11px ui-monospace, monospace' });
-      r.label('queries ↓', pad, topY - 12, { color: '#586069', font: '11px ui-monospace, monospace' });
+      r.label('keys →', rect.x, topY - 12, { color: T.n11, font: '11px ui-monospace, monospace' });
+      r.label('queries ↓', pad, topY - 12, { color: T.n11, font: '11px ui-monospace, monospace' });
       drawGrid(ctx, rect, N, fn, qi, kind === 'sink' ? s : 0);
 
       // draggable current-query handle (◀) in the left gutter on the lit row
       ctx.save();
-      ctx.fillStyle = grab === 'query' ? BLUE : '#3a4047';
+      ctx.fillStyle = grab === 'query' ? T.accent : T.n12;
       ctx.font = '13px ui-monospace, monospace'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
       ctx.fillText('◀', rect.x - 6, rect.y + qi * cell + cell / 2);
       ctx.restore();
-      r.label('drag ◀ ↕', pad - 2, rect.y + N * cell + 16, { color: BLUE, font: '9px ui-monospace, monospace' });
+      r.label('drag ◀ ↕', pad - 2, rect.y + N * cell + 16, { color: T.accent, font: '9px ui-monospace, monospace' });
 
       // legend + per-query count on the right
       let lx = rect.x + N * cell + 30, ly = topY + 6;
-      const sw = (col, txt) => { ctx.save(); ctx.fillStyle = col; ctx.fillRect(lx, ly - 9, 13, 13); ctx.restore(); r.label(txt, lx + 19, ly + 2, { color: '#3a4047', font: '11px ui-monospace, monospace' }); ly += 22; };
-      r.label(PATTERNS.find((p) => p.key === kind).name, lx, ly - 14, { color: INK, font: '13px ui-monospace, monospace' }); ly += 14;
-      sw(LIGHT, 'attended  (j allowed)'); sw(BLUE, 'current query row i'); sw(DARK, 'masked');
-      if (kind === 'sink') sw(ORANGE, `sink columns (first ${s})`);
+      const sw = (col, txt) => { ctx.save(); ctx.fillStyle = col; ctx.fillRect(lx, ly - 9, 13, 13); ctx.restore(); r.label(txt, lx + 19, ly + 2, { color: T.n12, font: '11px ui-monospace, monospace' }); ly += 22; };
+      r.label(PATTERNS.find((p) => p.key === kind).name, lx, ly - 14, { color: T.n14, font: '13px ui-monospace, monospace' }); ly += 14;
+      sw(T.accentBg, 'attended  (j allowed)'); sw(T.accent, 'current query row i'); sw(alphaOf('n12', 0.80), 'masked');
+      if (kind === 'sink') sw(T.warn, `sink columns (first ${s})`);
       let cnt = 0; for (let j = 0; j < N; j++) if (fn(qi, j)) cnt++;
       ly += 8;
-      r.label(`query i=${qi} attends to ${cnt} key${cnt !== 1 ? 's' : ''}`, lx, ly, { color: BLUE, font: '12px ui-monospace, monospace' }); ly += 18;
+      r.label(`query i=${qi} attends to ${cnt} key${cnt !== 1 ? 's' : ''}`, lx, ly, { color: T.accent, font: '12px ui-monospace, monospace' }); ly += 18;
       const note = kind === 'full' ? `grows with i (here ${qi + 1}); unbounded` : kind === 'sliding' ? `capped at w=${w}, independent of context length` : `≈ w=${w} + sink s=${s}, bounded`;
-      r.label(note, lx, ly, { color: '#586069', font: '11px ui-monospace, monospace' }); ly += 20;
-      if (kind === 'sliding' || kind === 'sink') r.label('↔ drag the band edge to resize w', lx, ly, { color: ORANGE, font: '10px ui-monospace, monospace' });
+      r.label(note, lx, ly, { color: T.n11, font: '11px ui-monospace, monospace' }); ly += 20;
+      if (kind === 'sliding' || kind === 'sink') r.label('↔ drag the band edge to resize w', lx, ly, { color: T.warn, font: '10px ui-monospace, monospace' });
 
       // --- hover-to-inspect: cell -> attended? + WHY for this pattern --------
       if (page.pointer.over && !grab) {
@@ -196,19 +197,19 @@ mount({
       const L = 8, gap = 12;
       const cell = Math.max(5, Math.min(14, Math.min((page.W - 2 * pad - (L - 1) * gap) / (L * N), (page.H - topY - 90) / N)));
       const gw = N * cell, totW = L * gw + (L - 1) * gap, x0 = Math.max(pad, (page.W - totW) / 2);
-      r.label('hybrid-by-layer — layers alternate local (SWA) and global (full):', pad, topY - 14, { color: INK, font: '12px ui-monospace, monospace' });
+      r.label('hybrid-by-layer — layers alternate local (SWA) and global (full):', pad, topY - 14, { color: T.n14, font: '12px ui-monospace, monospace' });
       for (let l = 0; l < L; l++) {
         const local = l % 2 === 1, fn = makeFn(local ? 'sliding' : 'full', w, s);
         const rect = { x: x0 + l * (gw + gap), y: topY + 14, w: gw, h: N * cell };
         drawGrid(ctx, rect, N, fn, qi, 0);
-        ctx.save(); ctx.fillStyle = local ? ORANGE : BLUE; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center';
+        ctx.save(); ctx.fillStyle = local ? T.warn : T.accent; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center';
         ctx.fillText('L' + l, rect.x + gw / 2, rect.y - 4);
-        ctx.fillStyle = '#586069'; ctx.fillText(local ? 'local' : 'global', rect.x + gw / 2, rect.y + N * cell + 13);
+        ctx.fillStyle = T.n11; ctx.fillText(local ? 'local' : 'global', rect.x + gw / 2, rect.y + N * cell + 13);
         ctx.restore();
       }
     }
 
-    let o = `attention pattern: ${PATTERNS.find((p) => p.key === kind).name}.  Lit = attended, dark = masked.  N=${N} w=${w} s=${s}  q=${qi}  tier:${r.name}\n`;
+    let o = `attention pattern: ${PATTERNS.find((p) => p.key === kind).name}.  Tinted = attended, greyed out = masked.  N=${N} w=${w} s=${s}  q=${qi}  tier:${r.name}\n`;
     o += step ? step.desc : '(press ▶ or scrub: full → sliding-window → hybrid → sink · drag ◀ to move the query · hover a cell for why)';
     page.setReadout(o);
   },

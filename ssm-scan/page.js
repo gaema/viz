@@ -10,8 +10,10 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', GREEN = '#2ca02c', PURPLE = '#8957e5', ORANGE = '#d2691e', GREY = '#9aa4ad';
+
+
 const softplus = (x) => Math.log1p(Math.exp(-Math.abs(x))) + Math.max(x, 0);
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 
@@ -82,7 +84,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;                       // built by the transport compute (rebuilds on N/L/seed)
     const { N, L } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const S = scan(st);
     const s = page.step(), tcur = s ? s.t : L - 1;                     // scan revealed up to here
 
@@ -98,50 +100,50 @@ mount({
     yBand = { x: barsX, y: hRect.y + N * ch + 22, h: 32 }; const yMid = yBand.y + 16;
 
     // row labels
-    r.label('xₜ', pad, xMid + 4, { color: BLUE, font: '12px ui-monospace, monospace' });
-    r.label('Δₜ', pad, dBand.y + 16, { color: ORANGE, font: '12px ui-monospace, monospace' });
-    r.label('state', pad - 2, hRect.y - 8, { color: INK, font: '11px ui-monospace, monospace' });
-    r.label('hₙ', pad, hRect.y + N * ch / 2, { color: INK, font: '12px ui-monospace, monospace' });
-    r.label('yₜ', pad, yMid + 4, { color: GREEN, font: '12px ui-monospace, monospace' });
+    r.label('xₜ', pad, xMid + 4, { color: T.accent, font: '12px ui-monospace, monospace' });
+    r.label('Δₜ', pad, dBand.y + 16, { color: T.warn, font: '12px ui-monospace, monospace' });
+    r.label('state', pad - 2, hRect.y - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
+    r.label('hₙ', pad, hRect.y + N * ch / 2, { color: T.n14, font: '12px ui-monospace, monospace' });
+    r.label('yₜ', pad, yMid + 4, { color: T.ok, font: '12px ui-monospace, monospace' });
 
     // current-step column highlight (down all bands)
-    ctx.save(); ctx.fillStyle = 'rgba(31,111,235,0.07)'; ctx.fillRect(barsX + tcur * cw, xBand.y - 4, cw, (yBand.y + 32) - (xBand.y - 4)); ctx.restore();
+    ctx.save(); ctx.fillStyle = alphaOf(T.accent, 0.07); ctx.fillRect(barsX + tcur * cw, xBand.y - 4, cw, (yBand.y + 32) - (xBand.y - 4)); ctx.restore();
 
     // input x bars (draggable) + zero lines
-    ctx.save(); ctx.strokeStyle = '#e7e9ec'; ctx.beginPath(); ctx.moveTo(barsX, xMid); ctx.lineTo(barsX + L * cw, xMid); ctx.moveTo(barsX, yMid); ctx.lineTo(barsX + L * cw, yMid); ctx.stroke(); ctx.restore();
-    for (let t = 0; t < L; t++) sbar(ctx, barsX + t * cw + cw / 2, xMid, 14, cur.x[t], xmax, BLUE, t > tcur && false);
+    ctx.save(); ctx.strokeStyle = T.n4; ctx.beginPath(); ctx.moveTo(barsX, xMid); ctx.lineTo(barsX + L * cw, xMid); ctx.moveTo(barsX, yMid); ctx.lineTo(barsX + L * cw, yMid); ctx.stroke(); ctx.restore();
+    for (let t = 0; t < L; t++) sbar(ctx, barsX + t * cw + cw / 2, xMid, 14, cur.x[t], xmax, T.accent, t > tcur && false);
     // Δ bars (positive, from band bottom), revealed up to tcur
     const dBase = dBand.y + dBand.h;
-    for (let t = 0; t < L; t++) { const h = (S.D[t] / dmax) * dBand.h; ctx.save(); ctx.globalAlpha = t > tcur ? 0.2 : 1; ctx.fillStyle = ORANGE; ctx.fillRect(barsX + t * cw + cw * 0.18, dBase - h, cw * 0.64, h); ctx.restore(); }
+    for (let t = 0; t < L; t++) { const h = (S.D[t] / dmax) * dBand.h; ctx.save(); ctx.globalAlpha = t > tcur ? 0.2 : 1; ctx.fillStyle = T.warn; ctx.fillRect(barsX + t * cw + cw * 0.18, dBase - h, cw * 0.64, h); ctx.restore(); }
     // state trajectory heatmap [N×L]
     r.heatmap({ data: S.H, rows: N, cols: L }, { rows: N, cols: L, rect: hRect, ramp: ramps.diverging, domain: [-hmax, hmax] });
-    r.grid({ stroke: 'rgba(0,0,0,0.08)' });
-    if (tcur < L - 1) { ctx.save(); ctx.fillStyle = 'rgba(255,255,255,0.66)'; ctx.fillRect(barsX + (tcur + 1) * cw, hRect.y, (L - 1 - tcur) * cw, N * ch); ctx.restore(); }   // veil future
+    r.grid({ stroke: alphaOf('n14', 0.08) });
+    if (tcur < L - 1) { ctx.save(); ctx.fillStyle = alphaOf('n0', 0.66); ctx.fillRect(barsX + (tcur + 1) * cw, hRect.y, (L - 1 - tcur) * cw, N * ch); ctx.restore(); }   // veil future
     // y output bars
-    for (let t = 0; t < L; t++) sbar(ctx, barsX + t * cw + cw / 2, yMid, 14, S.Y[t], ymax, GREEN, t > tcur);
+    for (let t = 0; t < L; t++) sbar(ctx, barsX + t * cw + cw / 2, yMid, 14, S.Y[t], ymax, T.ok, t > tcur);
     // time-axis ticks
-    ctx.save(); ctx.fillStyle = GREY; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.save(); ctx.fillStyle = T.n9; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     for (let t = 0; t < L; t++) ctx.fillText(String(t), barsX + t * cw + cw / 2, yBand.y + 34);
-    ctx.fillStyle = GREEN; ctx.fillText('drag xₜ ↕', barsX + cw / 2, xBand.y - 16); ctx.restore();
+    ctx.fillStyle = T.ok; ctx.fillText('drag xₜ ↕', barsX + cw / 2, xBand.y - 16); ctx.restore();
 
     // ---- recurrence inset for the current step ----
     const ix = barsX + barsW + 20, iy = 50, iw = insetW - 8;
     const dt = S.D[tcur], salient = dt > softplus(st.dbias) * 1.15;
-    r.label(`step ${tcur}:  hₜ = Ā⊙hₜ₋₁ + B̄·xₜ`, ix, iy, { color: INK, font: '11px ui-monospace, monospace' });
-    r.label(`Δ=${dt.toFixed(2)}  →  ${salient ? 'WRITE (capture xₜ)' : 'hold (retain state)'}`, ix, iy + 16, { color: salient ? BLUE : GREY, font: '10px ui-monospace, monospace' });
-    r.label('dim   Ā (retain)        hₜ', ix, iy + 36, { color: '#586069', font: '10px ui-monospace, monospace' });
+    r.label(`step ${tcur}:  hₜ = Ā⊙hₜ₋₁ + B̄·xₜ`, ix, iy, { color: T.n14, font: '11px ui-monospace, monospace' });
+    r.label(`Δ=${dt.toFixed(2)}  →  ${salient ? 'WRITE (capture xₜ)' : 'hold (retain state)'}`, ix, iy + 16, { color: salient ? T.accent : T.n9, font: '10px ui-monospace, monospace' });
+    r.label('dim   Ā (retain)        hₜ', ix, iy + 36, { color: T.n11, font: '10px ui-monospace, monospace' });
     ctx.save(); ctx.font = '10px ui-monospace, monospace';
     const rowH = Math.min(20, (page.H - iy - 70) / N), aw = 70;
     for (let n = 0; n < N; n++) {
       const ry = iy + 50 + n * rowH, Abar = S.Ab[n * L + tcur], hv = S.H[n * L + tcur];
-      ctx.fillStyle = '#3a4047'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(`h${n}`, ix, ry);
-      ctx.strokeStyle = '#e3e6ea'; ctx.strokeRect(ix + 26, ry - 5, aw, 10);
-      ctx.fillStyle = 'rgba(137,87,229,0.7)'; ctx.fillRect(ix + 26, ry - 5, aw * Abar, 10);   // retention Ā in (0,1)
-      ctx.fillStyle = '#586069'; ctx.fillText(Abar.toFixed(2), ix + 26 + aw + 4, ry);
-      ctx.fillStyle = hv >= 0 ? BLUE : ORANGE; ctx.textAlign = 'right'; ctx.fillText(hv.toFixed(2), ix + iw, ry);
+      ctx.fillStyle = T.n12; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(`h${n}`, ix, ry);
+      ctx.strokeStyle = T.n4; ctx.strokeRect(ix + 26, ry - 5, aw, 10);
+      ctx.fillStyle = alphaOf(T.violet, 0.7); ctx.fillRect(ix + 26, ry - 5, aw * Abar, 10);   // retention Ā in (0,1)
+      ctx.fillStyle = T.n11; ctx.fillText(Abar.toFixed(2), ix + 26 + aw + 4, ry);
+      ctx.fillStyle = hv >= 0 ? T.accent : T.warn; ctx.textAlign = 'right'; ctx.fillText(hv.toFixed(2), ix + iw, ry);
     }
     ctx.restore();
-    r.label(`yₜ = C·hₜ = ${S.Y[tcur].toFixed(3)}`, ix, iy + 56 + N * rowH, { color: GREEN, font: '11px ui-monospace, monospace' });
+    r.label(`yₜ = C·hₜ = ${S.Y[tcur].toFixed(3)}`, ix, iy + 56 + N * rowH, { color: T.ok, font: '11px ui-monospace, monospace' });
 
     // hover
     if (page.pointer.over && grab === null) {

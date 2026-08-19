@@ -8,8 +8,10 @@
 // hover any bar, the sampler animates.
 import { mount } from '../framework/layout.js';
 import { softmax, seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', GREEN = '#2ca02c', RED = '#d1242f', GREY = '#9aa4ad';
+
+
 const VOCAB = ['the', 'cat', 'sat', 'on', 'mat', 'dog', 'ran', 'fast', 'and', 'slept'];
 
 let cur = null, builtSeed = null;
@@ -66,11 +68,11 @@ mount({
     const ctx = page.ctx, st = page.state, r = page.renderer;
     if (!cur || builtSeed !== (st.seed | 0)) { buildData(st); builtSeed = st.seed | 0; }   // no transport: build logits here
     const { logits, V } = cur;
-    r.clear('#ffffff');
-    const T = Math.max(0.05, st.temp), strat = st.strat, K = st.k | 0, P = st.p;
+    r.clear(T.n0);
+    const TEMP = Math.max(0.05, st.temp), strat = st.strat, K = st.k | 0, P = st.p;
 
     // temperature softmax + descending sort
-    const probs = softmax(Float32Array.from(logits, (z) => z / T));
+    const probs = softmax(Float32Array.from(logits, (z) => z / TEMP));
     const order = Array.from({ length: V }, (_, i) => i).sort((a, b) => probs[b] - probs[a]);
     page.probe = { maxP: probs[order[0]] };
     const cum = new Float32Array(V); let acc = 0;
@@ -91,7 +93,7 @@ mount({
     geom = { leftX, bw, yBase, barsH, V };
 
     // live sampler: draw from `renorm` each ~0.34s, tally; reset on param change
-    const sig = `${T}|${strat}|${K}|${P}|${st.seed}|${V}`;
+    const sig = `${TEMP}|${strat}|${K}|${P}|${st.seed}|${V}`;
     if (sig !== lastSig) { tally = new Float64Array(V); total = 0; lastSig = sig; rngState = (st.seed | 0) + 1; lastSampleT = page.t; flash = { idx: -1, ft: -2 }; }
     if (page.t - lastSampleT > 0.34) {
       lastSampleT = page.t; const u = nextRand(); let c = 0, pick = order[0];
@@ -100,19 +102,19 @@ mount({
     }
 
     // axis baseline
-    ctx.save(); ctx.strokeStyle = '#e3e6ea'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(leftX, yBase); ctx.lineTo(leftX + barsW, yBase); ctx.stroke(); ctx.restore();
-    r.label('p(token)  — sorted, after temperature', leftX, yBase - barsH - 14, { color: INK, font: '12px ui-monospace, monospace' });
+    ctx.save(); ctx.strokeStyle = T.n4; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(leftX, yBase); ctx.lineTo(leftX + barsW, yBase); ctx.stroke(); ctx.restore();
+    r.label('p(token)  — sorted, after temperature', leftX, yBase - barsH - 14, { color: T.n14, font: '12px ui-monospace, monospace' });
 
     // bars (sorted desc): kept colored, cut greyed; empirical-frequency outline
     ctx.save(); ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center';
     for (let rk = 0; rk < V; rk++) {
       const idx = order[rk], x = leftX + rk * bw, h = (probs[idx] / pmax) * barsH;
       const isKept = kept[idx], isTop = rk === 0;
-      ctx.fillStyle = !isKept ? '#eceef0' : (strat === 'greedy' && isTop) ? RED : 'rgba(31,111,235,0.72)';
+      ctx.fillStyle = !isKept ? T.n3 : (strat === 'greedy' && isTop) ? T.bad : alphaOf(T.accent, 0.72);
       ctx.fillRect(x + 2, yBase - h, bw - 4, h);
-      if (flash.idx === idx && page.t - flash.ft < 0.3) { ctx.fillStyle = 'rgba(44,160,44,0.9)'; ctx.fillRect(x + 2, yBase - h - 8, bw - 4, 5); }   // sampled flash
-      if (total > 0) { const eh = (tally[idx] / total) * (barsH * (pmax)); ctx.strokeStyle = '#1a1d21'; ctx.lineWidth = 1.4; ctx.strokeRect(x + bw / 2 - 4, yBase - eh, 8, eh); }  // empirical freq
-      ctx.fillStyle = isKept ? '#3a4047' : GREY; ctx.textBaseline = 'top';
+      if (flash.idx === idx && page.t - flash.ft < 0.3) { ctx.fillStyle = alphaOf(T.ok, 0.9); ctx.fillRect(x + 2, yBase - h - 8, bw - 4, 5); }   // sampled flash
+      if (total > 0) { const eh = (tally[idx] / total) * (barsH * (pmax)); ctx.strokeStyle = T.n14; ctx.lineWidth = 1.4; ctx.strokeRect(x + bw / 2 - 4, yBase - eh, 8, eh); }  // empirical freq
+      ctx.fillStyle = isKept ? T.n12 : T.n9; ctx.textBaseline = 'top';
       ctx.fillText(`"${VOCAB[idx]}"`, x + bw / 2, yBase + 4);
       ctx.fillText(probs[idx].toFixed(2), x + bw / 2, yBase + 16);
     }
@@ -120,18 +122,18 @@ mount({
 
     // cumulative curve + the top-p line / top-k divider
     ctx.save();
-    ctx.strokeStyle = 'rgba(137,87,229,0.8)'; ctx.lineWidth = 1.5; ctx.beginPath();
+    ctx.strokeStyle = alphaOf(T.violet, 0.8); ctx.lineWidth = 1.5; ctx.beginPath();
     for (let rk = 0; rk < V; rk++) { const x = leftX + rk * bw + bw / 2, y = yBase - cum[rk] * barsH; if (rk === 0) ctx.moveTo(leftX, yBase); ctx.lineTo(x, y); }
     ctx.stroke();
-    r.label('Σ cumulative', leftX + barsW + 6, yBase - barsH + 8, { color: '#8957e5', font: '10px ui-monospace, monospace' });
+    r.label('Σ cumulative', leftX + barsW + 6, yBase - barsH + 8, { color: T.violet, font: '10px ui-monospace, monospace' });
     if (strat === 'top-p') {
       const py = yBase - P * barsH;
-      ctx.strokeStyle = RED; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(leftX, py); ctx.lineTo(leftX + barsW, py); ctx.stroke(); ctx.setLineDash([]);
-      r.label(`p = ${P.toFixed(2)}  (drag ↕)`, leftX + barsW + 6, py, { color: RED, font: '10px ui-monospace, monospace' });
+      ctx.strokeStyle = T.bad; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(leftX, py); ctx.lineTo(leftX + barsW, py); ctx.stroke(); ctx.setLineDash([]);
+      r.label(`p = ${P.toFixed(2)}  (drag ↕)`, leftX + barsW + 6, py, { color: T.bad, font: '10px ui-monospace, monospace' });
     } else if (strat === 'top-k') {
       const kx = leftX + K * bw;
-      ctx.strokeStyle = RED; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(kx, yBase - barsH); ctx.lineTo(kx, yBase + 4); ctx.stroke();
-      r.label(`k = ${K}  (drag ↔)`, kx + 4, yBase - barsH + 8, { color: RED, font: '10px ui-monospace, monospace' });
+      ctx.strokeStyle = T.bad; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(kx, yBase - barsH); ctx.lineTo(kx, yBase + 4); ctx.stroke();
+      r.label(`k = ${K}  (drag ↔)`, kx + 4, yBase - barsH + 8, { color: T.bad, font: '10px ui-monospace, monospace' });
     }
     ctx.restore();
 
@@ -145,7 +147,7 @@ mount({
     }
 
     const keptToks = order.slice(0, keptRank).map((i) => `"${VOCAB[i]}"`).join(' ');
-    let o = `softmax(logits / T=${T.toFixed(1)}) → ${strat}.    empirical draws: ${total} (outline bars converge to p).    tier:${r.name}\n`;
+    let o = `softmax(logits / T=${TEMP.toFixed(1)}) → ${strat}.    empirical draws: ${total} (outline bars converge to p).    tier:${r.name}\n`;
     o += strat === 'greedy' ? `greedy: always argmax = "${VOCAB[order[0]]}" (p ${probs[order[0]].toFixed(3)}).`
       : strat === 'full' ? `full distribution: sample from all ${V} tokens.`
       : `${strat}: keep ${keptRank} token${keptRank > 1 ? 's' : ''} {${keptToks}} (Σp=${cum[keptRank - 1].toFixed(3)}), renormalize, sample.`;

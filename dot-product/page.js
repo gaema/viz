@@ -1,12 +1,14 @@
 // dot-product concept page -- a·b term by term + geometry (projection, cosine).
-// Interactive per the framework contract (plan/framework.md): drag any a/b cell
+// Interactive per the shared render framework's contract: drag any a/b cell
 // to change its value and watch a·b + the geometry recompute live; hover any
 // cell for its value + derivation; the running sum auto-plays + loops.
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { dot, dotSteps, collectSteps, seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const BLUE = '#1f6feb', ORANGE = '#d2691e', INK = '#111';
+
+
 const norm = (v) => { let s = 0; for (let i = 0; i < v.length; i++) s += v[i] * v[i]; return Math.sqrt(s); };
 const maxAbs = (v) => { let a = 0; for (let i = 0; i < v.length; i++) { const x = Math.abs(v[i]); if (x > a) a = x; } return a || 1; };
 
@@ -41,15 +43,15 @@ function resync(page) {
 // One 1×k strip heatmap + per-cell labels + active-cell outline.
 function strip(r, vec, k, rect, dom, activeK, opts = {}) {
   r.heatmap(vec, { rows: 1, cols: k, rect, ramp: ramps.diverging, domain: [-dom, dom] });
-  r.grid({ stroke: 'rgba(0,0,0,0.12)' });
+  r.grid({ stroke: alphaOf(T.n14, 0.12) });
   if (r.layout.cellW >= 22) {
     for (let i = 0; i < k; i++) {
       if (opts.upto != null && i > opts.upto) continue;
       const v = vec[i];
-      r.cell(0, i, { stroke: false, label: v.toFixed(1), labelColor: Math.abs(v) > dom * 0.6 ? '#fff' : '#222', font: '10px ui-monospace, monospace' });
+      r.cell(0, i, { stroke: false, label: v.toFixed(1), labelColor: Math.abs(v) > dom * 0.6 ? T.n0 : T.n13, font: '10px ui-monospace, monospace' });
     }
   }
-  if (activeK >= 0 && activeK < k) r.cell(0, activeK, { stroke: INK, width: 2.5 });
+  if (activeK >= 0 && activeK < k) r.cell(0, activeK, { stroke: T.n14, width: 2.5 });
 }
 
 // Geometry: a along +x, b at the true angle θ, projection of b onto a shaded.
@@ -64,20 +66,20 @@ function geometry(page, a, b, rect) {
   const projLen = nb * cos, projPt = { x: cx + projLen * sc, y: cy };
 
   ctx.save();
-  ctx.strokeStyle = '#e3e6ea'; ctx.lineWidth = 1;                 // baseline axis
+  ctx.strokeStyle = T.n4; ctx.lineWidth = 1;                 // baseline axis
   ctx.beginPath(); ctx.moveTo(rect.x + 8, cy); ctx.lineTo(rect.x + rect.w - 8, cy); ctx.stroke();
-  ctx.strokeStyle = 'rgba(31,111,235,0.30)'; ctx.lineWidth = 7;   // projection of b onto a
+  ctx.strokeStyle = alphaOf(T.accent, 0.30); ctx.lineWidth = 7;   // projection of b onto a
   ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(projPt.x, projPt.y); ctx.stroke();
-  ctx.setLineDash([4, 4]); ctx.strokeStyle = '#9aa4ad'; ctx.lineWidth = 1;  // drop line
+  ctx.setLineDash([4, 4]); ctx.strokeStyle = T.n9; ctx.lineWidth = 1;  // drop line
   ctx.beginPath(); ctx.moveTo(bTip.x, bTip.y); ctx.lineTo(projPt.x, projPt.y); ctx.stroke();
   ctx.restore();
 
-  r.arrow({ x: cx, y: cy }, aTip, { color: BLUE, width: 2.5 });
-  r.arrow({ x: cx, y: cy }, bTip, { color: ORANGE, width: 2.5 });
-  r.label('a', aTip.x + 6, aTip.y + 14, { color: BLUE, font: '13px ui-monospace, monospace' });
-  r.label('b', bTip.x + 6, bTip.y, { color: ORANGE, font: '13px ui-monospace, monospace' });
-  r.label(`θ = ${(th * 180 / Math.PI).toFixed(0)}°   cos θ = ${cos.toFixed(2)}`, rect.x + 8, rect.y + 16, { color: '#586069', font: '12px ui-monospace, monospace' });
-  r.label(`projₐ b = |b|cos θ = ${projLen.toFixed(2)}`, rect.x + 8, rect.y + rect.h - 8, { color: '#586069', font: '12px ui-monospace, monospace' });
+  r.arrow({ x: cx, y: cy }, aTip, { color: T.accent, width: 2.5 });
+  r.arrow({ x: cx, y: cy }, bTip, { color: T.warn, width: 2.5 });
+  r.label('a', aTip.x + 6, aTip.y + 14, { color: T.accent, font: '13px ui-monospace, monospace' });
+  r.label('b', bTip.x + 6, bTip.y, { color: T.warn, font: '13px ui-monospace, monospace' });
+  r.label(`θ = ${(th * 180 / Math.PI).toFixed(0)}°   cos θ = ${cos.toFixed(2)}`, rect.x + 8, rect.y + 16, { color: T.n11, font: '12px ui-monospace, monospace' });
+  r.label(`projₐ b = |b|cos θ = ${projLen.toFixed(2)}`, rect.x + 8, rect.y + rect.h - 8, { color: T.n11, font: '12px ui-monospace, monospace' });
 }
 
 mount({
@@ -113,7 +115,7 @@ mount({
   draw: (page) => {
     const r = page.renderer, st = page.state, { a, b } = cur;
     if (!a) return;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const k = st.k, pad = 16;
     const leftW = page.W * 0.56;
     const s = page.step();
@@ -129,12 +131,12 @@ mount({
     let y = 42;
     const rowLabel = (t, col) => r.label(t, pad, y + cell * 0.62, { color: col, font: '13px ui-monospace, monospace' });
 
-    rowLabel('a', BLUE); aRect = { x: xs, y, w: sw, h: cell }; strip(r, a, k, aRect, amax, ki); y += cell + 24;
-    rowLabel('b', ORANGE); bRect = { x: xs, y, w: sw, h: cell }; strip(r, b, k, bRect, bmax, ki); y += cell + 24;
-    rowLabel('aₖ·bₖ', '#586069'); prodRect = { x: xs, y, w: sw, h: cell }; strip(r, prodP, k, prodRect, pmax, ki, { upto: ki }); y += cell + 30;
+    rowLabel('a', T.accent); aRect = { x: xs, y, w: sw, h: cell }; strip(r, a, k, aRect, amax, ki); y += cell + 24;
+    rowLabel('b', T.warn); bRect = { x: xs, y, w: sw, h: cell }; strip(r, b, k, bRect, bmax, ki); y += cell + 24;
+    rowLabel('aₖ·bₖ', T.n11); prodRect = { x: xs, y, w: sw, h: cell }; strip(r, prodP, k, prodRect, pmax, ki, { upto: ki }); y += cell + 30;
 
-    r.label(`running  Σ = ${acc.toFixed(3)}`, pad, y, { font: '13px ui-monospace, monospace', color: INK }); y += 22;
-    r.label(`a · b = ${d.toFixed(3)}`, pad, y, { font: '13px ui-monospace, monospace', color: INK });
+    r.label(`running  Σ = ${acc.toFixed(3)}`, pad, y, { font: '13px ui-monospace, monospace', color: T.n14 }); y += 22;
+    r.label(`a · b = ${d.toFixed(3)}`, pad, y, { font: '13px ui-monospace, monospace', color: T.n14 });
 
     geometry(page, a, b, { x: leftW + 8, y: 8, w: page.W - leftW - 16, h: page.H - 16 });
 

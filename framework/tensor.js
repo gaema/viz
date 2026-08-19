@@ -1,7 +1,7 @@
-// tensor.js -- real in-page math for viz concept pages.
+// tensor.js -- real in-page math for ai/models/viz concept pages.
 //
 // The "show the math" guarantee: every number a page displays is computed
-// HERE, deterministically, and is inspectable op-by-op. Design: plan/framework.md.
+// HERE, deterministically, and is inspectable op-by-op. Design: the shared render framework's contract.
 //
 // Two forms per op:
 //   - eager:  matmul(A,B) -> result                (fast path, hot render loop)

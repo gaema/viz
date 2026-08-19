@@ -1,14 +1,14 @@
-// render.js -- shared render scaffold for viz concept pages.
+// render.js -- shared render scaffold for ai/models/viz concept pages.
 //
 // Tier negotiation (WebGPU -> WebGL2 -> Canvas2D) + tier-agnostic draw
-// primitives. Design: plan/framework.md. The visible canvas is ALWAYS a
+// primitives. Design: the shared render framework's contract. The visible canvas is ALWAYS a
 // Canvas2D surface -- every vector primitive (grid/vector/arrow/bar/cell)
 // draws onto it, so overlays stay crisp and identical on every tier. Only
 // the heatmap *raster* is produced on the negotiated tier (an offscreen
 // WebGL2/WebGPU canvas, or pure 2D) and blitted into the visible canvas.
 //
 // All three tiers map scalars to color through ONE shared 256-entry LUT, so
-// a heatmap is pixel-identical across Canvas2D and WebGL2 -- the
+// a heatmap is pixel-identical across Canvas2D and WebGL2 -- the Phase-1
 // gate. The tier only changes WHERE the raster's scaling/compositing runs.
 //
 // No build step: import as an ES module, or load via <script> and use the
@@ -17,6 +17,7 @@
 // ---------------------------------------------------------------------------
 // Color ramps -- continuous t in [0,1] -> [r,g,b] (0..255). Multi-stop lerp.
 // ---------------------------------------------------------------------------
+import { T, effectiveTheme } from './theme.js';
 function _lerp(a, b, t) { return a + (b - a) * t; }
 
 function _rampFromStops(stops) {
@@ -40,20 +41,47 @@ const _sequential = _rampFromStops([
   [0.75, [93, 201, 99]], [1.0, [253, 231, 37]],
 ]);
 
-// diverging: signed weights, blue (neg) -> white (0) -> red (pos). 0 at t=0.5.
-const _diverging = _rampFromStops([
-  [0.0, [33, 102, 172]], [0.5, [247, 247, 247]], [1.0, [178, 24, 43]],
-]);
+// diverging: signed weights, blue (neg) -> GROUND (0) -> red (pos). 0 at t=0.5.
+// The midpoint is the page ground, not a fixed white: on a dark theme a white
+// zero-cell is the brightest thing on screen, so every near-zero weight glares
+// while the actual signal recedes. Tying it to the ground keeps "zero" reading
+// as "nothing here" in both themes, and the endpoints brighten in dark so they
+// still separate against it.
+function _hex2rgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+function _divergingRamp() {
+  const dark = effectiveTheme() === 'dark';
+  return _rampFromStops([
+    [0.0, dark ? [88, 150, 226] : [33, 102, 172]],
+    [0.5, _hex2rgb(T.n0)],
+    [1.0, dark ? [229, 83, 75] : [178, 24, 43]],
+  ]);
+}
 
-export const ramps = { sequential: _sequential, diverging: _diverging };
+// Getters, not fixed functions: a page reads `ramps.diverging` inside draw(), so
+// it must resolve against the theme in force at that moment.
+export const ramps = {
+  get sequential() { return _sequential; },
+  get diverging() { return _divergingRamp(); },
+};
 
 // categorical: discrete index -> distinct color (expert / head / class ids).
+// Two sets, same hue order: the light one is tab10; the dark one lifts the
+// darker members (tab10's blue/brown/grey read as mud on a dark ground) while
+// keeping every hue identifiable as the SAME category across themes.
 const _CAT = [
   [31, 119, 180], [255, 127, 14], [44, 160, 44], [214, 39, 40],
   [148, 103, 189], [140, 86, 75], [227, 119, 194], [127, 127, 127],
   [188, 189, 34], [23, 190, 207],
 ];
-export function categorical(i) { return _CAT[((i % _CAT.length) + _CAT.length) % _CAT.length]; }
+const _CAT_DARK = [
+  [96, 165, 250], [251, 146, 60], [74, 222, 128], [248, 113, 113],
+  [192, 132, 252], [191, 145, 122], [244, 164, 214], [163, 172, 182],
+  [214, 214, 92], [90, 214, 231],
+];
+export function categorical(i) {
+  const set = effectiveTheme() === 'dark' ? _CAT_DARK : _CAT;
+  return set[((i % set.length) + set.length) % set.length];
+}
 
 function _rgb(c, a) { return `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a == null ? 1 : a})`; }
 
@@ -362,11 +390,11 @@ export class Renderer {
     ctx.save();
     if (opts.fill) { ctx.fillStyle = opts.fill; ctx.fillRect(R.x, R.y, R.w, R.h); }
     if (opts.stroke !== false) {
-      ctx.strokeStyle = opts.stroke || '#111'; ctx.lineWidth = opts.width || 2;
+      ctx.strokeStyle = opts.stroke || T.n14; ctx.lineWidth = opts.width || 2;
       ctx.strokeRect(R.x + 0.5, R.y + 0.5, R.w - 1, R.h - 1);
     }
     if (opts.label != null) {
-      ctx.fillStyle = opts.labelColor || '#111';
+      ctx.fillStyle = opts.labelColor || T.n14;
       ctx.font = opts.font || '11px ui-monospace, monospace';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(String(opts.label), R.x + R.w / 2, R.y + R.h / 2);
@@ -380,7 +408,7 @@ export class Renderer {
   arrow(from, to, opts = {}) {
     const a = this._px(from, opts.space), b = this._px(to, opts.space), ctx = this.ctx;
     const w = opts.weight == null ? 1 : Math.max(0, Math.min(1, opts.weight));
-    const col = opts.color || '#222';
+    const col = opts.color || T.n13;
     const lw = (opts.width || 2) * (0.3 + 0.7 * w);
     const head = opts.head || 7 + lw;
     const ang = Math.atan2(b.y - a.y, b.x - a.x);
@@ -406,7 +434,7 @@ export class Renderer {
     if (opts.label != null) {
       const p = this._px(to, opts.space), ctx = this.ctx;
       ctx.save();
-      ctx.fillStyle = opts.color || '#222';
+      ctx.fillStyle = opts.color || T.n13;
       ctx.font = opts.font || '12px ui-monospace, monospace';
       ctx.fillText(String(opts.label), p.x + 4, p.y - 4);
       ctx.restore();
@@ -441,7 +469,7 @@ export class Renderer {
   label(text, x, y, opts = {}) {
     const ctx = this.ctx;
     ctx.save();
-    ctx.fillStyle = opts.color || '#111';
+    ctx.fillStyle = opts.color || T.n14;
     ctx.font = opts.font || '12px ui-monospace, monospace';
     ctx.textAlign = opts.align || 'left'; ctx.textBaseline = opts.baseline || 'alphabetic';
     ctx.fillText(String(text), x, y);

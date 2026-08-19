@@ -3,7 +3,8 @@
 > **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the masking schemes that decide which keys each query may
-read, and what they cost. **Anchor**: A3 attention pattern (Family B).
+read, and what they cost. **Anchor**: A3 attention pattern (Family B; see
+`../plan/curriculum.md`).
 
 ## What it shows
 

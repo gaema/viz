@@ -6,8 +6,18 @@
 // forward pass reveals layer by layer. cur built only by the transport compute.
 import { mount } from '../framework/layout.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, rgbOf, effectiveTheme } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', GREEN = '#2ca02c', GREY = '#9aa4ad';
+// --- theme fixups the mechanical hex migration could not make. A wash, a scrim
+// or a value ramp keyed to a FIXED rgb silently inverts its meaning when the
+// page ground flips, so key it to the theme instead. Every helper below is
+// pixel-identical to the old literal in LIGHT mode; only dark changes.
+// KEPT (no framework equivalent): this page mixes toward a per-map INVERTED channel
+// colour, not a fixed ramp -- signedColor/alphaOf cannot express it.
+const _mixRGB = (a, b, t) => `rgb(${Math.round(a[0] + (b[0] - a[0]) * t)},${Math.round(a[1] + (b[1] - a[1]) * t)},${Math.round(a[2] + (b[2] - a[2]) * t)})`;
+
+
+
 const N = 16, PX = 3.2;                       // input size, display px per feature-map cell
 const EDGE = [                                // Layer-1 oriented edge kernels (Sobel-like)
   [-1, -2, -1, 0, 0, 0, 1, 2, 1],             // horizontal
@@ -93,7 +103,7 @@ mount({
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const F = forward(), sp = page.step(), reveal = sp ? sp.s : 3;
     mapRects = [];
     const pad = 16;
@@ -103,10 +113,10 @@ mount({
       const mx = mmax(m.d);
       for (let yy = 0; yy < m.H; yy++) for (let xx = 0; xx < m.W; xx++) {
         const t = Math.min(1, m.d[yy * m.W + xx] / mx);
-        ctx.fillStyle = `rgb(${Math.round(255 - t * col[0])},${Math.round(255 - t * col[1])},${Math.round(255 - t * col[2])})`;
+        ctx.fillStyle = _mixRGB(rgbOf(T.n0), [255 - col[0], 255 - col[1], 255 - col[2]], t);
         ctx.fillRect(x + xx * px, y + yy * px, px, px);
       }
-      ctx.strokeStyle = '#dfe3e6'; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, m.W * px, m.H * px);
+      ctx.strokeStyle = T.n5; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, m.W * px, m.H * px);
       mapRects.push({ x, y, w: m.W * px, h: m.H * px, label, info });
       return m.W * px;
     };
@@ -114,8 +124,12 @@ mount({
     // input (paintable)
     const inX = pad + 8, inY = 56, inPx = 7;
     inRect = { x: inX, y: inY, w: N * inPx, h: N * inPx };
-    r.label('input — drag to paint', inX, inY - 12, { color: INK, font: '11px ui-monospace, monospace' });
-    drawMap({ d: cur.X, H: N, W: N }, inX, inY, inPx, [200, 200, 200], 'input', 'the image (drag to paint)');
+    r.label('input — drag to paint', inX, inY - 12, { color: T.n14, font: '11px ui-monospace, monospace' });
+    // The painted input is INK ON the ground (not an activation), so unlike the
+    // feature maps its far end has to flip with the theme -- otherwise a painted
+    // pixel and the dark ground land on the same value. Light keeps [200,200,200].
+    const inEnd = effectiveTheme() === 'dark' ? rgbOf(T.n12) : [55, 55, 55];
+    drawMap({ d: cur.X, H: N, W: N }, inX, inY, inPx, [255 - inEnd[0], 255 - inEnd[1], 255 - inEnd[2]], 'input', 'the image (drag to paint)');
 
     // layer rows: L1 edges, L2 textures, L3 parts
     const rowX = inX + N * inPx + 56;
@@ -127,12 +141,12 @@ mount({
     // stack the three layer rows down the right side
     let yy = inY - 6;
     for (const row of rows) {
-      r.label(row.lbl, rowX, yy + 8, { color: row.show ? `rgb(${row.col[0]},${row.col[1]},${row.col[2]})` : GREY, font: '11px ui-monospace, monospace' });
+      r.label(row.lbl, rowX, yy + 8, { color: row.show ? `rgb(${row.col[0]},${row.col[1]},${row.col[2]})` : T.n9, font: '11px ui-monospace, monospace' });
       let cx = rowX;
       for (let c = 0; c < row.maps.length; c++) {
         ctx.save(); if (!row.show) ctx.globalAlpha = 0.18;
         const w = drawMap(row.maps[c], cx, yy + 14, row.px, row.col, `${row.lbl} · ch ${c}`, row.names ? row.names[c] : (row.lbl.includes('texture') ? 'edge combination (corner/pattern)' : 'part/blob detector'));
-        if (row.names) { ctx.fillStyle = row.show ? '#586069' : GREY; ctx.font = '8px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(row.names[c], cx + w / 2, yy + 14 + N * row.px + 9); }
+        if (row.names) { ctx.fillStyle = row.show ? T.n11 : T.n9; ctx.font = '8px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(row.names[c], cx + w / 2, yy + 14 + N * row.px + 9); }
         ctx.restore();
         cx += w + 14;
       }
@@ -140,7 +154,7 @@ mount({
     }
 
     // arrow input -> layers
-    ctx.save(); ctx.strokeStyle = GREY; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(inX + N * inPx + 6, inY + N * inPx / 2); ctx.lineTo(rowX - 8, inY + 6); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.strokeStyle = T.n9; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(inX + N * inPx + 6, inY + N * inPx / 2); ctx.lineTo(rowX - 8, inY + 6); ctx.stroke(); ctx.restore();
 
     // hover
     if (page.pointer.over && !painting) {

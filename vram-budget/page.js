@@ -9,8 +9,9 @@
 // at long context it overtakes the weights, the usual reason a model OOMs. GQA
 // (n_kv << n_heads) and KV-quant shrink it; weight-quant shrinks the weights.
 import { mount } from '../framework/layout.js';
+import { T, rgbaToken } from '../framework/theme.js';
 
-const INK = '#111', GREY = '#9aa4ad', BLUE = '#1f6feb', ORANGE = '#d2691e', GREEN = '#2ca02c', RED = '#d1242f', SLATE = '#7d8590';
+
 const GB = 1e9;
 const fmt = (b) => b >= GB ? (b / GB).toFixed(b < 10 * GB ? 2 : 1) + ' GB' : b >= 1e6 ? (b / 1e6).toFixed(0) + ' MB' : (b / 1e3).toFixed(0) + ' KB';
 const MODELS = {
@@ -69,62 +70,62 @@ mount({
   },
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state, W = page.W, H = page.H;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const v = calc(st), cap = (+st.gpu) * GB, oom = v.total > cap;
     page.probe = { total: v.total, cap };
     const segs = [
-      { k: 'weights', val: v.weights, col: BLUE, f: `params · ${QBYTES[st.wq]}B` },
-      { k: 'KV cache', val: v.kv, col: ORANGE, f: `2·L·(d/H·n_kv)·seq·batch·${QBYTES[st.kvq] || 2}B` },
-      { k: 'activations', val: v.act, col: GREEN, f: st.mode === 'prefill' ? 'batch·seq·d·2·3 + logits' : 'batch·d·… + logits (1 tok)' },
-      { k: 'overhead', val: v.overhead, col: SLATE, f: 'CUDA ctx + fragmentation' },
+      { k: 'weights', val: v.weights, col: T.accent, f: `params · ${QBYTES[st.wq]}B` },
+      { k: 'KV cache', val: v.kv, col: T.warn, f: `2·L·(d/H·n_kv)·seq·batch·${QBYTES[st.kvq] || 2}B` },
+      { k: 'activations', val: v.act, col: T.ok, f: st.mode === 'prefill' ? 'batch·seq·d·2·3 + logits' : 'batch·d·… + logits (1 tok)' },
+      { k: 'overhead', val: v.overhead, col: T.n10, f: 'CUDA ctx + fragmentation' },
     ];
 
     // ===== stacked VRAM bar vs capacity =====
     const bx = 20, by = 64, bw = W - 40, bh = 38, scaleMax = Math.max(v.total, cap) * 1.06, X = (b) => bx + b / scaleMax * bw;
-    r.label(`total ${fmt(v.total)}  /  ${st.gpu} GB GPU`, bx, by - 10, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label(`total ${fmt(v.total)}  /  ${st.gpu} GB GPU`, bx, by - 10, { color: T.n14, font: '12px ui-monospace, monospace' });
     let acc = 0;
     ctx.save();
     for (const s of segs) { const x0 = X(acc), x1 = X(acc + s.val); ctx.fillStyle = s.col; ctx.fillRect(x0, by, Math.max(0, x1 - x0), bh); acc += s.val; }
     // capacity line
-    const capX = X(cap); ctx.strokeStyle = oom ? RED : '#111'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(capX, by - 4); ctx.lineTo(capX, by + bh + 4); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = oom ? RED : '#111'; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(`${st.gpu} GB`, capX, by + bh + 14);
+    const capX = X(cap); ctx.strokeStyle = oom ? T.bad : T.n14; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(capX, by - 4); ctx.lineTo(capX, by + bh + 4); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = oom ? T.bad : T.n14; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(`${st.gpu} GB`, capX, by + bh + 14);
     // OOM border pulse
     if (oom) { const a = 0.4 + 0.4 * Math.sin((page.t || 0) * 4); ctx.strokeStyle = `rgba(209,36,47,${a})`; ctx.lineWidth = 2.5; ctx.strokeRect(bx - 1, by - 1, bw + 2, bh + 2); }
     ctx.restore();
-    if (oom) r.label(`⚠ OOM by ${fmt(v.total - cap)}`, bx + bw - 150, by - 10, { color: RED, font: 'bold 12px ui-monospace, monospace' });
+    if (oom) r.label(`⚠ OOM by ${fmt(v.total - cap)}`, bx + bw - 150, by - 10, { color: T.bad, font: 'bold 12px ui-monospace, monospace' });
 
     // legend / numbers
     let lx = bx;
-    for (const s of segs) { ctx.save(); ctx.fillStyle = s.col; ctx.fillRect(lx, by + bh + 22, 11, 11); ctx.restore(); r.label(`${s.k}  ${fmt(s.val)}`, lx + 16, by + bh + 31, { color: INK, font: '10px ui-monospace, monospace' }); lx += 190; }
+    for (const s of segs) { ctx.save(); ctx.fillStyle = s.col; ctx.fillRect(lx, by + bh + 22, 11, 11); ctx.restore(); r.label(`${s.k}  ${fmt(s.val)}`, lx + 16, by + bh + 31, { color: T.n14, font: '10px ui-monospace, monospace' }); lx += 190; }
 
     // ===== KV-vs-context curve =====
     const cx = 20, cyTop = by + bh + 58, cw = Math.min(470, W - 300), chh = H - cyTop - 30;
     page._curve = { x: cx, y: cyTop, w: cw, h: chh };
-    r.label('KV cache vs context length  (drag the marker ↔)', cx, cyTop - 8, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label('KV cache vs context length  (drag the marker ↔)', cx, cyTop - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
     const kvMax = v.kvPerTok * SEQMAX * v.B, yMax = Math.max(kvMax, v.weights) * 1.1;
     const SX = (seq) => cx + Math.log(seq / SEQMIN) / Math.log(SEQMAX / SEQMIN) * cw, KY = (b) => cyTop + chh - b / yMax * chh;
-    ctx.save(); ctx.strokeStyle = '#eceef0'; ctx.strokeRect(cx, cyTop, cw, chh);
+    ctx.save(); ctx.strokeStyle = T.n3; ctx.strokeRect(cx, cyTop, cw, chh);
     // weights reference line
     ctx.strokeStyle = 'rgba(31,111,235,0.6)'; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(cx, KY(v.weights)); ctx.lineTo(cx + cw, KY(v.weights)); ctx.stroke(); ctx.setLineDash([]);
-    r.label(`weights ${fmt(v.weights)}`, cx + cw - 96, KY(v.weights) - 5, { color: BLUE, font: '9px ui-monospace, monospace' });
+    r.label(`weights ${fmt(v.weights)}`, cx + cw - 96, KY(v.weights) - 5, { color: T.accent, font: '9px ui-monospace, monospace' });
     // KV curve (linear in seq -> curved on log-x)
-    ctx.strokeStyle = ORANGE; ctx.lineWidth = 2; ctx.beginPath();
+    ctx.strokeStyle = T.warn; ctx.lineWidth = 2; ctx.beginPath();
     for (let s = SEQMIN; s <= SEQMAX; s *= 1.15) { const px = SX(s), py = KY(v.kvPerTok * s * v.B); if (s === SEQMIN) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
     ctx.lineTo(SX(SEQMAX), KY(kvMax)); ctx.stroke();
     // crossover (KV == weights)
     const seqX = v.weights / (v.kvPerTok * v.B);
-    if (seqX > SEQMIN && seqX < SEQMAX) { ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(SX(seqX), cyTop); ctx.lineTo(SX(seqX), cyTop + chh); ctx.stroke(); r.label(`KV=weights @ ${Math.round(seqX / 1024)}k`, Math.min(SX(seqX) + 3, cx + cw - 86), cyTop + 12, { color: '#555', font: '8px ui-monospace, monospace' }); }
+    if (seqX > SEQMIN && seqX < SEQMAX) { ctx.strokeStyle = rgbaToken('n14', 0.45); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(SX(seqX), cyTop); ctx.lineTo(SX(seqX), cyTop + chh); ctx.stroke(); r.label(`KV=weights @ ${Math.round(seqX / 1024)}k`, Math.min(SX(seqX) + 3, cx + cw - 86), cyTop + 12, { color: T.n11, font: '8px ui-monospace, monospace' }); }
     // animated ghost sweep
     const gf = ((page.t || 0) % 4) / 4, gs = SEQMIN * Math.pow(SEQMAX / SEQMIN, gf); ctx.fillStyle = 'rgba(210,105,30,0.35)'; ctx.beginPath(); ctx.arc(SX(gs), KY(v.kvPerTok * gs * v.B), 3, 0, 7); ctx.fill();
     // current marker
-    ctx.fillStyle = RED; ctx.beginPath(); ctx.arc(SX(v.seq), KY(v.kv), 4.5, 0, 7); ctx.fill();
+    ctx.fillStyle = T.bad; ctx.beginPath(); ctx.arc(SX(v.seq), KY(v.kv), 4.5, 0, 7); ctx.fill();
     ctx.restore();
-    r.label('512', cx, cyTop + chh + 12, { color: '#8a939b', font: '8px ui-monospace, monospace' }); r.label('128k', cx + cw - 22, cyTop + chh + 12, { color: '#8a939b', font: '8px ui-monospace, monospace' });
-    r.label(`@ ${v.seq >= 1024 ? (v.seq / 1024).toFixed(0) + 'k' : v.seq} ctx ×${v.B}: KV = ${fmt(v.kv)}`, cx, cyTop + chh + 26, { color: ORANGE, font: '10px ui-monospace, monospace' });
+    r.label('512', cx, cyTop + chh + 12, { color: T.n10, font: '8px ui-monospace, monospace' }); r.label('128k', cx + cw - 22, cyTop + chh + 12, { color: T.n10, font: '8px ui-monospace, monospace' });
+    r.label(`@ ${v.seq >= 1024 ? (v.seq / 1024).toFixed(0) + 'k' : v.seq} ctx ×${v.B}: KV = ${fmt(v.kv)}`, cx, cyTop + chh + 26, { color: T.warn, font: '10px ui-monospace, monospace' });
 
     // ===== breakdown panel (right) =====
     const px = cx + cw + 26, py = cyTop;
-    r.label('breakdown', px, py - 8, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label('breakdown', px, py - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
     const m = v.m, rows = [
       `${st.model}: ${(m.params / 1e9).toFixed(1)}B params`,
       `${m.L} layers, d=${m.d}, ${m.H} heads`,
@@ -136,7 +137,7 @@ mount({
       v.kv > v.weights ? 'KV cache > weights — context-bound' : 'weights dominate — model-bound',
       oom ? `OOM: total ${fmt(v.total)} > ${st.gpu} GB` : `fits: ${fmt(cap - v.total)} free`,
     ];
-    rows.forEach((t, i) => { if (t) r.label(t, px, py + 14 + i * 15, { color: i >= 7 ? (oom && i === 8 ? RED : (i === 7 ? (v.kv > v.weights ? ORANGE : BLUE) : GREEN)) : '#444', font: (i >= 7 ? 'bold ' : '') + '10px ui-monospace, monospace' }); });
+    rows.forEach((t, i) => { if (t) r.label(t, px, py + 14 + i * 15, { color: i >= 7 ? (oom && i === 8 ? T.bad : (i === 7 ? (v.kv > v.weights ? T.warn : T.accent) : T.ok)) : T.n12, font: (i >= 7 ? 'bold ' : '') + '10px ui-monospace, monospace' }); });
 
     // hover on bar segments
     if (page.pointer.over && !dragSeq) {

@@ -1,5 +1,5 @@
 // activations concept page -- GELU (erf/tanh), SiLU/Swish, Mish curves.
-// Interactive per the framework contract (plan/framework.md): a draggable
+// Interactive per the shared render framework's contract: a draggable
 // x-marker you slide horizontally to pick the evaluation point; hover anywhere
 // over the plot to read all four activations at that x (vertical guide + a dot
 // on each curve + a value tooltip); and an ambient sweep that animates the
@@ -7,13 +7,15 @@
 // (Canvas2D) rather than heatmaps.
 import { mount } from '../framework/layout.js';
 import { silu, gelu } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111';
+
+
 const ACTS = [
-  { key: 'gelu-erf', name: 'GELU (erf)', color: '#1f6feb', formula: '0.5·x·(1+erf(x/√2))', fn: (xs) => gelu(xs, { approx: 'erf' }) },
-  { key: 'gelu-tanh', name: 'GELU (tanh)', color: '#17a2b8', formula: '0.5·x·(1+tanh(√(2/π)(x+0.0447x³)))', fn: (xs) => gelu(xs) },
-  { key: 'silu', name: 'SiLU / Swish', color: '#d2691e', formula: 'x·σ(x)', fn: (xs) => silu(xs) },
-  { key: 'mish', name: 'Mish', color: '#9467bd', formula: 'x·tanh(softplus(x))', fn: (xs) => Float32Array.from(xs, (x) => x * Math.tanh(Math.log1p(Math.exp(Math.min(x, 30))))) },
+  { key: 'gelu-erf', name: 'GELU (erf)', color: T.accent, formula: '0.5·x·(1+erf(x/√2))', fn: (xs) => gelu(xs, { approx: 'erf' }) },
+  { key: 'gelu-tanh', name: 'GELU (tanh)', color: T.teal, formula: '0.5·x·(1+tanh(√(2/π)(x+0.0447x³)))', fn: (xs) => gelu(xs) },
+  { key: 'silu', name: 'SiLU / Swish', color: T.warn, formula: 'x·σ(x)', fn: (xs) => silu(xs) },
+  { key: 'mish', name: 'Mish', color: T.violet, formula: 'x·tanh(softplus(x))', fn: (xs) => Float32Array.from(xs, (x) => x * Math.tanh(Math.log1p(Math.exp(Math.min(x, 30))))) },
 ];
 const val = (a, x) => a.fn(Float32Array.of(x))[0];
 
@@ -62,7 +64,7 @@ mount({
   },
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const s = page.step(), ai = s ? ACTS.findIndex((a) => a.key === s.key) : -1;
     const XMIN = st.zoom ? -4 : -6, XMAX = st.zoom ? 3 : 6, M = 260;
 
@@ -80,10 +82,10 @@ mount({
     plotRect = { XMIN, XMAX, x: plot.x, y: plot.y, w: plot.w, h: plot.h, px };
 
     // grid + axes
-    ctx.save(); ctx.strokeStyle = '#eef0f2'; ctx.lineWidth = 1; ctx.fillStyle = '#9aa4ad'; ctx.font = '10px ui-monospace, monospace';
+    ctx.save(); ctx.strokeStyle = T.n3; ctx.lineWidth = 1; ctx.fillStyle = T.n9; ctx.font = '10px ui-monospace, monospace';
     for (let gx = Math.ceil(XMIN); gx <= XMAX; gx++) { ctx.beginPath(); ctx.moveTo(px(gx), plot.y); ctx.lineTo(px(gx), plot.y + plot.h); ctx.stroke(); if (gx !== 0) { ctx.textAlign = 'center'; ctx.fillText(String(gx), px(gx), py(0) + 13); } }
     for (let gy = Math.ceil(ymin); gy <= ymax; gy++) { ctx.beginPath(); ctx.moveTo(plot.x, py(gy)); ctx.lineTo(plot.x + plot.w, py(gy)); ctx.stroke(); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(String(gy), plot.x - 6, py(gy)); }
-    ctx.strokeStyle = '#c4ccd3'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = T.n7; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(plot.x, py(0)); ctx.lineTo(plot.x + plot.w, py(0)); ctx.stroke();           // x-axis
     if (XMIN <= 0 && XMAX >= 0) { ctx.beginPath(); ctx.moveTo(px(0), plot.y); ctx.lineTo(px(0), plot.y + plot.h); ctx.stroke(); }
     ctx.restore();
@@ -98,13 +100,13 @@ mount({
 
     // vertical guide line at the evaluation x + draggable marker handle
     ctx.save();
-    ctx.strokeStyle = grabbing ? 'rgba(40,44,52,0.7)' : 'rgba(40,44,52,0.4)'; ctx.lineWidth = grabbing ? 1.6 : 1.2;
+    ctx.strokeStyle = grabbing ? alphaOf('n14', 0.55) : alphaOf('n14', 0.32); ctx.lineWidth = grabbing ? 1.6 : 1.2;
     ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(px(xc), plot.y); ctx.lineTo(px(xc), plot.y + plot.h); ctx.stroke();
     ctx.setLineDash([]);
     // marker handle at the x-axis (a draggable knob)
-    ctx.fillStyle = grabbing ? '#111' : '#586069'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
+    ctx.fillStyle = grabbing ? T.n14 : T.n11; ctx.strokeStyle = T.n0; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(px(xc), py(0), grabbing ? 6 : 5, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = INK; ctx.font = 'bold 11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillStyle = T.n14; ctx.font = 'bold 11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     ctx.fillText(`x = ${xc.toFixed(2)}`, px(xc), plot.y - 2);
     ctx.restore();
 
@@ -116,17 +118,17 @@ mount({
       ctx.stroke();
       const v = val(ACTS[i], xc); ctx.globalAlpha = faint ? 0.4 : 1; ctx.fillStyle = ACTS[i].color;
       ctx.beginPath(); ctx.arc(px(xc), py(v), bold ? 4.5 : 3.5, 0, 7); ctx.fill();
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.strokeStyle = T.n0; ctx.lineWidth = 1; ctx.stroke();
       ctx.restore();
     }
 
     // legend + values at cursor
     let lx = plot.x + plot.w + 24, ly = plot.y + 8;
-    r.label(`at x = ${xc.toFixed(2)}`, lx, ly, { color: INK, font: '12px ui-monospace, monospace' }); ly += 22;
+    r.label(`at x = ${xc.toFixed(2)}`, lx, ly, { color: T.n14, font: '12px ui-monospace, monospace' }); ly += 22;
     for (let i = 0; i < ACTS.length; i++) {
       const a = ACTS[i], bold = ai === i;
       ctx.save(); ctx.strokeStyle = a.color; ctx.lineWidth = bold ? 3 : 2; ctx.beginPath(); ctx.moveTo(lx, ly - 4); ctx.lineTo(lx + 22, ly - 4); ctx.stroke(); ctx.restore();
-      r.label(`${a.name} = ${val(a, xc).toFixed(3)}`, lx + 30, ly, { color: bold ? INK : '#3a4047', font: (bold ? 'bold ' : '') + '11px ui-monospace, monospace' });
+      r.label(`${a.name} = ${val(a, xc).toFixed(3)}`, lx + 30, ly, { color: bold ? T.n14 : T.n12, font: (bold ? 'bold ' : '') + '11px ui-monospace, monospace' });
       ly += 20;
     }
 

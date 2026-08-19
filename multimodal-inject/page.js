@@ -9,15 +9,18 @@
 // block to move where it lands; toggle modality + token count.
 import { mount } from '../framework/layout.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, signedColor, rgbaToken } from '../framework/theme.js';
 
-const INK = '#111', GREY = '#9aa4ad', BLUE = '#1f6feb', ORANGE = '#d2691e', GREEN = '#2ca02c', PURPLE = '#8250df', RED = '#d1242f';
-const D = 16, SRC = { text: BLUE, image: ORANGE, audio: GREEN };
+
+const D = 16;
+// A thunk, not a captured object: T is mutated in place on a theme change.
+const SRC = () => ({ text: T.accent, image: T.warn, audio: T.ok });
 const PROMPTS = {
   'caption': ['Describe', 'the', '<m>', 'in', 'detail', '.'],
   'vqa': ['What', 'color', 'is', 'the', '<m>', '?'],
   'qa': ['Given', '<m>', 'answer', 'the', 'question', '.'],
 };
-const sign = (v, d) => { const t = Math.max(-1, Math.min(1, v / (d || 1))), m = Math.abs(t); return t >= 0 ? `rgb(255,${Math.round(255 - m * 150)},${Math.round(255 - m * 165)})` : `rgb(${Math.round(255 - m * 165)},${Math.round(255 - m * 120)},255)`; };
+const sign = (v, d) => signedColor(Math.max(-1, Math.min(1, v / (d || 1))));
 const hash = (s) => { let h = 7; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h % 9973; };
 
 let cur = null, bsig = '', injectAt = 0, seqRect = null, dragging = false;
@@ -82,55 +85,55 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state, W = page.W, H = page.H;
     const sig = `${st.modality}|${st.N}|${st.prompt}|${st.seed}`;
     if (sig !== bsig) { cur = build(st); injectAt = cur.phIdxInText; bsig = sig; }
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const { textTokens, media, gN } = cur, nT = textTokens.length, nM = media.length;
     // merged sequence (text with media spliced at injectAt)
     const merged = textTokens.slice(0, injectAt).concat(media, textTokens.slice(injectAt));
 
     // ===== encoder + projector (top-left) =====
     let ex = 20; const ey = 50;
-    r.label(st.modality === 'audio' ? 'audio' : 'image', ex, ey - 8, { color: INK, font: '11px ui-monospace, monospace' });
-    if (cur.img) { const isz = st.modality === 'both' ? 52 : 70; ctx.drawImage(cur.img.cv, ex, ey, isz, isz); ctx.save(); ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 0.6; for (let i = 0; i <= gN; i++) { ctx.beginPath(); ctx.moveTo(ex + i * isz / gN, ey); ctx.lineTo(ex + i * isz / gN, ey + isz); ctx.stroke(); ctx.beginPath(); ctx.moveTo(ex, ey + i * isz / gN); ctx.lineTo(ex + isz, ey + i * isz / gN); ctx.stroke(); } ctx.restore(); ex += isz + 8; }
-    if (cur.aud) { const aw = 80, ah = st.modality === 'both' ? 28 : 50, ay = st.modality === 'both' ? ey + 56 : ey; ctx.save(); ctx.strokeStyle = '#e6e8ea'; ctx.strokeRect(st.modality === 'both' ? 20 : ex, ay, aw, ah); ctx.strokeStyle = GREEN; ctx.lineWidth = 1; ctx.beginPath(); const ax0 = (st.modality === 'both' ? 20 : ex); for (let i = 0; i < cur.aud.s.length; i++) { const px = ax0 + i / cur.aud.s.length * aw, py = ay + ah / 2 - cur.aud.s[i] * ah * 0.4; if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); } ctx.stroke(); ctx.restore(); if (st.modality !== 'both') ex += aw + 8; }
+    r.label(st.modality === 'audio' ? 'audio' : 'image', ex, ey - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
+    if (cur.img) { const isz = st.modality === 'both' ? 52 : 70; ctx.drawImage(cur.img.cv, ex, ey, isz, isz); ctx.save(); ctx.strokeStyle = rgbaToken('n14', 0.3); ctx.lineWidth = 0.6; for (let i = 0; i <= gN; i++) { ctx.beginPath(); ctx.moveTo(ex + i * isz / gN, ey); ctx.lineTo(ex + i * isz / gN, ey + isz); ctx.stroke(); ctx.beginPath(); ctx.moveTo(ex, ey + i * isz / gN); ctx.lineTo(ex + isz, ey + i * isz / gN); ctx.stroke(); } ctx.restore(); ex += isz + 8; }
+    if (cur.aud) { const aw = 80, ah = st.modality === 'both' ? 28 : 50, ay = st.modality === 'both' ? ey + 56 : ey; ctx.save(); ctx.strokeStyle = T.n4; ctx.strokeRect(st.modality === 'both' ? 20 : ex, ay, aw, ah); ctx.strokeStyle = T.ok; ctx.lineWidth = 1; ctx.beginPath(); const ax0 = (st.modality === 'both' ? 20 : ex); for (let i = 0; i < cur.aud.s.length; i++) { const px = ax0 + i / cur.aud.s.length * aw, py = ay + ah / 2 - cur.aud.s[i] * ah * 0.4; if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); } ctx.stroke(); ctx.restore(); if (st.modality !== 'both') ex += aw + 8; }
     // encoder -> projector box
     const bx = (st.modality === 'both') ? 110 : ex, boxY = ey + 8;
-    ctx.save(); ctx.fillStyle = 'rgba(130,80,223,0.08)'; ctx.fillRect(bx, boxY, 124, 52); ctx.strokeStyle = PURPLE; ctx.lineWidth = 1.3; ctx.strokeRect(bx, boxY, 124, 52); ctx.fillStyle = INK; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(st.modality === 'audio' ? 'audio encoder' : 'ViT encoder', bx + 62, boxY + 16); ctx.fillStyle = PURPLE; ctx.fillText('projector MLP', bx + 62, boxY + 32); ctx.fillStyle = '#444'; ctx.fillText('D_enc → D=' + D, bx + 62, boxY + 46); ctx.restore();
-    r.label(`→ ${nM} ${st.modality === 'both' ? 'media' : st.modality} tokens (D-dim)`, bx, boxY + 66, { color: ORANGE, font: '10px ui-monospace, monospace' });
+    ctx.save(); ctx.fillStyle = 'rgba(130,80,223,0.08)'; ctx.fillRect(bx, boxY, 124, 52); ctx.strokeStyle = T.violet; ctx.lineWidth = 1.3; ctx.strokeRect(bx, boxY, 124, 52); ctx.fillStyle = T.n14; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(st.modality === 'audio' ? 'audio encoder' : 'ViT encoder', bx + 62, boxY + 16); ctx.fillStyle = T.violet; ctx.fillText('projector MLP', bx + 62, boxY + 32); ctx.fillStyle = T.n12; ctx.fillText('D_enc → D=' + D, bx + 62, boxY + 46); ctx.restore();
+    r.label(`→ ${nM} ${st.modality === 'both' ? 'media' : st.modality} tokens (D-dim)`, bx, boxY + 66, { color: T.warn, font: '10px ui-monospace, monospace' });
 
     // ===== prompt (top-right) =====
     const prx = bx + 150, pry = ey - 2; let wx = prx;
-    r.label('text prompt  (<m> = media placeholder)', prx, pry - 8, { color: INK, font: '10px ui-monospace, monospace' });
+    r.label('text prompt  (<m> = media placeholder)', prx, pry - 8, { color: T.n14, font: '10px ui-monospace, monospace' });
     const words = PROMPTS[st.prompt];
     ctx.save(); ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left';
-    for (const w of words) { const isPh = w === '<m>', lab = isPh ? (st.modality === 'audio' ? '<aud>' : '<img>') : w, tw = ctx.measureText(lab).width + 8; ctx.fillStyle = isPh ? 'rgba(210,105,30,0.15)' : '#f2f4f6'; ctx.fillRect(wx, pry + 8, tw, 16); ctx.strokeStyle = isPh ? ORANGE : '#d0d7de'; ctx.strokeRect(wx, pry + 8, tw, 16); ctx.fillStyle = isPh ? ORANGE : INK; ctx.fillText(lab, wx + 4, pry + 20); wx += tw + 4; if (wx > W - 90) { wx = prx; pry += 22; } }
+    for (const w of words) { const isPh = w === '<m>', lab = isPh ? (st.modality === 'audio' ? '<aud>' : '<img>') : w, tw = ctx.measureText(lab).width + 8; ctx.fillStyle = isPh ? 'rgba(210,105,30,0.15)' : T.n2; ctx.fillRect(wx, pry + 8, tw, 16); ctx.strokeStyle = isPh ? T.warn : T.n6; ctx.strokeRect(wx, pry + 8, tw, 16); ctx.fillStyle = isPh ? T.warn : T.n14; ctx.fillText(lab, wx + 4, pry + 20); wx += tw + 4; if (wx > W - 90) { wx = prx; pry += 22; } }
     ctx.restore();
-    r.label('the placeholder expands into the media tokens →', prx, pry + 40, { color: '#586069', font: '9px ui-monospace, monospace' });
+    r.label('the placeholder expands into the media tokens →', prx, pry + 40, { color: T.n11, font: '9px ui-monospace, monospace' });
 
     // ===== merged sequence heatmap =====
     const sx = 20, sy = 168, sw = W - 40, slotW = Math.min(30, sw / merged.length), seqW = slotW * merged.length, ch = Math.min(8, 120 / D), seqH = ch * D;
     seqRect = { x: sx, y: sy, w: seqW, h: seqH };
-    r.label('merged token sequence — text + media, all D-dim, fed to the LLM  (drag the media block ↔)', sx, sy - 8, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label('merged token sequence — text + media, all D-dim, fed to the LLM  (drag the media block ↔)', sx, sy - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
     ctx.save();
     merged.forEach((tok, i) => {
       const cx0 = sx + i * slotW;
       for (let o = 0; o < D; o++) { ctx.fillStyle = sign(tok.emb[o], 1.4); ctx.fillRect(cx0, sy + o * ch, slotW - 0.6, ch - 0.3); }
-      ctx.strokeStyle = SRC[tok.src]; ctx.lineWidth = tok.src === 'text' ? 0.8 : 1.6; ctx.strokeRect(cx0 - 0.5, sy - 0.5, slotW, seqH + 1);
+      ctx.strokeStyle = SRC()[tok.src]; ctx.lineWidth = tok.src === 'text' ? 0.8 : 1.6; ctx.strokeRect(cx0 - 0.5, sy - 0.5, slotW, seqH + 1);
       // source tick + label above
-      ctx.fillStyle = SRC[tok.src]; ctx.fillRect(cx0, sy - 5, slotW - 0.6, 3);
-      if (tok.src === 'text') { ctx.save(); ctx.fillStyle = INK; ctx.font = '8px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(tok.label.length > 5 ? tok.label.slice(0, 5) : tok.label, cx0 + slotW / 2, sy + seqH + 11); ctx.restore(); }
+      ctx.fillStyle = SRC()[tok.src]; ctx.fillRect(cx0, sy - 5, slotW - 0.6, 3);
+      if (tok.src === 'text') { ctx.save(); ctx.fillStyle = T.n14; ctx.font = '8px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(tok.label.length > 5 ? tok.label.slice(0, 5) : tok.label, cx0 + slotW / 2, sy + seqH + 11); ctx.restore(); }
     });
     // media block bracket
     const mb0 = sx + injectAt * slotW, mbW = nM * slotW;
-    ctx.strokeStyle = media[0] ? SRC[media[0].src] : ORANGE; ctx.lineWidth = 2; ctx.strokeRect(mb0 - 1.5, sy - 7, mbW + 3, seqH + 9);
-    ctx.fillStyle = media[0] ? SRC[media[0].src] : ORANGE; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(`${nM} ${st.modality === 'both' ? 'media' : st.modality} tokens injected here`, mb0 + mbW / 2, sy + seqH + 24);
+    ctx.strokeStyle = media[0] ? SRC()[media[0].src] : T.warn; ctx.lineWidth = 2; ctx.strokeRect(mb0 - 1.5, sy - 7, mbW + 3, seqH + 9);
+    ctx.fillStyle = media[0] ? SRC()[media[0].src] : T.warn; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(`${nM} ${st.modality === 'both' ? 'media' : st.modality} tokens injected here`, mb0 + mbW / 2, sy + seqH + 24);
     ctx.restore();
     // connector projector -> media block (animated)
-    ctx.save(); ctx.strokeStyle = ORANGE; ctx.lineWidth = 1; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(bx + 62, boxY + 52); ctx.bezierCurveTo(bx + 62, sy - 30, mb0 + mbW / 2, sy - 40, mb0 + mbW / 2, sy - 8); ctx.stroke(); ctx.setLineDash([]);
-    const fp = (page.t || 0) % 1.5 / 1.5, sxp = bx + 62, syp = boxY + 52, exp2 = mb0 + mbW / 2, fx = sxp + (exp2 - sxp) * fp, fy = syp + (sy - 8 - syp) * fp; ctx.fillStyle = ORANGE; ctx.beginPath(); ctx.arc(fx, fy, 2.6, 0, 7); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.strokeStyle = T.warn; ctx.lineWidth = 1; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(bx + 62, boxY + 52); ctx.bezierCurveTo(bx + 62, sy - 30, mb0 + mbW / 2, sy - 40, mb0 + mbW / 2, sy - 8); ctx.stroke(); ctx.setLineDash([]);
+    const fp = (page.t || 0) % 1.5 / 1.5, sxp = bx + 62, syp = boxY + 52, exp2 = mb0 + mbW / 2, fx = sxp + (exp2 - sxp) * fp, fy = syp + (sy - 8 - syp) * fp; ctx.fillStyle = T.warn; ctx.beginPath(); ctx.arc(fx, fy, 2.6, 0, 7); ctx.fill(); ctx.restore();
 
     // ===== LLM bar =====
     const ly = sy + seqH + 36;
-    ctx.save(); ctx.fillStyle = 'rgba(31,111,235,0.08)'; ctx.fillRect(sx, ly, seqW, 24); ctx.strokeStyle = BLUE; ctx.lineWidth = 1.3; ctx.strokeRect(sx, ly, seqW, 24); ctx.fillStyle = BLUE; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('LLM — self-attention over ALL tokens (text + media), uniformly', sx + seqW / 2, ly + 16); ctx.restore();
+    ctx.save(); ctx.fillStyle = 'rgba(31,111,235,0.08)'; ctx.fillRect(sx, ly, seqW, 24); ctx.strokeStyle = T.accent; ctx.lineWidth = 1.3; ctx.strokeRect(sx, ly, seqW, 24); ctx.fillStyle = T.accent; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('LLM — self-attention over ALL tokens (text + media), uniformly', sx + seqW / 2, ly + 16); ctx.restore();
     // arrows from each token down into the LLM
     ctx.save(); ctx.strokeStyle = 'rgba(150,160,170,0.5)'; ctx.lineWidth = 0.6; for (let i = 0; i < merged.length; i++) { const cx0 = sx + i * slotW + slotW / 2; ctx.beginPath(); ctx.moveTo(cx0, sy + seqH + 26); ctx.lineTo(cx0, ly - 1); ctx.stroke(); } ctx.restore();
 
@@ -139,28 +142,28 @@ mount({
     for (let i = 0; i < L; i++) { const row = new Float32Array(L); let mx = -1e9; for (let j = 0; j <= i; j++) { let s = 0; for (let o = 0; o < D; o++) s += merged[i].emb[o] * merged[j].emb[o]; row[j] = s * scal; if (row[j] > mx) mx = row[j]; } let sum = 0; for (let j = 0; j <= i; j++) { row[j] = Math.exp(row[j] - mx); sum += row[j]; } for (let j = 0; j <= i; j++) row[j] /= sum; att.push(row); }
     const gy = ly + 44, gSide = Math.min(140, H - (ly + 58)), ac = gSide / L, gx = 40;
     const qRow = (page.pointer.over && page.pointer.x >= gx && page.pointer.x <= gx + gSide && page.pointer.y >= gy && page.pointer.y <= gy + gSide) ? Math.floor((page.pointer.y - gy) / ac) : L - 1;  // hovered row, else the last token
-    r.label('self-attention weights (causal): row i attends to columns j ≤ i — text rows weight image/audio columns too', gx, gy - 10, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label('self-attention weights (causal): row i attends to columns j ≤ i — text rows weight image/audio columns too', gx, gy - 10, { color: T.n14, font: '11px ui-monospace, monospace' });
     page._attRect = { x: gx, y: gy, w: gSide, h: gSide, ac, L };
     ctx.save();
     // source ticks: left (rows) + top (cols)
-    for (let i = 0; i < L; i++) { ctx.fillStyle = SRC[merged[i].src]; ctx.fillRect(gx - 5, gy + i * ac, 3, ac - 0.4); ctx.fillRect(gx + i * ac, gy - 5, ac - 0.4, 3); }
+    for (let i = 0; i < L; i++) { ctx.fillStyle = SRC()[merged[i].src]; ctx.fillRect(gx - 5, gy + i * ac, 3, ac - 0.4); ctx.fillRect(gx + i * ac, gy - 5, ac - 0.4, 3); }
     // cells
     for (let i = 0; i < L; i++) for (let j = 0; j <= i; j++) { const w = att[i][j]; ctx.fillStyle = `rgba(31,111,235,${Math.min(1, Math.sqrt(w) * 1.05)})`; ctx.fillRect(gx + j * ac, gy + i * ac, ac - 0.4, ac - 0.4); }
-    ctx.strokeStyle = '#e6e8ea'; ctx.lineWidth = 1; ctx.strokeRect(gx, gy, gSide, gSide);
+    ctx.strokeStyle = T.n4; ctx.lineWidth = 1; ctx.strokeRect(gx, gy, gSide, gSide);
     // highlight the query row
-    if (qRow >= 0 && qRow < L) { ctx.strokeStyle = RED; ctx.lineWidth = 1.6; ctx.strokeRect(gx - 0.5, gy + qRow * ac - 0.5, gSide + 1, ac + 1); }
+    if (qRow >= 0 && qRow < L) { ctx.strokeStyle = T.bad; ctx.lineWidth = 1.6; ctx.strokeRect(gx - 0.5, gy + qRow * ac - 0.5, gSide + 1, ac + 1); }
     ctx.restore();
-    r.label('rows/cols ↓→ in sequence order;  tick colour = source (text/image/audio)', gx, gy + gSide + 12, { color: '#8a939b', font: '9px ui-monospace, monospace' });
+    r.label('rows/cols ↓→ in sequence order;  tick colour = source (text/image/audio)', gx, gy + gSide + 12, { color: T.n10, font: '9px ui-monospace, monospace' });
     // query-row breakdown (how much of row qRow's attention lands on each modality)
     if (qRow >= 0 && qRow < L) {
       let wt = 0, wi = 0, wa = 0; for (let j = 0; j <= qRow; j++) { const s = merged[j].src; if (s === 'image') wi += att[qRow][j]; else if (s === 'audio') wa += att[qRow][j]; else wt += att[qRow][j]; }
       const lx = gx + gSide + 28, lyy = gy + 4;
       const qtok = merged[qRow];
-      r.label(`query row = token ${qRow}: ${qtok.src}${qtok.src === 'text' ? ' "' + qtok.label + '"' : ''}`, lx, lyy, { color: RED, font: '11px ui-monospace, monospace' });
-      r.label('its attention splits across modalities:', lx, lyy + 20, { color: INK, font: '10px ui-monospace, monospace' });
-      const bars = [['text', wt, BLUE], ['image', wi, ORANGE], ['audio', wa, GREEN]].filter((b) => b[1] > 0.0001);
-      bars.forEach((b, k) => { const yy = lyy + 38 + k * 20, bw = 150 * b[1]; ctx.save(); ctx.fillStyle = b[2]; ctx.fillRect(lx, yy - 9, bw, 12); ctx.restore(); r.label(`${b[0]} ${(b[1] * 100).toFixed(0)}%`, lx + Math.max(bw + 4, 4), yy, { color: INK, font: '10px ui-monospace, monospace' }); });
-      r.label(qtok.src === 'text' && (wi + wa) > 0.05 ? '→ a text token reading across image/audio tokens: cross-modal attention.' : 'hover a different row to inspect its attention', lx, lyy + 38 + bars.length * 20 + 8, { color: '#586069', font: '9px ui-monospace, monospace' });
+      r.label(`query row = token ${qRow}: ${qtok.src}${qtok.src === 'text' ? ' "' + qtok.label + '"' : ''}`, lx, lyy, { color: T.bad, font: '11px ui-monospace, monospace' });
+      r.label('its attention splits across modalities:', lx, lyy + 20, { color: T.n14, font: '10px ui-monospace, monospace' });
+      const bars = [['text', wt, T.accent], ['image', wi, T.warn], ['audio', wa, T.ok]].filter((b) => b[1] > 0.0001);
+      bars.forEach((b, k) => { const yy = lyy + 38 + k * 20, bw = 150 * b[1]; ctx.save(); ctx.fillStyle = b[2]; ctx.fillRect(lx, yy - 9, bw, 12); ctx.restore(); r.label(`${b[0]} ${(b[1] * 100).toFixed(0)}%`, lx + Math.max(bw + 4, 4), yy, { color: T.n14, font: '10px ui-monospace, monospace' }); });
+      r.label(qtok.src === 'text' && (wi + wa) > 0.05 ? '→ a text token reading across image/audio tokens: cross-modal attention.' : 'hover a different row to inspect its attention', lx, lyy + 38 + bars.length * 20 + 8, { color: T.n11, font: '9px ui-monospace, monospace' });
     }
 
     // hover

@@ -5,7 +5,7 @@
 Interactive page: the **Vision Transformer (ViT) patch embedding** -- how an image
 becomes a **sequence of tokens** a transformer can consume. **Anchor**: F (CNN /
 vision), the CNN→transformer bridge; Family F, builds on
-[convolution](../convolution/README.md) ().
+[convolution](../convolution/README.md) (see `../plan/curriculum.md`).
 
 ## What it shows
 

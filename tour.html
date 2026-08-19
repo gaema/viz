@@ -4,55 +4,63 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Guided tour | viz</title>
-<!-- Guided, narrated walkthrough of the 40 concept demos in curriculum order.
+<!-- Guided, narrated walkthrough of the 52 concept demos in curriculum order.
      STATIC shell (no module imports) so it opens over file:// or http, like
-     index.html. The embedded demo PREVIEW is an <iframe> of each live demo,
+     catalogue.html. The embedded demo PREVIEW is an <iframe> of each live demo,
      which (like every demo) needs http to run its ES modules:
        python3 -m http.server 8099
        open http://localhost:8099/tour.html
      Over file:// the shell + narration render but the preview pane is blank
      (use the "open full demo" link, or serve over http). -->
+<link rel="stylesheet" href="framework/theme.css">
+<script src="framework/theme-boot.js"></script>
 <style>
-  :root{--ink:#1a1d21;--blue:#1f6feb;--line:#e3e6ea}
+  html{background:var(--vz-n0)}
+  .vz-theme{display:inline-flex;border:1px solid var(--vz-n6);border-radius:6px;overflow:hidden;vertical-align:middle}
+  .vz-theme-btn{font:12px ui-monospace,monospace;line-height:1.6;border:0;background:var(--vz-n0);color:var(--vz-n11);padding:2px 8px;cursor:pointer}
+  .vz-theme-btn+.vz-theme-btn{border-left:1px solid var(--vz-n6)}
+  .vz-theme-btn[aria-pressed="true"]{background:var(--vz-accent);color:var(--vz-n0)}
+
+  :root{--ink:var(--vz-n14);--blue:var(--vz-accent);--line:var(--vz-n4)}
   *{box-sizing:border-box}
-  body{font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);margin:0;background:#fff}
-  header{padding:14px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:5}
+  body{font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);margin:0;background:var(--vz-n0)}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--vz-n0);z-index:5}
   h1{font-size:18px;margin:0 0 8px}
-  h1 small{font-weight:400;color:#586069;font-size:13px}
-  .prog{height:7px;background:#eef1f4;border-radius:4px;overflow:hidden}
-  .prog > i{display:block;height:100%;background:linear-gradient(90deg,#1f6feb,#3b82f6);width:0;transition:width .2s}
+  h1 small{font-weight:400;color:var(--vz-n11);font-size:13px}
+  .prog{height:7px;background:var(--vz-n3);border-radius:4px;overflow:hidden}
+  .prog > i{display:block;height:100%;background:linear-gradient(90deg,var(--vz-accent),var(--vz-accent));width:0;transition:width .2s}
   .wrap{display:flex;gap:0;align-items:flex-start}
   nav.rail{flex:0 0 250px;border-right:1px solid var(--line);padding:12px 10px;height:calc(100vh - 60px);overflow:auto;position:sticky;top:60px}
-  .fam{font:12px ui-monospace,monospace;color:#586069;font-weight:700;margin:12px 4px 4px;text-transform:uppercase;letter-spacing:.04em}
-  .rail a{display:flex;gap:7px;align-items:center;padding:3px 8px;border-radius:6px;color:#24292e;text-decoration:none;font-size:13px;cursor:pointer}
-  .rail a:hover{background:#f3f4f6}
-  .rail a.on{background:#eaf2ff;color:#1f6feb;font-weight:600}
-  .rail a .dot{width:14px;color:#9aa4ad;font-size:11px;text-align:center}
-  .rail a.seen .dot{color:#2ca02c}
+  .fam{font:12px ui-monospace,monospace;color:var(--vz-n11);font-weight:700;margin:12px 4px 4px;text-transform:uppercase;letter-spacing:.04em}
+  .rail a{display:flex;gap:7px;align-items:center;padding:3px 8px;border-radius:6px;color:var(--vz-n13);text-decoration:none;font-size:13px;cursor:pointer}
+  .rail a:hover{background:var(--vz-n2)}
+  .rail a.on{background:var(--vz-accentBg);color:var(--vz-accent);font-weight:600}
+  .rail a .dot{width:14px;color:var(--vz-n9);font-size:11px;text-align:center}
+  .rail a.seen .dot{color:var(--vz-ok)}
   main{flex:1 1 auto;min-width:0;padding:18px 24px 40px}
-  .stopmeta{font:12px ui-monospace,monospace;color:#8a939b}
-  .faintro{background:#f6f8ff;border:1px solid #d9e4f7;border-radius:8px;padding:11px 14px;margin:8px 0 14px;color:#33414f;font-size:14px}
+  .stopmeta{font:12px ui-monospace,monospace;color:var(--vz-n10)}
+  .faintro{background:var(--vz-accentBg);border:1px solid var(--vz-accentLine);border-radius:8px;padding:11px 14px;margin:8px 0 14px;color:var(--vz-n12);font-size:14px}
   h2{font-size:21px;margin:6px 0 4px}
-  .why{font-size:15.5px;color:#2a2f35;margin:0 0 12px;max-width:70ch}
-  .frame{width:100%;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fafbfc}
+  .why{font-size:15.5px;color:var(--vz-n12);margin:0 0 12px;max-width:70ch}
+  .frame{width:100%;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--vz-n1)}
   iframe{width:100%;height:560px;border:0;display:block}
   .links{margin:10px 0 18px;font-size:14px}
-  .links a{color:#1f6feb;text-decoration:none;border:1px solid #d7e3f4;background:#f3f8ff;border-radius:6px;padding:3px 11px;margin-right:8px}
-  .links a:hover{background:#e3efff}
-  .nextline{color:#586069;font-size:13px;margin:6px 0 14px}
+  .links a{color:var(--vz-accent);text-decoration:none;border:1px solid var(--vz-accentBg);background:var(--vz-accentBg);border-radius:6px;padding:3px 11px;margin-right:8px}
+  .links a:hover{background:var(--vz-accentBg)}
+  .nextline{color:var(--vz-n11);font-size:13px;margin:6px 0 14px}
   .ctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  button{font:14px system-ui;cursor:pointer;background:#fff;border:1px solid #d0d7de;border-radius:7px;padding:6px 14px;color:#24292e}
-  button:hover:not(:disabled){background:#f3f4f6}
-  button:disabled{color:#c4c9ce;cursor:default}
-  button.primary{background:#1f6feb;color:#fff;border-color:#1f6feb}
-  button.primary:hover{background:#1a5fd0}
-  .kbd{font:11px ui-monospace,monospace;color:#8a939b;margin-left:auto}
+  button{font:14px system-ui;cursor:pointer;background:var(--vz-n0);border:1px solid var(--vz-n6);border-radius:7px;padding:6px 14px;color:var(--vz-n13)}
+  button:hover:not(:disabled){background:var(--vz-n2)}
+  button:disabled{color:var(--vz-n7);cursor:default}
+  button.primary{background:var(--vz-accent);color:var(--vz-n0);border-color:var(--vz-accent)}
+  button.primary:hover{background:var(--vz-accent)}
+  .kbd{font:11px ui-monospace,monospace;color:var(--vz-n10);margin-left:auto}
   @media(max-width:820px){nav.rail{display:none}}
 </style>
 </head>
 <body>
 <header>
-  <h1>Guided tour <small>— the math of a language model, in order. <a href="index.html" style="color:#1f6feb">grid view →</a></small></h1>
+  <h1 style="display:flex;align-items:baseline;gap:10px"><span>Guided tour <small>— the math of a language model, in order. <a href="catalogue.html" style="color:var(--vz-accent)">grid view →</a></small></span><span style="margin-left:auto"><span data-theme-switch></span></span></h1>
   <div class="prog"><i id="bar"></i></div>
 </header>
 <div class="wrap">
@@ -74,7 +82,7 @@
 </div>
 <script>
 // Curriculum order + plain-language narration (mirrors framework/order.js +
-// index.html; the tour adds the connective prose).
+// catalogue.html; the tour adds the connective prose).
 const FAM = {
   A:['Foundational primitives','Before any "AI", it is linear algebra. These atoms — multiply, dot-product, number formats, softmax — are what every later mechanism is built from.'],
   B:['Attention','Attention is how tokens look at each other. We build it up from the Q/K/V views to the full formula, then the tricks that make it fast and the patterns that emerge.'],
@@ -85,6 +93,7 @@ const FAM = {
   G:['Quantization & multimodal','The deployment reality: shrink the weights to int4, budget the VRAM, and feed images/audio into a text model as tokens.'],
   H:['End to end & training','Put every piece together: one prompt flowing through the whole pipeline to predict the next word — and then the backward pass that lets it learn.'],
   I:['Real-model grounding','Everything so far ran real math on synthetic (seeded) weights. Now ground it: fetch a real trained model in the browser and watch its real numbers show the same structure.'],
+  J:['Deployment & planning','One question is left once the math makes sense: what hardware does it take to actually run one of these? Split a real model across real accelerator cards and see what fits, what overflows, and what the split costs in traffic — every figure here is a planning ESTIMATE from published specs, never a measurement.'],
 };
 const STOPS = [
   ['A','matmul','Every layer of every model is, underneath, matrix multiplication — the dot product of rows and columns. Start here.'],
@@ -134,7 +143,7 @@ const STOPS = [
   ['I','real-logits','The same real GPT-2 forward, finished — ln_f + the tied lm_head turn the last hidden state into a real next-token distribution. Type a prefix, see what the model actually predicts, and reshape it with temperature / top-k / top-p like a real sampler.'],
   ['I','logit-lens','Peek inside: apply that same lm_head to EVERY layer, not just the last, and watch the prediction form with depth — early layers echo the input, the answer locks in near the top. The "logit lens".'],
   ['I','real-quant','Deployment reality, on real numbers: range-fetch one actual GPT-2 weight tensor and watch it get quantized to int4. Real weights are a tight bell curve with a few outliers, so per-group scales + a few more bits crush the error — why int4/int8 work.'],
-  ['I','real-generate','The finale: a real GPT-2 writing text in your browser. Generation is just the next-token step fed back in a loop — logits, sample, append, repeat. Greedy is deterministic (and verified token-for-token vs the reference); turn it off to sample creatively.'],
+  ['I','real-generate','A real GPT-2 writing text in your browser. Generation is just the next-token step fed back in a loop — logits, sample, append, repeat. Greedy is deterministic (and verified token-for-token vs the reference); turn it off to sample creatively.'],
 ];
 const N = STOPS.length;
 const seen = new Set(JSON.parse(localStorage.getItem('vz-tour-seen') || '[]'));

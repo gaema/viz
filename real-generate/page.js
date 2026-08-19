@@ -1,4 +1,4 @@
-// real-generate concept page. The capstone.
+// real-generate concept page — Phase 9 (real-model grounding). The capstone.
 //
 // Watch a REAL GPT-2 write text. Autoregressive generation is just the verified
 // next-token step (gpt2.js logits()) in a loop: logits → sample a token → append
@@ -9,19 +9,19 @@
 // "the cat sat on the mat . the cat ran" → greedy → " up and down the hall and
 // down the hall …" (GPT-2's famous greedy loop).
 //
-// Breadcrumbs to ../design/architectures.md (A5 lm_head) + the sampling +
+// Breadcrumbs to the shape taxonomy (attribute A5, lm_head) + the sampling +
 // prefill-vs-decode concepts. Reuses gpt2.js.
 //
 // Offline: streams a clearly-labelled synthetic continuation so the animation
 // still teaches; the real model writes real text once the weights download.
 import { mount } from '../framework/layout.js';
+import { T } from '../framework/theme.js';
 import { loadGPT2, GPT2_CONFIG } from '../real-attention/gpt2.js';
 
 const TFJS = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2';
 const TOK_MODEL = 'Xenova/gpt2';
 const WEIGHTS_URL = 'https://huggingface.co/gpt2/resolve/main/model.safetensors';
 const CFG = GPT2_CONFIG.gpt2;
-const GREEN = '#0a7227', AMBER = '#9a6700', BLUE = '#1f6feb', INK = '#24292e';
 
 const DEFAULT_PROMPT = 'the cat sat on the mat . the cat ran';
 const SYN_CONT = [' quickly', ' across', ' the', ' room', ' and', ' then', ' it', ' stopped', ' to', ' rest', ' for', ' a', ' while', ' .', ' the', ' dog', ' watched', ' it', ' go', ' by'];
@@ -100,7 +100,7 @@ mount({
   mount: 'body',
   slug: 'real-generate',
   title: 'real generate — watch GPT-2 write',
-  blurb: 'The capstone: a REAL GPT-2 writing text in your browser. Generation is just the verified next-token step in a loop — logits → sample → append → repeat. Greedy (argmax) is deterministic and verified token-for-token against the reference; temperature / top-k / top-p (with a seed) make it creative. Type a prompt, hit generate, and watch it write one token at a time. Offline it streams a labelled synthetic continuation.',
+  blurb: 'Phase 9 (real-model grounding). The capstone: a REAL GPT-2 writing text in your browser. Generation is just the verified next-token step in a loop — logits → sample → append → repeat. Greedy (argmax) is deterministic and verified token-for-token against the reference; temperature / top-k / top-p (with a seed) make it creative. Type a prompt, hit generate, and watch it write one token at a time. Offline it streams a labelled synthetic continuation.',
   prefer: 'canvas2d',
   aspect: '16 / 9',
   controls: (c, page) => {
@@ -117,16 +117,16 @@ mount({
   onPointer: () => {},
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     page.probe = { source: M.source, genCount: M.gen.length, greedy: !!st.greedy, temp: +st.temp, genText: M.gen.map((g) => g.tok).join('') };
 
     const ban = (() => {
-      if (M.status === 'loading-tok') return { t: '↓ loading tokenizer…', c: AMBER };
-      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB, one time)`, c: AMBER };
-      if (M.generating) return { t: '✍ generating…', c: AMBER };
-      if (M.source === 'real') return { t: '● real GPT-2 (124M) — generating in-browser', c: GREEN };
-      if (M.status === 'offline') return { t: '○ offline — synthetic continuation (click “load real GPT-2”)', c: AMBER };
-      return { t: '○ synthetic stand-in — click “load real GPT-2” to write real text', c: '#586069' };
+      if (M.status === 'loading-tok') return { t: '↓ loading tokenizer…', c: T.goldDeep };
+      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB, one time)`, c: T.goldDeep };
+      if (M.generating) return { t: '✍ generating…', c: T.goldDeep };
+      if (M.source === 'real') return { t: '● real GPT-2 (124M) — generating in-browser', c: T.okDeep };
+      if (M.status === 'offline') return { t: '○ offline — synthetic continuation (click “load real GPT-2”)', c: T.goldDeep };
+      return { t: '○ synthetic stand-in — click “load real GPT-2” to write real text', c: T.n11 };
     })();
     ctx.save(); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = ban.c; ctx.fillText(ban.t, 14, 9); ctx.restore();
 
@@ -134,8 +134,8 @@ mount({
     const pad = 18, top = 44, lh = 26, maxW = page.W - 2 * pad;
     ctx.save(); ctx.textBaseline = 'alphabetic';
     const words = [];
-    words.push({ s: (M.source === 'real' ? M.prompt : '“the cat sat on the mat . the cat ran”') + '', c: '#8a9099', bg: null });
-    for (let i = 0; i < M.gen.length; i++) words.push({ s: td(M.gen[i].tok), c: INK, bg: i === M.gen.length - 1 && M.generating ? '#fff3c4' : null });
+    words.push({ s: (M.source === 'real' ? M.prompt : '“the cat sat on the mat . the cat ran”') + '', c: T.n10, bg: null });
+    for (let i = 0; i < M.gen.length; i++) words.push({ s: td(M.gen[i].tok), c: T.n13, bg: i === M.gen.length - 1 && M.generating ? T.goldBg : null });
     let x = pad, y = top + 18; ctx.font = '17px Georgia, "Times New Roman", serif';
     for (const w of words) {
       // naive wrap on spaces
@@ -176,5 +176,5 @@ mount({
   // ?gen=N runs generation synchronously (headless capture; no streaming delay)
   if (q.has('gen')) { M._fast = true; page.controls.set('ntok', Math.max(1, +q.get('gen'))); }
   page.redraw();
-  if (q.get('real') !== '0') ensureReal(page); else if (q.has('gen')) generate(page);
+  if (q.get('real') === '1' || q.get('autoload') === '1') ensureReal(page); else if (q.has('gen')) generate(page);   // large download: opt-in only
 });

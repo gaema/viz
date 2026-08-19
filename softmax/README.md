@@ -4,7 +4,8 @@
 
 Interactive page: how a vector of logits becomes a probability distribution,
 step by step, with temperature and the numerical-stability max-subtract shown.
-**Anchor**: A9/A10 (lm_head logits + vocab → sampling; Family A4 foundational).
+**Anchor**: A9/A10 (lm_head logits + vocab → sampling; Family A4 foundational;
+see `../plan/curriculum.md`).
 
 ## What it shows
 

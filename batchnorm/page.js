@@ -7,13 +7,32 @@
 // Paint the input; toggle train/inference. No transport -- the EMA is animated.
 import { mount } from '../framework/layout.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, alphaOf, rgbOf, signedColor, mixColor } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', ORANGE = '#d2691e', GREEN = '#2ca02c', RED = '#d1242f', GREY = '#9aa4ad';
+// --- theme fixups the mechanical hex migration could not make. A wash, a scrim
+// or a value ramp keyed to a FIXED rgb silently inverts its meaning when the
+// page ground flips, so key it to the theme instead. Every helper below is
+// pixel-identical to the old literal in LIGHT mode; only dark changes.
+const _POS = [255, 105, 90], _NEG = [90, 135, 255];        // ramp ends -- unchanged from the light original
+// Diverging ramp anchored on the page GROUND rather than a fixed white: on a
+// dark page a white zero-cell is the brightest thing on screen, so every
+// near-zero value glares while the real signal recedes. Same reasoning as
+// framework/render.js `ramps.diverging`.
+// Delegates to the framework ramp, passing this page's own ends: signedColor()
+// takes a {pos, neg} override, so the shared implementation is used and no cell
+// changes colour.
+const _t = (v, dom) => Math.max(-1, Math.min(1, v / (dom || 1)));
+const signcol = (v, dom) => signedColor(_t(v, dom), { pos: _POS, neg: _NEG });
+
+
+
 const N = 12, EPS = 1e-3;
 const mean = (a) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i]; return s / a.length; };
 const variance = (a, m) => { let s = 0; for (let i = 0; i < a.length; i++) s += (a[i] - m) * (a[i] - m); return s / a.length; };
-const divcol = (v, lo, hi) => { const t = Math.max(0, Math.min(1, (v - lo) / (hi - lo || 1))); return `rgb(${Math.round(255 - t * 30)},${Math.round(255 - t * 120)},${Math.round(255 - t * 200)})`; };  // light->blue
-const signcol = (v, dom) => { const t = Math.max(-1, Math.min(1, v / (dom || 1))), m = Math.abs(t); return t >= 0 ? `rgb(255,${Math.round(255 - m * 150)},${Math.round(255 - m * 165)})` : `rgb(${Math.round(255 - m * 165)},${Math.round(255 - m * 120)},255)`; };
+// input brightness ramp: ground -> warm, so an all-zero (dark) input reads as
+// the page ground instead of a glaring white block.
+const divcol = (v, lo, hi) => mixColor(T.n0, [225, 135, 55], (v - lo) / (hi - lo || 1));
+
 
 let cur = null, bsig = '';
 let rmu = 0, rvar = 1, hist = [], lastT = 0, rng = 1, lastB = { bmu: 0, bvar: 1 };
@@ -63,7 +82,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     const sig = `${st.shape}|${st.seed}`;
     if (sig !== bsig) { cur = buildInput(st); const pm0 = mean(cur.X); rmu = pm0 * 0.35; rvar = Math.max(0.05, variance(cur.X, pm0)); hist = [{ b: rmu, r: rmu }]; lastT = page.t || 0; rng = (st.seed | 0) + 1; lastB = { bmu: rmu, bvar: rvar }; bsig = sig; }
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const X = cur.X, popMu = mean(X), popVar = variance(X, popMu), m = st.momentum, train = st.mode === 'train';
 
     // training step (EMA) -- only in train mode, gated ~6/sec
@@ -83,47 +102,47 @@ mount({
     // input (paintable)
     const ix = pad + 8;
     inRect = { x: ix, y: topY, w: gw, h: gw };
-    r.label('input x — paint ↕', ix, topY - 12, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label('input x — paint ↕', ix, topY - 12, { color: T.n14, font: '11px ui-monospace, monospace' });
     ctx.save(); for (let i = 0; i < N * N; i++) { ctx.fillStyle = divcol(X[i], 0, 1); ctx.fillRect(ix + (i % N) * cell, topY + ((i / N) | 0) * cell, cell - 0.5, cell - 0.5); } ctx.restore();
-    r.label(`batch: μ=${popMu.toFixed(2)}  σ=${Math.sqrt(popVar).toFixed(2)}`, ix, topY + gw + 14, { color: '#586069', font: '10px ui-monospace, monospace' });
+    r.label(`batch: μ=${popMu.toFixed(2)}  σ=${Math.sqrt(popVar).toFixed(2)}`, ix, topY + gw + 14, { color: T.n11, font: '10px ui-monospace, monospace' });
 
     // BN box / formula
     const bx = ix + gw + 26;
-    ctx.save(); ctx.fillStyle = train ? 'rgba(31,111,235,0.10)' : 'rgba(210,105,30,0.12)'; ctx.fillRect(bx, topY + gw / 2 - 34, 150, 68); ctx.strokeStyle = train ? BLUE : ORANGE; ctx.lineWidth = 1.6; ctx.strokeRect(bx, topY + gw / 2 - 34, 150, 68);
-    ctx.fillStyle = INK; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center';
+    ctx.save(); ctx.fillStyle = train ? alphaOf(T.accent, 0.10) : alphaOf(T.warn, 0.12); ctx.fillRect(bx, topY + gw / 2 - 34, 150, 68); ctx.strokeStyle = train ? T.accent : T.warn; ctx.lineWidth = 1.6; ctx.strokeRect(bx, topY + gw / 2 - 34, 150, 68);
+    ctx.fillStyle = T.n14; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center';
     ctx.fillText('y = γ(x−μ)/√(σ²+ε)+β', bx + 75, topY + gw / 2 - 18);
-    ctx.fillStyle = train ? BLUE : ORANGE; ctx.font = '11px ui-monospace, monospace';
+    ctx.fillStyle = train ? T.accent : T.warn; ctx.font = '11px ui-monospace, monospace';
     ctx.fillText(train ? 'TRAIN' : 'INFERENCE', bx + 75, topY + gw / 2);
-    ctx.fillStyle = '#3a4047'; ctx.font = '9px ui-monospace, monospace';
+    ctx.fillStyle = T.n12; ctx.font = '9px ui-monospace, monospace';
     ctx.fillText(train ? `μ,σ = this batch (${popMu.toFixed(2)})` : `μ,σ = running (${rmu.toFixed(2)})`, bx + 75, topY + gw / 2 + 16);
     ctx.fillText(`γ=${st.gamma.toFixed(1)} β=${st.beta.toFixed(1)}`, bx + 75, topY + gw / 2 + 28);
     ctx.restore();
 
     // output
     const ox = bx + 150 + 26;
-    r.label('normalized output y', ox, topY - 12, { color: GREEN, font: '11px ui-monospace, monospace' });
+    r.label('normalized output y', ox, topY - 12, { color: T.ok, font: '11px ui-monospace, monospace' });
     ctx.save(); for (let i = 0; i < N * N; i++) { ctx.fillStyle = signcol(out[i], odom); ctx.fillRect(ox + (i % N) * cell, topY + ((i / N) | 0) * cell, cell - 0.5, cell - 0.5); } ctx.restore();
-    r.label(`out: μ=${mean(out).toFixed(2)}  σ=${Math.sqrt(variance(out, mean(out))).toFixed(2)}`, ox, topY + gw + 14, { color: '#586069', font: '10px ui-monospace, monospace' });
+    r.label(`out: μ=${mean(out).toFixed(2)}  σ=${Math.sqrt(variance(out, mean(out))).toFixed(2)}`, ox, topY + gw + 14, { color: T.n11, font: '10px ui-monospace, monospace' });
 
     // arrows
-    ctx.save(); ctx.strokeStyle = GREY; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(ix + gw + 4, topY + gw / 2); ctx.lineTo(bx - 4, topY + gw / 2); ctx.moveTo(bx + 150 + 4, topY + gw / 2); ctx.lineTo(ox - 4, topY + gw / 2); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.strokeStyle = T.n9; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(ix + gw + 4, topY + gw / 2); ctx.lineTo(bx - 4, topY + gw / 2); ctx.moveTo(bx + 150 + 4, topY + gw / 2); ctx.lineTo(ox - 4, topY + gw / 2); ctx.stroke(); ctx.restore();
 
     // ---- running-stats tracking chart ----
     const cx = pad + 8, cyTop = topY + gw + 34, cw = page.W - cx - pad - 10, chH = Math.max(44, page.H - cyTop - 18);
-    r.label('running μ tracks the noisy batch μ → converges to the channel mean (EMA)', cx, cyTop - 8, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label('running μ tracks the noisy batch μ → converges to the channel mean (EMA)', cx, cyTop - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
     const ymin = -0.2, ymax = 1.2, Y = (v) => cyTop + chH - (v - ymin) / (ymax - ymin) * chH;
     ctx.save();
-    ctx.strokeStyle = '#eceef0'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx, Y(0)); ctx.lineTo(cx + cw, Y(0)); ctx.stroke();
+    ctx.strokeStyle = T.n3; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx, Y(0)); ctx.lineTo(cx + cw, Y(0)); ctx.stroke();
     // target (true channel mean)
-    ctx.strokeStyle = 'rgba(44,160,44,0.7)'; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(cx, Y(popMu)); ctx.lineTo(cx + cw, Y(popMu)); ctx.stroke(); ctx.setLineDash([]);
-    r.label(`channel mean ${popMu.toFixed(2)}`, cx + cw - 110, Y(popMu) - 6, { color: GREEN, font: '9px ui-monospace, monospace' });
+    ctx.strokeStyle = alphaOf(T.ok, 0.7); ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(cx, Y(popMu)); ctx.lineTo(cx + cw, Y(popMu)); ctx.stroke(); ctx.setLineDash([]);
+    r.label(`channel mean ${popMu.toFixed(2)}`, cx + cw - 110, Y(popMu) - 6, { color: T.ok, font: '9px ui-monospace, monospace' });
     const n = hist.length, dx = cw / 64;
     // batch μ dots
-    ctx.fillStyle = 'rgba(31,111,235,0.30)'; for (let i = 0; i < n; i++) { const x = cx + i * dx; ctx.beginPath(); ctx.arc(x, Y(hist[i].b), 1.8, 0, 7); ctx.fill(); }
+    ctx.fillStyle = alphaOf(T.accent, 0.30); for (let i = 0; i < n; i++) { const x = cx + i * dx; ctx.beginPath(); ctx.arc(x, Y(hist[i].b), 1.8, 0, 7); ctx.fill(); }
     // running μ line
-    ctx.strokeStyle = BLUE; ctx.lineWidth = 2; ctx.beginPath(); for (let i = 0; i < n; i++) { const x = cx + i * dx, y = Y(hist[i].r); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.stroke();
+    ctx.strokeStyle = T.accent; ctx.lineWidth = 2; ctx.beginPath(); for (let i = 0; i < n; i++) { const x = cx + i * dx, y = Y(hist[i].r); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.stroke();
     ctx.restore();
-    r.label(`batch μ (jittery dots) vs running μ=${rmu.toFixed(3)}, running σ=${Math.sqrt(Math.max(0, rvar)).toFixed(3)}`, cx, cyTop + chH + 14, { color: '#586069', font: '10px ui-monospace, monospace' });
+    r.label(`batch μ (jittery dots) vs running μ=${rmu.toFixed(3)}, running σ=${Math.sqrt(Math.max(0, rvar)).toFixed(3)}`, cx, cyTop + chH + 14, { color: T.n11, font: '10px ui-monospace, monospace' });
 
     // hover
     if (page.pointer.over && !painting) {

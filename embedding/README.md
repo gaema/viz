@@ -4,8 +4,8 @@
 
 Interactive page: how a token id becomes a vector (a row lookup in the
 embedding table), and how the same table is reused as the output projection
-when weights are tied. **Anchor**: A5 embedding shape (Family C1
-transformer block).
+when weights are tied. **Anchor**: A5 embedding shape (Family C1, Phase 3
+transformer block; see `../plan/curriculum.md`).
 
 ## What it shows
 

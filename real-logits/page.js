@@ -1,4 +1,4 @@
-// real-logits concept page.
+// real-logits concept page — Phase 9 (real-model grounding).
 //
 // The synthetic lm-head + sampling pages show the mechanism (hidden → vocab
 // logits → softmax → pick a token) on seeded numbers. This page shows the REAL
@@ -7,13 +7,14 @@
 // probability distribution and lets you reshape it with temperature / top-k /
 // top-p exactly as a sampler would. "the cat ran" → up / away / off / out, real.
 //
-// Breadcrumbs to ../design/architectures.md A5 (lm_head) + the sampling concept.
-// Reuses the real-attention GPT-2 loader (gpt2.js).
+// Breadcrumbs to the shape taxonomy, attribute A5 (lm_head), + the sampling
+// concept. Reuses the real-attention GPT-2 loader (gpt2.js).
 //
 // Offline / no network: an idealized synthetic distribution (clearly labelled)
 // over plausible continuations, so the sampling controls still teach; the real
 // model swaps in once the ~548 MB weights download. ?real=0 forces synthetic.
 import { mount } from '../framework/layout.js';
+import { T } from '../framework/theme.js';
 import { loadGPT2, GPT2_CONFIG } from '../real-attention/gpt2.js';
 import { getWebGPU, GPT2WebGPU } from '../real-attention/gpt2-webgpu.js';
 
@@ -21,7 +22,6 @@ const TFJS = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2';
 const TOK_MODEL = 'Xenova/gpt2';
 const WEIGHTS_URL = 'https://huggingface.co/gpt2/resolve/main/model.safetensors';
 const CFG = GPT2_CONFIG.gpt2;
-const GREEN = '#0a7227', AMBER = '#9a6700', BLUE = '#1f6feb', GREY = '#c8ccd1';
 
 const DEFAULT_PROMPT = 'the cat sat on the mat . the cat ran';
 // idealized synthetic stand-in: plausible continuations + descending logits
@@ -118,7 +118,7 @@ mount({
   mount: 'body',
   slug: 'real-logits',
   title: 'real logits — what GPT-2 actually predicts next',
-  blurb: 'The synthetic lm-head + sampling pages show the mechanism on seeded numbers; this page runs a REAL GPT-2 in your browser — the verified forward + ln_f + the tied lm_head — to get the actual next-token logits for a prefix you type, then draws the probability distribution. Reshape it with temperature, top-k, and top-p exactly as a sampler would, and watch which tokens survive. Offline it shows an idealized stand-in; the real model needs a ~548 MB one-time download.',
+  blurb: 'Phase 9 (real-model grounding). The synthetic lm-head + sampling pages show the mechanism on seeded numbers; this page runs a REAL GPT-2 in your browser — the verified forward + ln_f + the tied lm_head — to get the actual next-token logits for a prefix you type, then draws the probability distribution. Reshape it with temperature, top-k, and top-p exactly as a sampler would, and watch which tokens survive. Offline it shows an idealized stand-in; the real model needs a ~548 MB one-time download.',
   prefer: 'canvas2d',
   aspect: '16 / 10',
   controls: (c, page) => {
@@ -133,23 +133,23 @@ mount({
   onPointer: () => {},
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     compute(page);                                   // recompute on any control change
     const d = M.dist, kept = d.filter((e) => e.kept);
     page.probe = { source: M.source, temp: +page.state.temp, topk: page.state.topk | 0, topp: +page.state.topp, topProb: M.top1 ? M.top1.prob : 0, nKept: kept.length };
 
     const ban = (() => {
-      if (M.status === 'loading-tok') return { t: '↓ loading tokenizer…', c: AMBER };
-      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB, one time)`, c: AMBER };
-      if (M.status === 'running') return { t: '⟳ running GPT-2…', c: AMBER };
+      if (M.status === 'loading-tok') return { t: '↓ loading tokenizer…', c: T.goldDeep };
+      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB, one time)`, c: T.goldDeep };
+      if (M.status === 'running') return { t: '⟳ running GPT-2…', c: T.goldDeep };
       if (M.source === 'real') {
         const be = M.backend === 'gpu' ? 'WebGPU' : 'CPU', mism = M.gpuCheck && !M.gpuCheck.ok;
         const chk = M.gpuCheck ? `  ${mism ? '⚠ GPU≠CPU → CPU' : '✓ GPU=CPU'} (max|Δ|=${M.gpuCheck.maxDiff.toExponential(1)})` : (M.gpuAvail ? '' : '  (WebGPU n/a → CPU)');
         const tm = (M.times.gpu && M.times.cpu) ? `  ·  GPU ${M.times.gpu | 0}ms vs CPU ${M.times.cpu | 0}ms` : '';
-        return { t: `● real GPT-2 (124M) — ${be} lm_head${chk}${tm}`, c: mism ? AMBER : GREEN };
+        return { t: `● real GPT-2 (124M) — ${be} lm_head${chk}${tm}`, c: mism ? T.goldDeep : T.okDeep };
       }
-      if (M.status === 'offline') return { t: '○ offline — idealized synthetic stand-in (click “load real GPT-2”)', c: AMBER };
-      return { t: '○ idealized synthetic stand-in — click “load real GPT-2” for real predictions', c: '#586069' };
+      if (M.status === 'offline') return { t: '○ offline — idealized synthetic stand-in (click “load real GPT-2”)', c: T.goldDeep };
+      return { t: '○ idealized synthetic stand-in — click “load real GPT-2” for real predictions', c: T.n11 };
     })();
     ctx.save(); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = ban.c; ctx.fillText(ban.t, 14, 9); ctx.restore();
     if (!d.length) { page.setReadout('…'); return; }
@@ -157,9 +157,9 @@ mount({
     // prompt + predicted next token
     const pad = 16, promptY = 34;
     ctx.save(); ctx.font = '13px ui-monospace, monospace'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#3a4047'; ctx.fillText(M.source === 'real' ? `“${(M.prompt || page.state.prompt).slice(0, 64)}”` : '“…”', pad, promptY);
+    ctx.fillStyle = T.n12; ctx.fillText(M.source === 'real' ? `“${(M.prompt || page.state.prompt).slice(0, 64)}”` : '“…”', pad, promptY);
     const pw = ctx.measureText(M.source === 'real' ? `“${(M.prompt || page.state.prompt).slice(0, 64)}”` : '“…”').width;
-    ctx.fillStyle = BLUE; ctx.font = '13px ui-monospace, monospace';
+    ctx.fillStyle = T.accent; ctx.font = '13px ui-monospace, monospace';
     ctx.fillText(`→ next: "${(M.top1.tok || '').trim() || M.top1.tok}"  (${(M.top1.prob * 100).toFixed(1)}%)`, pad + pw + 10, promptY); ctx.restore();
 
     // distribution bars
@@ -169,11 +169,11 @@ mount({
     ctx.save(); ctx.textBaseline = 'middle'; ctx.font = `${Math.min(12, rowH - 3)}px ui-monospace, monospace`;
     for (let i = 0; i < d.length; i++) {
       const e = d[i], y = top + i * rowH, w = Math.max(1, (e.prob / pmax) * barW);
-      ctx.fillStyle = e.kept ? (i === 0 ? GREEN : BLUE) : GREY;
+      ctx.fillStyle = e.kept ? (i === 0 ? T.okDeep : T.accent) : T.n7;
       ctx.fillRect(barX, y + 1, w, rowH - 3);
-      ctx.fillStyle = e.kept ? '#24292e' : '#9aa4ad'; ctx.textAlign = 'right';
+      ctx.fillStyle = e.kept ? T.n13 : T.n9; ctx.textAlign = 'right';
       ctx.fillText(td(e.tok).slice(0, 11), barX - 5, y + rowH / 2);
-      ctx.textAlign = 'left'; ctx.fillStyle = e.kept ? '#444' : '#b6bcc2';
+      ctx.textAlign = 'left'; ctx.fillStyle = e.kept ? T.n12 : T.n8;
       ctx.fillText(`${(e.prob * 100).toFixed(1)}%`, barX + w + 5, y + rowH / 2);
     }
     ctx.restore();
@@ -200,5 +200,5 @@ mount({
   if (q.has('topk')) page.controls.set('topk', +q.get('topk'));
   if (q.has('topp')) page.controls.set('topp', +q.get('topp'));
   compute(page); page.redraw();
-  if (q.get('real') !== '0') ensureReal(page);
+  if (q.get('real') === '1' || q.get('autoload') === '1') ensureReal(page);   // large download: opt-in only
 });

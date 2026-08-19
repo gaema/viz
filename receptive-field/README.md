@@ -5,7 +5,7 @@
 Interactive page: the **receptive field** -- the patch of input that a single
 output unit depends on -- and how **stacking** convolution layers (and
 **dilating** them) grows it. **Anchor**: F (CNN / vision); Family F, companion to
-[convolution](../convolution/README.md) ().
+[convolution](../convolution/README.md) (see `../plan/curriculum.md`).
 
 ## What it shows
 

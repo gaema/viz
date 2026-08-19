@@ -4,7 +4,8 @@
 
 Interactive page: the lower-triangular causal mask, and the reason for it —
 an autoregressive LM predicting the next token must not peek at it.
-**Anchor**: A3 attention pattern (Family B).
+**Anchor**: A3 attention pattern (Family B; see
+`../plan/curriculum.md`).
 
 ## What it shows
 

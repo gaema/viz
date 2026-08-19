@@ -4,7 +4,7 @@
 
 Interactive page: **multimodal injection** -- how a vision-language / audio-language
 model feeds a non-text input into a text LLM. **Anchor**: G (multimodal /
-deployment); Family G ().
+deployment); Family G (see `../plan/curriculum.md`).
 
 ## What it shows
 

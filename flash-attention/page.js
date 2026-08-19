@@ -2,7 +2,7 @@
 // never materialized. Uses the verified framework: layout.mount() + controls +
 // a per-tile Transport that runs the online-softmax algorithm.
 //
-// Interactive per the framework contract (plan/framework.md): this page IS a
+// Interactive per the shared render framework's contract: this page IS a
 // streaming animation, so it AUTO-PLAYS + LOOPS -- the lit tile sweeps across
 // K/V and the running max m / sum l / output accumulator O update on load and
 // on every loop. Hover a score tile cell for its value + the running stats at
@@ -12,10 +12,21 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, effectiveTheme, alphaOf, inkOn } from '../framework/theme.js';
+// Ink for a value printed ON a heatmap cell. The ramps are NOT the neutral ramp
+// -- `sequential` is a fixed viridis and `diverging` runs through the page
+// GROUND -- so a single `T.n14` label is dark-ink-on-pale in light (fine) and
+// light-ink-on-yellow in dark (unreadable). In dark, pick the ramp end that
+// actually contrasts with the cell under the text. Light keeps `T.n14`, so the
+// light page is unchanged.
+// Adds over theme.js `inkOn(hex)`: takes an [r,g,b] ARRAY (what the ramps
+// return) and answers with the LIVE ramp ends rather than fixed black/white.
 
-const INK = '#111', BLUE = '#1f6feb', ORANGE = '#d2691e';
+
+
 const BQ = 4, D = 4;                       // query-block rows, head_dim (fixed for clarity)
-const rgb = (c) => `rgba(${c[0]},${c[1]},${c[2]},1)`;
+// Thin alias over the shared helper: alphaOf() takes an [r,g,b] triple.
+const rgb = (c) => alphaOf(c, 1);
 const maxOf = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 
 let cur = null;
@@ -106,7 +117,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { Sfull, N, nT, Bk } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const s = page.step();
     const j = s ? s.j : nT - 1, lo = s ? s.lo : (nT - 1) * Bk, hi = s ? s.hi : N, tw = hi - lo;
     page.probe = { j, nT };
@@ -119,20 +130,20 @@ mount({
     rScore = { x: mx, y: my, w: N * cellM, h: BQ * cellM };
 
     // --- score matrix [BQ × N]: ghosted, only the current tile lit ---
-    r.label('scores [Bq×N] — ghosted; only the current tile exists in memory', pad, topY - 14, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label('scores [Bq×N] — ghosted; only the current tile exists in memory', pad, topY - 14, { color: T.n14, font: '12px ui-monospace, monospace' });
     for (let i = 0; i < BQ; i++) for (let kk = 0; kk < N; kk++) {
       const x = mx + kk * cellM, y = my + i * cellM;
       if (kk >= lo && kk < hi && s) { const p = s.P[i * tw + (kk - lo)]; ctx.fillStyle = rgb(ramps.sequential(p / maxP)); }
-      else if (kk < lo) ctx.fillStyle = '#e7eaee';       // processed + discarded
-      else ctx.fillStyle = '#f6f7f9';                    // future (not yet computed)
+      else if (kk < lo) ctx.fillStyle = T.n3;       // processed + discarded
+      else ctx.fillStyle = T.n1;                    // future (not yet computed)
       ctx.fillRect(x, y, cellM - 1, cellM - 1);
     }
     ctx.save();
-    ctx.strokeStyle = '#c4ccd3'; ctx.lineWidth = 1;
+    ctx.strokeStyle = T.n7; ctx.lineWidth = 1;
     for (let t = 0; t <= nT; t++) { const x = mx + Math.min(t * Bk, N) * cellM; ctx.beginPath(); ctx.moveTo(x, my); ctx.lineTo(x, my + BQ * cellM); ctx.stroke(); }
-    ctx.strokeStyle = BLUE; ctx.lineWidth = 2.5; ctx.strokeRect(mx + lo * cellM, my - 1, tw * cellM, BQ * cellM + 2);
-    ctx.fillStyle = BLUE; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(`tile ${j + 1}/${nT}`, mx + lo * cellM + tw * cellM / 2, my + BQ * cellM + 13);
-    if (hi < N) { ctx.fillStyle = '#9aa4ad'; ctx.fillText('not materialized →', mx + (hi + (N - hi) / 2) * cellM, my + BQ * cellM + 13); }
+    ctx.strokeStyle = T.accent; ctx.lineWidth = 2.5; ctx.strokeRect(mx + lo * cellM, my - 1, tw * cellM, BQ * cellM + 2);
+    ctx.fillStyle = T.accent; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(`tile ${j + 1}/${nT}`, mx + lo * cellM + tw * cellM / 2, my + BQ * cellM + 13);
+    if (hi < N) { ctx.fillStyle = T.n9; ctx.fillText('not materialized →', mx + (hi + (N - hi) / 2) * cellM, my + BQ * cellM + 13); }
     ctx.restore();
 
     // --- drag handle: a grabbable bar at the right edge of the lit tile,
@@ -140,7 +151,7 @@ mount({
     const hX = mx + hi * cellM;
     rHandle = { x: hX - 5, y: my, w: 10, h: BQ * cellM };
     ctx.save();
-    ctx.strokeStyle = dragging ? ORANGE : 'rgba(31,111,235,0.9)';
+    ctx.strokeStyle = dragging ? T.warn : alphaOf(T.accent, 0.9);
     ctx.lineWidth = dragging ? 3 : 2;
     ctx.beginPath(); ctx.moveTo(hX, my - 5); ctx.lineTo(hX, my + BQ * cellM + 5); ctx.stroke();
     ctx.fillStyle = ctx.strokeStyle;
@@ -155,9 +166,16 @@ mount({
       const cc = cols || 1, w = cc * cellM;
       const rect = { x: gx, y: my, w, h: BQ * cellM };
       r.heatmap(vals, { rows: BQ, cols: cc, rect, ramp, domain: dom });
-      r.grid({ stroke: 'rgba(0,0,0,0.10)' });
-      r.label(label, gx, my - 5, { color: '#586069', font: '10px ui-monospace, monospace' });
-      if (showVal) { ctx.save(); ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#1a1d21'; for (let i = 0; i < BQ; i++) ctx.fillText(vals[i].toFixed(2), gx + cellM / 2, my + i * cellM + cellM / 2); ctx.restore(); }
+      r.grid({ stroke: alphaOf(T.n14, 0.10) });
+      r.label(label, gx, my - 5, { color: T.n11, font: '10px ui-monospace, monospace' });
+      if (showVal) { ctx.save(); ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const dk = effectiveTheme() === 'dark', span = (dom[1] - dom[0]) || 1;
+        ctx.fillStyle = T.n14;
+        for (let i = 0; i < BQ; i++) {
+          if (dk) ctx.fillStyle = inkOn(ramp(Math.max(0, Math.min(1, (vals[i] - dom[0]) / span))));
+          ctx.fillText(vals[i].toFixed(2), gx + cellM / 2, my + i * cellM + cellM / 2);
+        }
+        ctx.restore(); }
       gx += w + 14;
       return rect;
     };
@@ -166,7 +184,7 @@ mount({
       rL = col(s.l, 'l (sum)', ramps.sequential, [0, maxOf(s.l)], true);
       rRescale = col(s.rescale, 'rescale', ramps.sequential, [0, 1], true);
       rO = col(s.O, 'O (accum)', ramps.diverging, [-maxOf(s.O), maxOf(s.O)], false, D);
-      if (s.isLast && s.norm) { ctx.save(); ctx.fillStyle = BLUE; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('= O/l →', gx - 7, my + BQ * cellM / 2); ctx.restore(); gx += 6; rNorm = col(s.norm, 'output', ramps.diverging, [-maxOf(s.norm), maxOf(s.norm)], false, D); }
+      if (s.isLast && s.norm) { ctx.save(); ctx.fillStyle = T.accent; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('= O/l →', gx - 7, my + BQ * cellM / 2); ctx.restore(); gx += 6; rNorm = col(s.norm, 'output', ramps.diverging, [-maxOf(s.norm), maxOf(s.norm)], false, D); }
     }
 
     // --- hover-to-inspect: a score tile cell -> value + running stats at this

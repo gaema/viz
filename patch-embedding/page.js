@@ -9,10 +9,27 @@
 // rasterize-to-tokens sweep animates.
 import { mount } from '../framework/layout.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, alphaOf, rgbOf, signedColor, mixColor } from '../framework/theme.js';
 
-const INK = '#111', GREY = '#9aa4ad', BLUE = '#1f6feb', ORANGE = '#d2691e', GREEN = '#2ca02c', PURPLE = '#8250df', RED = '#d1242f';
+// --- theme fixups the mechanical hex migration could not make. A wash, a scrim
+// or a value ramp keyed to a FIXED rgb silently inverts its meaning when the
+// page ground flips, so key it to the theme instead. Every helper below is
+// pixel-identical to the old literal in LIGHT mode; only dark changes.
+const _POS = [255, 105, 90], _NEG = [90, 135, 255];        // ramp ends -- unchanged from the light original
+// Diverging ramp anchored on the page GROUND rather than a fixed white: on a
+// dark page a white zero-cell is the brightest thing on screen, so every
+// near-zero value glares while the real signal recedes. Same reasoning as
+// framework/render.js `ramps.diverging`.
+// Delegates to the framework ramp, passing this page's own ends: signedColor()
+// takes a {pos, neg} override, so the shared implementation is used and no cell
+// changes colour.
+const _t = (v, dom) => Math.max(-1, Math.min(1, v / (dom || 1)));
+const sign = (v, dom) => signedColor(_t(v, dom), { pos: _POS, neg: _NEG });
+
+
+
 const S = 96;  // image side (px); divisible by every P option
-const sign = (v, d) => { const t = Math.max(-1, Math.min(1, v / (d || 1))), m = Math.abs(t); return t >= 0 ? `rgb(255,${Math.round(255 - m * 150)},${Math.round(255 - m * 165)})` : `rgb(${Math.round(255 - m * 165)},${Math.round(255 - m * 120)},255)`; };
+
 
 let cur = null, bsig = '';
 let imgRect = null, dragging = false;
@@ -76,58 +93,58 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state, W = page.W, H = page.H;
     const sig = `${st.preset}|${st.P}|${st.D}|${st.seed}`;
     if (sig !== bsig) { cur = build(st); bsig = sig; }
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const { P, D, gN, N, dim, tokens } = cur, sel = Math.min(st.patch | 0, N - 1), sr = (sel / gN | 0), sc = sel % gN;
     const tdom = 1.2;
 
     // ===== image with patch grid (top-left) =====
     const ix = 20, iy = 52, isz = 138, cell = isz / gN;
     imgRect = { x: ix, y: iy, w: isz, h: isz };
-    r.label('image  (S×S×3)', ix, iy - 8, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label('image  (S×S×3)', ix, iy - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
     ctx.drawImage(cur.im.cv, ix, iy, isz, isz);
     ctx.save(); ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 0.6; for (let i = 0; i <= gN; i++) { ctx.beginPath(); ctx.moveTo(ix + i * cell, iy); ctx.lineTo(ix + i * cell, iy + isz); ctx.stroke(); ctx.beginPath(); ctx.moveTo(ix, iy + i * cell); ctx.lineTo(ix + isz, iy + i * cell); ctx.stroke(); }
     // animated rasterize sweep
     const swp = Math.floor((page.t || 0) / 0.25) % N, swr = (swp / gN | 0), swc = swp % gN;
     ctx.strokeStyle = 'rgba(255,193,7,0.9)'; ctx.lineWidth = 1.6; ctx.strokeRect(ix + swc * cell + 1, iy + swr * cell + 1, cell - 2, cell - 2);
     // selected patch
-    ctx.strokeStyle = PURPLE; ctx.lineWidth = 2.4; ctx.strokeRect(ix + sc * cell, iy + sr * cell, cell, cell); ctx.restore();
-    r.label(`${gN}×${gN} = ${N} patches of ${P}×${P}  ·  drag a patch`, ix, iy + isz + 14, { color: '#586069', font: '10px ui-monospace, monospace' });
+    ctx.strokeStyle = T.violet; ctx.lineWidth = 2.4; ctx.strokeRect(ix + sc * cell, iy + sr * cell, cell, cell); ctx.restore();
+    r.label(`${gN}×${gN} = ${N} patches of ${P}×${P}  ·  drag a patch`, ix, iy + isz + 14, { color: T.n11, font: '10px ui-monospace, monospace' });
 
     // ===== selected patch -> flatten -> project -> token (top-middle/right) =====
     const px = 210, py = 56, pe = Math.min(96, P * 7), pcell = pe / P;
-    r.label('patch', px, py - 8, { color: PURPLE, font: '10px ui-monospace, monospace' });
+    r.label('patch', px, py - 8, { color: T.violet, font: '10px ui-monospace, monospace' });
     for (let y = 0; y < P; y++) for (let x = 0; x < P; x++) { const si = ((sr * P + y) * S + (sc * P + x)) * 4; ctx.fillStyle = `rgb(${cur.im.data[si]},${cur.im.data[si + 1]},${cur.im.data[si + 2]})`; ctx.fillRect(px + x * pcell, py + y * pcell, Math.ceil(pcell), Math.ceil(pcell)); }
-    ctx.save(); ctx.strokeStyle = PURPLE; ctx.lineWidth = 1.4; ctx.strokeRect(px, py, pe, pe); ctx.restore();
+    ctx.save(); ctx.strokeStyle = T.violet; ctx.lineWidth = 1.4; ctx.strokeRect(px, py, pe, pe); ctx.restore();
     // projection box
     const wx = px + pe + 28;
-    ctx.save(); ctx.fillStyle = 'rgba(31,111,235,0.08)'; ctx.fillRect(wx, py + pe / 2 - 30, 116, 60); ctx.strokeStyle = BLUE; ctx.lineWidth = 1.3; ctx.strokeRect(wx, py + pe / 2 - 30, 116, 60);
-    ctx.fillStyle = INK; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center';
-    ctx.fillText('flatten → ℝ^' + dim, wx + 58, py + pe / 2 - 14); ctx.fillText(`linear W: ${D}×${dim}`, wx + 58, py + pe / 2); ctx.fillStyle = BLUE; ctx.fillText('+ pos[' + sel + ']', wx + 58, py + pe / 2 + 16); ctx.restore();
+    ctx.save(); ctx.fillStyle = alphaOf(T.accent, 0.08); ctx.fillRect(wx, py + pe / 2 - 30, 116, 60); ctx.strokeStyle = T.accent; ctx.lineWidth = 1.3; ctx.strokeRect(wx, py + pe / 2 - 30, 116, 60);
+    ctx.fillStyle = T.n14; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center';
+    ctx.fillText('flatten → ℝ^' + dim, wx + 58, py + pe / 2 - 14); ctx.fillText(`linear W: ${D}×${dim}`, wx + 58, py + pe / 2); ctx.fillStyle = T.accent; ctx.fillText('+ pos[' + sel + ']', wx + 58, py + pe / 2 + 16); ctx.restore();
     // token (D vertical bars)
     const tx = wx + 116 + 24, tw = 92, th = pe, bw = tw / D, zy = py + th / 2;
-    r.label(`token ${sel}  (ℝ^${D})`, tx, py - 8, { color: GREEN, font: '10px ui-monospace, monospace' });
-    ctx.save(); ctx.strokeStyle = '#e6e8ea'; ctx.strokeRect(tx, py, tw, th); ctx.strokeStyle = '#cfd4d9'; ctx.beginPath(); ctx.moveTo(tx, zy); ctx.lineTo(tx + tw, zy); ctx.stroke();
-    for (let o = 0; o < D; o++) { const v = Math.max(-tdom, Math.min(tdom, tokens[sel * D + o])), bh = Math.abs(v) / tdom * (th / 2); ctx.fillStyle = GREEN; ctx.fillRect(tx + o * bw, v >= 0 ? zy - bh : zy, Math.max(1, bw - 0.5), bh); } ctx.restore();
+    r.label(`token ${sel}  (ℝ^${D})`, tx, py - 8, { color: T.ok, font: '10px ui-monospace, monospace' });
+    ctx.save(); ctx.strokeStyle = T.n4; ctx.strokeRect(tx, py, tw, th); ctx.strokeStyle = T.n6; ctx.beginPath(); ctx.moveTo(tx, zy); ctx.lineTo(tx + tw, zy); ctx.stroke();
+    for (let o = 0; o < D; o++) { const v = Math.max(-tdom, Math.min(tdom, tokens[sel * D + o])), bh = Math.abs(v) / tdom * (th / 2); ctx.fillStyle = T.ok; ctx.fillRect(tx + o * bw, v >= 0 ? zy - bh : zy, Math.max(1, bw - 0.5), bh); } ctx.restore();
     // arrows
-    ctx.save(); ctx.strokeStyle = GREY; ctx.lineWidth = 1.3; const ay = py + pe / 2; ctx.beginPath(); ctx.moveTo(ix + isz + 2, ay - 6); ctx.lineTo(px - 4, ay - 6); ctx.moveTo(px + pe + 3, ay); ctx.lineTo(wx - 3, ay); ctx.moveTo(wx + 116 + 3, ay); ctx.lineTo(tx - 3, ay); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.strokeStyle = T.n9; ctx.lineWidth = 1.3; const ay = py + pe / 2; ctx.beginPath(); ctx.moveTo(ix + isz + 2, ay - 6); ctx.lineTo(px - 4, ay - 6); ctx.moveTo(px + pe + 3, ay); ctx.lineTo(wx - 3, ay); ctx.moveTo(wx + 116 + 3, ay); ctx.lineTo(tx - 3, ay); ctx.stroke(); ctx.restore();
 
     // ===== token sequence (bottom) =====
     const seqY = 224, seqX = 20, cols = N + 1, colW = Math.min(9, (W - 40) / cols), seqH = Math.min(104, D * 4), ch = seqH / D;
-    r.label('token sequence fed to the transformer:  [CLS]  +  patch tokens (raster order)  + positional embedding', seqX, seqY - 8, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label('token sequence fed to the transformer:  [CLS]  +  patch tokens (raster order)  + positional embedding', seqX, seqY - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
     // CLS
     ctx.save();
     for (let o = 0; o < D; o++) { ctx.fillStyle = sign(cur.cls[o], tdom); ctx.fillRect(seqX, seqY + o * ch, colW - 0.6, ch - 0.3); }
-    ctx.strokeStyle = RED; ctx.lineWidth = 1.4; ctx.strokeRect(seqX - 0.5, seqY - 0.5, colW, seqH + 1); ctx.restore();
-    r.label('CLS', seqX - 2, seqY + seqH + 12, { color: RED, font: '9px ui-monospace, monospace' });
+    ctx.strokeStyle = T.bad; ctx.lineWidth = 1.4; ctx.strokeRect(seqX - 0.5, seqY - 0.5, colW, seqH + 1); ctx.restore();
+    r.label('CLS', seqX - 2, seqY + seqH + 12, { color: T.bad, font: '9px ui-monospace, monospace' });
     // patch tokens
     ctx.save();
     for (let pi = 0; pi < N; pi++) { const cx0 = seqX + (pi + 1) * colW; for (let o = 0; o < D; o++) { ctx.fillStyle = sign(tokens[pi * D + o], tdom); ctx.fillRect(cx0, seqY + o * ch, colW - 0.6, ch - 0.3); } }
     // selected + sweep highlight on the strip
-    ctx.strokeStyle = PURPLE; ctx.lineWidth = 1.8; ctx.strokeRect(seqX + (sel + 1) * colW - 0.5, seqY - 0.5, colW, seqH + 1);
+    ctx.strokeStyle = T.violet; ctx.lineWidth = 1.8; ctx.strokeRect(seqX + (sel + 1) * colW - 0.5, seqY - 0.5, colW, seqH + 1);
     ctx.strokeStyle = 'rgba(255,193,7,0.9)'; ctx.lineWidth = 1.4; ctx.strokeRect(seqX + (swp + 1) * colW - 0.5, seqY - 0.5, colW, seqH + 1);
     ctx.restore();
-    r.label(`${N + 1} tokens × ${D} dims   (D rows ↓, sequence position →)`, seqX, seqY + seqH + 12, { color: '#586069', font: '9px ui-monospace, monospace' });
-    r.label('patch-embedding ≡ Conv2d(kernel = stride = P): a single conv that tiles the image into tokens — the CNN→transformer bridge.', seqX, seqY + seqH + 30, { color: PURPLE, font: '10px ui-monospace, monospace' });
+    r.label(`${N + 1} tokens × ${D} dims   (D rows ↓, sequence position →)`, seqX, seqY + seqH + 12, { color: T.n11, font: '9px ui-monospace, monospace' });
+    r.label('patch-embedding ≡ Conv2d(kernel = stride = P): a single conv that tiles the image into tokens — the CNN→transformer bridge.', seqX, seqY + seqH + 30, { color: T.violet, font: '10px ui-monospace, monospace' });
 
     // hover
     if (page.pointer.over && !dragging) {

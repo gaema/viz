@@ -1,0 +1,1183 @@
+{
+  "schema": 1,
+  "about": "Which numeric datatypes each accelerator ARCHITECTURE accepts as a compute operand. VENDOR-PUBLISHED CAPABILITY FACTS ONLY -- this file records SUPPORT (a documented capability), never PERFORMANCE: no TOPS/TFLOPS, no clocks, no measured rates, no machine inventory. Rows are architectures, not products or machines. Consumed by the dtype-bits page's hardware-support view.",
+  "unknown_rule": "`unknown` means the vendor does not publish the answer. It is a DISTINCT state from `none` and must render as unknown -- never collapse it to a guess, a default, or a `none`. `none` is used only where a vendor enumerates a complete operand list that omits the dtype, or where the architecture has no engine that could accept it. A vendor's TOOLCHAIN accepting a dtype is not the same claim as its ENGINE multiplying in that dtype; where a vendor's own documents blur the two, the note says which one the level records.",
+  "levels": {
+    "native": "Documented native operand of the architecture's MATRIX / tensor engine.",
+    "vector": "Documented native operand of the vector / SIMD / scalar ALU only -- there is no matrix engine, or the matrix engine does not take this dtype.",
+    "emulated": "Reachable only by converting (upconverting / decompressing) to a wider type the hardware does accept.",
+    "none": "Documented as not supported by this architecture -- including the common case where a vendor toolchain ACCEPTS a wider dtype and then executes it at a narrower one (fp32 in, fp16 math): the engine has no path for it. `emulated` is the opposite direction, a narrow dtype WIDENED to something the hardware accepts.",
+    "unknown": "Not publicly documented by the vendor."
+  },
+  "classes": {
+    "gpu-matrix": "GPU with a dedicated matrix/tensor engine (Tensor Core, WMMA, XMX/DPAS).",
+    "gpu-alu": "GPU with no matrix engine -- GEMM is emitted as vector/scalar FMA and integer dot products.",
+    "npu": "Fixed-function neural accelerator or AI ASIC.",
+    "dsp": "Audio/vector DSP core used for on-device inference.",
+    "cpu-simd": "CPU SIMD/vector ISA path (and, where present, a CPU tile-matrix unit)."
+  },
+  "dtypes": [
+    "fp32",
+    "fp16",
+    "bf16",
+    "fp8e4m3",
+    "fp8e5m2",
+    "int8",
+    "int4"
+  ],
+  "architectures": [
+    {
+      "id": "nvidia-blackwell",
+      "vendor": "NVIDIA",
+      "arch": "Blackwell (GB20x)",
+      "engine": "5th-gen Tensor Core (PTX mma)",
+      "class": "gpu-matrix",
+      "source": "NVIDIA CUDA Programming Guide, Table 33 \"Input Data Types Supported by Tensor Core Acceleration per Compute Capability\" (CC 12.x) + CUDA PTX ISA `mma` + the RTX Blackwell architecture whitepaper",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "CUDA-core FMA operand and the Tensor Core ACCUMULATOR type; TF32 is the 32-bit-range format the tensor engine actually ingests."
+        },
+        "fp16": {
+          "level": "native"
+        },
+        "bf16": {
+          "level": "native"
+        },
+        "fp8e4m3": {
+          "level": "native",
+          "note": "OCP FP8; also the element type inside the NVFP4/MXFP8 block-scaled forms."
+        },
+        "fp8e5m2": {
+          "level": "native"
+        },
+        "int8": {
+          "level": "native"
+        },
+        "int4": {
+          "level": "none",
+          "note": "INT4 tensor-core mma existed on Turing-Ada (sm_75-sm_89) and is gone here: the CUDA guide's per-compute-capability input-dtype table lists INT4 only through CC 8.9, and the sub-byte WMMA API is documented as \"deprecated and will be removed in sm_90\". Sub-byte moved to the FP4/FP6 block-scaled float formats instead."
+        }
+      }
+    },
+    {
+      "id": "nvidia-ada",
+      "vendor": "NVIDIA",
+      "arch": "Ada Lovelace (AD10x)",
+      "engine": "4th-gen Tensor Core (PTX mma)",
+      "class": "gpu-matrix",
+      "source": "NVIDIA CUDA Programming Guide, Table 33 (CC 8.9) + CUDA PTX ISA `mma` (sm_89) + the Ada Lovelace architecture whitepaper",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "Accumulator, not a tensor-core input; TF32 fills that role."
+        },
+        "fp16": {
+          "level": "native"
+        },
+        "bf16": {
+          "level": "native"
+        },
+        "fp8e4m3": {
+          "level": "native",
+          "note": "FP8 tensor cores arrive with Ada (sm_89) / Hopper."
+        },
+        "fp8e5m2": {
+          "level": "native"
+        },
+        "int8": {
+          "level": "native"
+        },
+        "int4": {
+          "level": "native",
+          "note": "`mma` .s4/.u4 shapes are documented for sm_75-sm_89 -- Ada is the LAST generation with an INT4 tensor-core path."
+        }
+      }
+    },
+    {
+      "id": "nvidia-ampere",
+      "vendor": "NVIDIA",
+      "arch": "Ampere (GA10x)",
+      "engine": "3rd-gen Tensor Core (PTX mma)",
+      "class": "gpu-matrix",
+      "source": "NVIDIA CUDA Programming Guide, Table 33 (CC 8.0/8.6) + CUDA PTX ISA `mma` (sm_80/sm_86) + the Ampere architecture whitepaper",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "TF32 is the tensor-core stand-in for fp32 range at 10 mantissa bits."
+        },
+        "fp16": {
+          "level": "native"
+        },
+        "bf16": {
+          "level": "native",
+          "note": "BF16 tensor cores are introduced on Ampere."
+        },
+        "fp8e4m3": {
+          "level": "none",
+          "note": "FP8 tensor cores arrive one generation later (Ada/Hopper)."
+        },
+        "fp8e5m2": {
+          "level": "none"
+        },
+        "int8": {
+          "level": "native"
+        },
+        "int4": {
+          "level": "native"
+        }
+      }
+    },
+    {
+      "id": "amd-rdna4",
+      "vendor": "AMD",
+      "arch": "RDNA 4 (gfx12)",
+      "engine": "WMMA matrix cores",
+      "class": "gpu-matrix",
+      "source": "AMD \"RDNA 4\" Instruction Set Architecture Reference Guide (WMMA operand table)",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "fp32 is the WMMA ACCUMULATOR, never an A/B multiplicand on this generation -- fp32 multiply happens on the vector ALU."
+        },
+        "fp16": {
+          "level": "native",
+          "note": "V_WMMA_F32_16X16X16_F16 and the F16-accumulate form."
+        },
+        "bf16": {
+          "level": "native"
+        },
+        "fp8e4m3": {
+          "level": "native",
+          "note": "AMD spells e4m3 \"FP8\"; four WMMA forms cover every FP8/BF8 pairing of the two operands."
+        },
+        "fp8e5m2": {
+          "level": "native",
+          "note": "AMD spells e5m2 \"BF8\"."
+        },
+        "int8": {
+          "level": "native",
+          "note": "One instruction serves signed and unsigned (AMD's \"IU8\" naming), accumulating into int32."
+        },
+        "int4": {
+          "level": "native",
+          "note": "Two int4 matrix forms, one of them double-K, plus sparse variants -- 4-bit is a first-class matrix-core operand here, not a curiosity. Very few engines can say that."
+        }
+      }
+    },
+    {
+      "id": "amd-rdna2",
+      "vendor": "AMD",
+      "arch": "RDNA 2 (gfx10.3)",
+      "engine": "vector ALU + integer dot product",
+      "class": "gpu-alu",
+      "source": "AMD \"RDNA 2\" Instruction Set Architecture Reference Guide (VOP3P dot-product opcodes)",
+      "dtypes": {
+        "fp32": {
+          "level": "vector"
+        },
+        "fp16": {
+          "level": "vector",
+          "note": "Packed fp16 FMA in the vector ALU -- there is no matrix engine on this generation."
+        },
+        "bf16": {
+          "level": "none",
+          "note": "The RDNA 2 ISA guide is a complete opcode reference and contains no bf16 operand anywhere -- bf16 reaches AMD consumer GPUs one generation later."
+        },
+        "fp8e4m3": {
+          "level": "none"
+        },
+        "fp8e5m2": {
+          "level": "none"
+        },
+        "int8": {
+          "level": "vector",
+          "note": "A 4-wide int8 dot product into an int32 accumulator, on the vector ALU -- AMD's stated purpose is inference. No matrix engine exists on this generation."
+        },
+        "int4": {
+          "level": "vector",
+          "note": "AMD's own description is \"dot product of signed nibbles\": an 8-wide int4 dot into int32. Real 4-bit arithmetic without a matrix engine -- which is exactly why `vector` and `native` are separate levels here."
+        }
+      }
+    },
+    {
+      "id": "intel-xe2",
+      "vendor": "Intel",
+      "arch": "Xe2 (Battlemage / Lunar Lake Xe2-LPG)",
+      "engine": "XMX / DPAS systolic array",
+      "class": "gpu-matrix",
+      "source": "Intel `cl_intel_subgroup_matrix_multiply_accumulate` OpenCL extension + `SPV_INTEL_subgroup_matrix_multiply_accumulate` + the `sycl_ext_oneapi_matrix` per-architecture combination table",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "DPAS accumulates in fp32; TF32 is the 32-bit-range matrix operand."
+        },
+        "fp16": {
+          "level": "native",
+          "note": "`intel_sub_group_f16_f16_matrix_mad_k16`."
+        },
+        "bf16": {
+          "level": "native"
+        },
+        "fp8e4m3": {
+          "level": "emulated",
+          "note": "No Intel specification lists FP8 as an XMX operand for this generation: the OpenCL, SPIR-V and SYCL matrix extensions define fp16 / bf16 / tf32 / int8 / int4 and no e4m3 or e5m2 stem. FP8 weights are dequantized to a documented operand type before they reach the systolic array."
+        },
+        "fp8e5m2": {
+          "level": "emulated",
+          "note": "No Intel specification lists FP8 as an XMX operand for this generation: the OpenCL, SPIR-V and SYCL matrix extensions define fp16 / bf16 / tf32 / int8 / int4 and no e4m3 or e5m2 stem. FP8 weights are dequantized to a documented operand type before they reach the systolic array."
+        },
+        "int8": {
+          "level": "native",
+          "note": "`intel_sub_group_i8_i8_matrix_mad_k32`, K=32 per step."
+        },
+        "int4": {
+          "level": "native",
+          "note": "Intel's XMX OpenCL extension defines i4/u4 (and mixed i8xi4) matrix-mad stems at K=64 -- the sub-byte weight path. Intel publishes that operand list per extension rather than per architecture, and a device reports at runtime which stems it implements."
+        }
+      }
+    },
+    {
+      "id": "intel-xe-hpg",
+      "vendor": "Intel",
+      "arch": "Xe-HPG (Alchemist)",
+      "engine": "XMX / DPAS systolic array",
+      "class": "gpu-matrix",
+      "source": "Intel `cl_intel_subgroup_matrix_multiply_accumulate` OpenCL extension + `SPV_INTEL_subgroup_matrix_multiply_accumulate` + the `sycl_ext_oneapi_matrix` per-architecture combination table",
+      "dtypes": {
+        "fp32": {
+          "level": "vector"
+        },
+        "fp16": {
+          "level": "native"
+        },
+        "bf16": {
+          "level": "native"
+        },
+        "fp8e4m3": {
+          "level": "emulated",
+          "note": "No Intel specification lists FP8 as an XMX operand for this generation: the OpenCL, SPIR-V and SYCL matrix extensions define fp16 / bf16 / tf32 / int8 / int4 and no e4m3 or e5m2 stem. FP8 weights are dequantized to a documented operand type before they reach the systolic array."
+        },
+        "fp8e5m2": {
+          "level": "emulated",
+          "note": "No Intel specification lists FP8 as an XMX operand for this generation: the OpenCL, SPIR-V and SYCL matrix extensions define fp16 / bf16 / tf32 / int8 / int4 and no e4m3 or e5m2 stem. FP8 weights are dequantized to a documented operand type before they reach the systolic array."
+        },
+        "int8": {
+          "level": "native"
+        },
+        "int4": {
+          "level": "native",
+          "note": "Intel's XMX OpenCL extension defines i4/u4 (and mixed i8xi4) matrix-mad stems at K=64 -- the sub-byte weight path. Intel publishes that operand list per extension rather than per architecture, and a device reports at runtime which stems it implements."
+        }
+      }
+    },
+    {
+      "id": "intel-xe-lpg",
+      "vendor": "Intel",
+      "arch": "Xe-LPG (Arrow Lake / Meteor Lake iGPU)",
+      "engine": "XMX / DPAS systolic array",
+      "class": "gpu-matrix",
+      "source": "Intel `cl_intel_subgroup_matrix_multiply_accumulate` OpenCL extension",
+      "dtypes": {
+        "fp32": {
+          "level": "vector"
+        },
+        "fp16": {
+          "level": "native"
+        },
+        "bf16": {
+          "level": "native"
+        },
+        "fp8e4m3": {
+          "level": "none"
+        },
+        "fp8e5m2": {
+          "level": "none"
+        },
+        "int8": {
+          "level": "native",
+          "note": "Signed/unsigned mixes (i8xu8, u8xi8) are separate documented forms."
+        },
+        "int4": {
+          "level": "native",
+          "note": "Also 2-bit (i2) mixed forms."
+        }
+      }
+    },
+    {
+      "id": "intel-xe-lp",
+      "vendor": "Intel",
+      "arch": "Xe-LP (Tiger Lake / Alder Lake iGPU)",
+      "engine": "vector ALU + DP4A",
+      "class": "gpu-alu",
+      "source": "Intel Xe-LP programmer's reference (no XMX on this generation)",
+      "dtypes": {
+        "fp32": {
+          "level": "vector"
+        },
+        "fp16": {
+          "level": "vector"
+        },
+        "bf16": {
+          "level": "none"
+        },
+        "fp8e4m3": {
+          "level": "none"
+        },
+        "fp8e5m2": {
+          "level": "none"
+        },
+        "int8": {
+          "level": "vector",
+          "note": "DP4A 4-wide int8 dot -- Xe-LP has no XMX matrix array."
+        },
+        "int4": {
+          "level": "none"
+        }
+      }
+    },
+    {
+      "id": "intel-npu4",
+      "vendor": "Intel",
+      "arch": "NPU 4 (Lunar Lake)",
+      "engine": "NPU MAC array (OpenVINO)",
+      "class": "npu",
+      "source": "OpenVINO NPU-plugin \"Supported Inference Data Types\" + OpenVINO GenAI NPU weight-compression guide",
+      "dtypes": {
+        "fp32": {
+          "level": "none",
+          "note": "Accepted by the toolchain and then executed at fp16 -- a DOWN-convert, so the engine has no fp32 path at all. (`emulated` on this page means the opposite: reaching a dtype by widening it.) OpenVINO lists F32 as an accepted model precision one line above \"Computation precision for the HW is FP16\"."
+        },
+        "fp16": {
+          "level": "native"
+        },
+        "bf16": {
+          "level": "none",
+          "note": "The plugin's precision list (F32 / F16 / U8) is a complete vendor enumeration and has no bf16."
+        },
+        "fp8e4m3": {
+          "level": "none",
+          "note": "Not in the plugin's precision list."
+        },
+        "fp8e5m2": {
+          "level": "none",
+          "note": "Not in the plugin's precision list."
+        },
+        "int8": {
+          "level": "native",
+          "note": "\"Quantized data types: U8\" -- the NPU's MAC array is an int8 engine."
+        },
+        "int4": {
+          "level": "unknown",
+          "note": "OpenVINO documents int4/nf4 WEIGHT COMPRESSION for NPU LLMs while stating the hardware computes in fp16. Whether the MAC array takes an int4 operand -- or whether the weights are expanded first -- is not published."
+        }
+      }
+    },
+    {
+      "id": "intel-npu3720",
+      "vendor": "Intel",
+      "arch": "NPU 3720 (Meteor Lake / Arrow Lake-H)",
+      "engine": "NPU MAC array (OpenVINO)",
+      "class": "npu",
+      "source": "OpenVINO NPU-plugin \"Supported Inference Data Types\"",
+      "dtypes": {
+        "fp32": {
+          "level": "none",
+          "note": "Accepted by the toolchain and then executed at fp16 -- a DOWN-convert, so the engine has no fp32 path at all. (`emulated` on this page means the opposite: reaching a dtype by widening it.) OpenVINO lists F32 as an accepted model precision one line above \"Computation precision for the HW is FP16\"."
+        },
+        "fp16": {
+          "level": "native"
+        },
+        "bf16": {
+          "level": "none",
+          "note": "The plugin's precision list (F32 / F16 / U8) is a complete vendor enumeration and has no bf16."
+        },
+        "fp8e4m3": {
+          "level": "none",
+          "note": "Not in the plugin's precision list."
+        },
+        "fp8e5m2": {
+          "level": "none",
+          "note": "Not in the plugin's precision list."
+        },
+        "int8": {
+          "level": "native",
+          "note": "\"Quantized data types: U8\" -- the NPU's MAC array is an int8 engine."
+        },
+        "int4": {
+          "level": "unknown",
+          "note": "OpenVINO documents int4/nf4 WEIGHT COMPRESSION for NPU LLMs while stating the hardware computes in fp16. Whether the MAC array takes an int4 operand -- or whether the weights are expanded first -- is not published."
+        }
+      }
+    },
+    {
+      "id": "arm-mali-bifrost-a6",
+      "vendor": "Arm",
+      "arch": "Bifrost (Mali-G71 / G72)",
+      "engine": "vector ALU (no matrix engine)",
+      "class": "gpu-alu",
+      "source": "Arm GPU Datasheet (core-features table) + the Bifrost/Valhall shader-core guides + Arm's Mali OpenCL developer guide and the `cl_arm_integer_dot_product` extension",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "No matrix engine: Arm's own core-features table has an \"MMUL FP16\" row and leaves it blank for every Bifrost and Valhall part. GEMM here is vector FMA."
+        },
+        "fp16": {
+          "level": "vector",
+          "note": "Native fp16 arithmetic at twice the fp32 rate -- 8 fp16/int16 or 16 int8 operations per clock in a 4-wide warp."
+        },
+        "bf16": {
+          "level": "unknown",
+          "note": "Arm's native-type statement for this GPU stops at int8 / int16 / fp16 and never says anything about this dtype either way -- so the honest answer is silence, not denial."
+        },
+        "fp8e4m3": {
+          "level": "unknown",
+          "note": "Arm's native-type statement for this GPU stops at int8 / int16 / fp16 and never says anything about this dtype either way -- so the honest answer is silence, not denial."
+        },
+        "fp8e5m2": {
+          "level": "unknown",
+          "note": "Arm's native-type statement for this GPU stops at int8 / int16 / fp16 and never says anything about this dtype either way -- so the honest answer is silence, not denial."
+        },
+        "int8": {
+          "level": "vector",
+          "note": "Native packed int8 arithmetic at 16 operations per clock; Arm's GPU datasheet ticks an 8-bit integer dot product for G71 but not for G72."
+        },
+        "int4": {
+          "level": "unknown",
+          "note": "Arm's native-type statement for this GPU stops at int8 / int16 / fp16 and never says anything about this dtype either way -- so the honest answer is silence, not denial."
+        }
+      }
+    },
+    {
+      "id": "arm-mali-bifrost-a7",
+      "vendor": "Arm",
+      "arch": "Bifrost (Mali-G31 / G51 / G52 / G76)",
+      "engine": "vector ALU + int8 dot product",
+      "class": "gpu-alu",
+      "source": "Arm GPU Datasheet (core-features table) + the Bifrost/Valhall shader-core guides + Arm's Mali OpenCL developer guide and the `cl_arm_integer_dot_product` extension",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "No matrix engine: Arm's own core-features table has an \"MMUL FP16\" row and leaves it blank for every Bifrost and Valhall part. GEMM here is vector FMA."
+        },
+        "fp16": {
+          "level": "vector",
+          "note": "Native fp16 arithmetic at twice the fp32 rate."
+        },
+        "bf16": {
+          "level": "unknown",
+          "note": "Arm's native-type statement for this GPU stops at int8 / int16 / fp16 and never says anything about this dtype either way -- so the honest answer is silence, not denial."
+        },
+        "fp8e4m3": {
+          "level": "unknown",
+          "note": "Arm's native-type statement for this GPU stops at int8 / int16 / fp16 and never says anything about this dtype either way -- so the honest answer is silence, not denial."
+        },
+        "fp8e5m2": {
+          "level": "unknown",
+          "note": "Arm's native-type statement for this GPU stops at int8 / int16 / fp16 and never says anything about this dtype either way -- so the honest answer is silence, not denial."
+        },
+        "int8": {
+          "level": "vector",
+          "note": "Arm documents an 8-bit integer dot product on G52 and G76 but not on G31/G51; it surfaces to programs as a 4-wide char dot-product built-in."
+        },
+        "int4": {
+          "level": "unknown",
+          "note": "Arm's native-type statement for this GPU stops at int8 / int16 / fp16 and never says anything about this dtype either way -- so the honest answer is silence, not denial."
+        }
+      }
+    },
+    {
+      "id": "arm-mali-valhall",
+      "vendor": "Arm",
+      "arch": "Mali Valhall (e.g. G57)",
+      "engine": "vector ALU + int8 dot-accumulate",
+      "class": "gpu-alu",
+      "source": "Arm GPU Datasheet (core-features table) + the Bifrost/Valhall shader-core guides + Arm's Mali OpenCL developer guide and the `cl_arm_integer_dot_product` extension",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "No matrix engine: Arm's own core-features table has an \"MMUL FP16\" row and leaves it blank for every Bifrost and Valhall part. GEMM here is vector FMA."
+        },
+        "fp16": {
+          "level": "vector",
+          "note": "Native fp16 arithmetic at twice the fp32 rate -- 32 fp16/int16 or 64 int8 operations per clock."
+        },
+        "bf16": {
+          "level": "unknown",
+          "note": "Arm's native-type statement for this GPU stops at int8 / int16 / fp16 and never says anything about this dtype either way -- so the honest answer is silence, not denial."
+        },
+        "fp8e4m3": {
+          "level": "unknown",
+          "note": "Arm's native-type statement for this GPU stops at int8 / int16 / fp16 and never says anything about this dtype either way -- so the honest answer is silence, not denial."
+        },
+        "fp8e5m2": {
+          "level": "unknown",
+          "note": "Arm's native-type statement for this GPU stops at int8 / int16 / fp16 and never says anything about this dtype either way -- so the honest answer is silence, not denial."
+        },
+        "int8": {
+          "level": "vector",
+          "note": "Arm ticks the 8-bit integer dot product for every Valhall part; the SATURATING dot-accumulate extension is documented only from Mali-G77, which leaves G57 outside that claim."
+        },
+        "int4": {
+          "level": "unknown",
+          "note": "Arm's native-type statement for this GPU stops at int8 / int16 / fp16 and never says anything about this dtype either way -- so the honest answer is silence, not denial."
+        }
+      }
+    },
+    {
+      "id": "qualcomm-adreno8xx",
+      "vendor": "Qualcomm",
+      "arch": "Adreno 800-series GPU",
+      "engine": "vector ALU + dot-product accumulate",
+      "class": "gpu-alu",
+      "source": "Qualcomm AI Runtime (QAIRT/QNN) SDK documentation, GPU backend precision modes",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "The GPU backend's FP32 mode: fp32 kernels with an fp32 accumulator."
+        },
+        "fp16": {
+          "level": "vector",
+          "note": "FP16 and HYBRID modes (fp16 math, fp32 accumulator)."
+        },
+        "bf16": {
+          "level": "unknown"
+        },
+        "fp8e4m3": {
+          "level": "unknown"
+        },
+        "fp8e5m2": {
+          "level": "unknown"
+        },
+        "int8": {
+          "level": "unknown",
+          "note": "Qualcomm's own ML runtime says quantized models are incompatible with the GPU backend, and no vendor document was found stating an integer dot-product path for this GPU. The OpenCL integer-dot-product extensions are the place that would settle it."
+        },
+        "int4": {
+          "level": "unknown"
+        }
+      }
+    },
+    {
+      "id": "qualcomm-hexagon",
+      "vendor": "Qualcomm",
+      "arch": "Hexagon NPU (Snapdragon X / 8-series)",
+      "engine": "HTP tensor accelerator",
+      "class": "npu",
+      "source": "Qualcomm AI Runtime (QAIRT/QNN) SDK documentation, HTP backend + quantization guides, and the Snapdragon 8 Elite product brief",
+      "dtypes": {
+        "fp32": {
+          "level": "none",
+          "note": "Accepted by the toolchain and then executed at fp16 -- a DOWN-convert, so the engine has no fp32 path at all. (`emulated` on this page means the opposite: reaching a dtype by widening it.) QNN runs \"float32 networks using float16 math\", and its HTP guide requires a quantized or fp16 model."
+        },
+        "fp16": {
+          "level": "native",
+          "note": "\"Running float32 networks using float16 math on select Qualcomm SoCs.\""
+        },
+        "bf16": {
+          "level": "native",
+          "note": "Documented for Hexagon V81 and newer only -- earlier Snapdragon generations (including the X Elite class) have no bf16 path."
+        },
+        "fp8e4m3": {
+          "level": "unknown",
+          "note": "The QNN API enumerates fp8 and MX-fp8 TENSOR types, but the documented HTP runtimes are quantized int8/int16, fp16 and bf16. A toolchain type is not an engine operand."
+        },
+        "fp8e5m2": {
+          "level": "unknown",
+          "note": "Same as e4m3: a tensor-type enum entry with no documented HTP runtime."
+        },
+        "int8": {
+          "level": "native",
+          "note": "\"QNN HTP supports running quantized 8-bit and quantized 16-bit networks on all Qualcomm SoCs.\""
+        },
+        "int4": {
+          "level": "native",
+          "note": "The product brief enumerates INT4 among the NPU's precisions -- but the SDK notes int4's benefit comes SOLELY from moving fewer bytes into local memory, which reads like the weights are widened before the MACs. Vendor sources conflict; this is the more generous reading."
+        }
+      }
+    },
+    {
+      "id": "mediatek-mdla3",
+      "vendor": "MediaTek",
+      "arch": "MDLA 3.0 (Genio 510 / 700)",
+      "engine": "MDLA fixed-point MAC array",
+      "class": "npu",
+      "source": "MediaTek Genio developer documentation (Neuron execution provider) -- the per-platform NeuroPilot operand lists are behind a vendor login, so no public per-generation dtype table exists",
+      "dtypes": {
+        "fp32": {
+          "level": "none",
+          "note": "Accepted by the toolchain and then executed at fp16 -- a DOWN-convert, so the engine has no fp32 path at all. (`emulated` on this page means the opposite: reaching a dtype by widening it.) MediaTek's own wording: the fp16 execution flag \"is mandatory, as the NPU does not support FP32 execution\"."
+        },
+        "fp16": {
+          "level": "native",
+          "note": "The mandatory float execution precision -- fp32 models run as fp16."
+        },
+        "bf16": {
+          "level": "unknown",
+          "note": "MediaTek publishes a bf16 claim only for its Dimensity-class 7th-generation NPU; carrying that across generations would be inference, not documentation."
+        },
+        "fp8e4m3": {
+          "level": "unknown",
+          "note": "Not publicly enumerated for this generation."
+        },
+        "fp8e5m2": {
+          "level": "unknown",
+          "note": "Not publicly enumerated for this generation."
+        },
+        "int8": {
+          "level": "native",
+          "note": "Quantized int8 (QDQ) is the documented NPU path; int16 and mixed precision are documented alongside it."
+        },
+        "int4": {
+          "level": "unknown",
+          "note": "Not publicly enumerated for this generation."
+        }
+      }
+    },
+    {
+      "id": "mediatek-mdla53",
+      "vendor": "MediaTek",
+      "arch": "MDLA 5.3 (Genio 520 / 720)",
+      "engine": "MDLA fixed-point MAC array",
+      "class": "npu",
+      "source": "MediaTek Genio developer documentation (Neuron execution provider) -- the per-platform NeuroPilot operand lists are behind a vendor login, so no public per-generation dtype table exists",
+      "dtypes": {
+        "fp32": {
+          "level": "none",
+          "note": "Accepted by the toolchain and then executed at fp16 -- a DOWN-convert, so the engine has no fp32 path at all. (`emulated` on this page means the opposite: reaching a dtype by widening it.) MediaTek's own wording: the fp16 execution flag \"is mandatory, as the NPU does not support FP32 execution\"."
+        },
+        "fp16": {
+          "level": "native",
+          "note": "The mandatory float execution precision -- fp32 models run as fp16."
+        },
+        "bf16": {
+          "level": "unknown",
+          "note": "MediaTek publishes a bf16 claim only for its Dimensity-class 7th-generation NPU; carrying that across generations would be inference, not documentation."
+        },
+        "fp8e4m3": {
+          "level": "unknown",
+          "note": "Not publicly enumerated for this generation."
+        },
+        "fp8e5m2": {
+          "level": "unknown",
+          "note": "Not publicly enumerated for this generation."
+        },
+        "int8": {
+          "level": "native",
+          "note": "Quantized int8 (QDQ) is the documented NPU path; int16 and mixed precision are documented alongside it."
+        },
+        "int4": {
+          "level": "unknown",
+          "note": "Not publicly enumerated for this generation."
+        }
+      }
+    },
+    {
+      "id": "mediatek-npu890",
+      "vendor": "MediaTek",
+      "arch": "NPU 890 (Dimensity 9400)",
+      "engine": "MDLA-class MAC array",
+      "class": "npu",
+      "source": "MediaTek Genio developer documentation (Neuron execution provider) -- the per-platform NeuroPilot operand lists are behind a vendor login, so no public per-generation dtype table exists",
+      "dtypes": {
+        "fp32": {
+          "level": "none",
+          "note": "Accepted by the toolchain and then executed at fp16 -- a DOWN-convert, so the engine has no fp32 path at all. (`emulated` on this page means the opposite: reaching a dtype by widening it.) MediaTek's own wording: the fp16 execution flag \"is mandatory, as the NPU does not support FP32 execution\"."
+        },
+        "fp16": {
+          "level": "native",
+          "note": "The mandatory float execution precision -- fp32 models run as fp16."
+        },
+        "bf16": {
+          "level": "unknown",
+          "note": "MediaTek publishes a bf16 claim only for its Dimensity-class 7th-generation NPU; carrying that across generations would be inference, not documentation."
+        },
+        "fp8e4m3": {
+          "level": "unknown",
+          "note": "MediaTek's Dimensity 9400+ announcement says the NPU does \"FP8 inferencing\" but never names the encoding, so neither fp8 column can be resolved."
+        },
+        "fp8e5m2": {
+          "level": "unknown",
+          "note": "See e4m3: FP8 is claimed as a category, with no encoding published."
+        },
+        "int8": {
+          "level": "native",
+          "note": "Quantized int8 (QDQ) is the documented NPU path; int16 and mixed precision are documented alongside it."
+        },
+        "int4": {
+          "level": "unknown",
+          "note": "Not publicly enumerated for this generation."
+        }
+      }
+    },
+    {
+      "id": "rockchip-rknpu2",
+      "vendor": "Rockchip",
+      "arch": "RKNPU2 (RK3588)",
+      "engine": "RKNPU MAC array",
+      "class": "npu",
+      "source": "Rockchip RK3588 datasheet, NPU section",
+      "dtypes": {
+        "fp32": {
+          "level": "none",
+          "note": "The datasheet's NPU format list is int4 / int8 / int16 / fp16 / bf16 / tf32 -- fp32 is not on it."
+        },
+        "fp16": {
+          "level": "native"
+        },
+        "bf16": {
+          "level": "native"
+        },
+        "fp8e4m3": {
+          "level": "none"
+        },
+        "fp8e5m2": {
+          "level": "none"
+        },
+        "int8": {
+          "level": "native",
+          "note": "The headline mode for this NPU."
+        },
+        "int4": {
+          "level": "native",
+          "note": "The datasheet's operand list is int4 / int8 / int16 / fp16 / bf16 / tf32 -- one of the widest published NPU operand sets, and wider than the public toolchain exposes."
+        }
+      }
+    },
+    {
+      "id": "rockchip-rknpu3",
+      "vendor": "Rockchip",
+      "arch": "RKNPU3 (RK182x)",
+      "engine": "RKNPU3 matrix engine",
+      "class": "npu",
+      "source": "Rockchip RK182X datasheet, NPU section",
+      "dtypes": {
+        "fp32": {
+          "level": "none",
+          "note": "The datasheet's operand list (int4 / int8 / int16 / fp8 / fp16 / bf16) is complete and omits fp32."
+        },
+        "fp16": {
+          "level": "native",
+          "note": "Listed in the datasheet's operand set."
+        },
+        "bf16": {
+          "level": "native",
+          "note": "Listed in the datasheet's operand set."
+        },
+        "fp8e4m3": {
+          "level": "unknown",
+          "note": "The datasheet says \"FP8\" without naming the encoding, so neither fp8 column can be resolved from it."
+        },
+        "fp8e5m2": {
+          "level": "unknown",
+          "note": "See e4m3: FP8 is listed as a category, with no encoding published."
+        },
+        "int8": {
+          "level": "native",
+          "note": "Listed in the datasheet's operand set."
+        },
+        "int4": {
+          "level": "native",
+          "note": "Listed in the datasheet's operand set -- a sub-byte operand on the NPU itself, which is rare."
+        }
+      }
+    },
+    {
+      "id": "verisilicon-vip",
+      "vendor": "VeriSilicon",
+      "arch": "Vivante VIP (VIPNano / VIP9000 class)",
+      "engine": "NN engine (integer MAC array)",
+      "class": "npu",
+      "source": "VeriSilicon VIP product material + the Amlogic A311D quick reference manual (NPU block) + the Mesa Teflon documentation",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "Float lives on the programmable unit beside the NN cores, not on the neural MAC array itself."
+        },
+        "fp16": {
+          "level": "vector",
+          "note": "As fp32: a programmable-unit format, not an operand of the int8 neural cores."
+        },
+        "bf16": {
+          "level": "unknown",
+          "note": "VeriSilicon states the format set is chosen per licensed configuration, so no family-wide answer exists and no per-SoC list is published."
+        },
+        "fp8e4m3": {
+          "level": "unknown",
+          "note": "Not published; the configuration-dependent format set rules out a blanket answer."
+        },
+        "fp8e5m2": {
+          "level": "unknown",
+          "note": "Not published; the configuration-dependent format set rules out a blanket answer."
+        },
+        "int8": {
+          "level": "native",
+          "note": "int8 is in every published description of this NPU, and the open driver stack compiles u8 tensors into int32 accumulators."
+        },
+        "int4": {
+          "level": "unknown",
+          "note": "Not published for this IP."
+        }
+      }
+    },
+    {
+      "id": "apple-ane",
+      "vendor": "Apple",
+      "arch": "Neural Engine (ANE, M-series)",
+      "engine": "ANE MAC array",
+      "class": "npu",
+      "source": "Apple coremltools documentation -- \"Typed Execution\" and \"Quantization Overview\"",
+      "dtypes": {
+        "fp32": {
+          "level": "none",
+          "note": "Apple bars the Neural Engine outright for a model typed fp32; the work falls back to CPU/GPU."
+        },
+        "fp16": {
+          "level": "native",
+          "note": "\"The GPU and NE use float 16 precision.\""
+        },
+        "bf16": {
+          "level": "unknown"
+        },
+        "fp8e4m3": {
+          "level": "unknown"
+        },
+        "fp8e5m2": {
+          "level": "unknown"
+        },
+        "int8": {
+          "level": "native",
+          "note": "Apple documents int8 activations AND weights reaching optimized Neural Engine compute on its newer chips."
+        },
+        "int4": {
+          "level": "unknown",
+          "note": "4-bit is documented as a WEIGHT compression format; Apple never states the engine multiplies 4-bit operands."
+        }
+      }
+    },
+    {
+      "id": "tenstorrent-tensix",
+      "vendor": "Tenstorrent",
+      "arch": "Tensix (Wormhole / Blackhole)",
+      "engine": "Tensix matrix + vector FPU",
+      "class": "npu",
+      "source": "Tenstorrent's published Tensix ISA documentation (matrix-unit source registers + float bit patterns)",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "The matrix unit's source registers hold at most 19 bits: fp32 appears only as a DESTINATION accumulator and as a vector-unit format, never as a matrix operand."
+        },
+        "fp16": {
+          "level": "native",
+          "note": "An fp16 x fp16 source pair accumulating into fp32 or fp16 -- though the user-facing tensor API exposes bf16 rather than fp16."
+        },
+        "bf16": {
+          "level": "native",
+          "note": "bf16 (and tf32) are the documented float source formats for the matrix unit."
+        },
+        "fp8e4m3": {
+          "level": "emulated",
+          "note": "The published operand table has no fp8 at all; the open runtime converts an e4m3 tensor to a 16-bit float format on its way to the engine."
+        },
+        "fp8e5m2": {
+          "level": "unknown",
+          "note": "The format enum spans several hardware generations and carries fp8-family entries whose layouts are not published, so this generation's answer is not documented."
+        },
+        "int8": {
+          "level": "native",
+          "note": "An int8 x int8 source pair accumulating into int32."
+        },
+        "int4": {
+          "level": "none",
+          "note": "Not a matrix operand. Tenstorrent's sub-byte formats are BLOCK FLOAT (a shared exponent across a block of values, 4 or 2 bits of magnitude each), which the unpacker expands into 16-bit-shaped source registers before the engine sees them -- a different idea from an int4 operand, and one this page's seven columns cannot express."
+        }
+      }
+    },
+    {
+      "id": "cadence-hifi4",
+      "vendor": "Cadence",
+      "arch": "Tensilica HiFi 4 DSP",
+      "engine": "Xtensa VLIW/SIMD DSP",
+      "class": "dsp",
+      "source": "Cadence Tensilica HiFi DSP family datasheet + the per-core HiFi product specifications",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "Floating point is an OPTIONAL unit on this core -- a licensee can ship it without one, in which case the DSP is fixed-point only."
+        },
+        "fp16": {
+          "level": "none",
+          "note": "Half-precision floating point appears one generation later; HiFi 4's optional FPU is single-precision."
+        },
+        "bf16": {
+          "level": "unknown",
+          "note": "Cadence enumerates MAC widths and an optional FPU, never a closed list of floating-point formats, so bf16 is unaddressed rather than excluded."
+        },
+        "fp8e4m3": {
+          "level": "unknown",
+          "note": "No published operand list for fp8 to be present in or absent from."
+        },
+        "fp8e5m2": {
+          "level": "unknown",
+          "note": "No published operand list for fp8 to be present in or absent from."
+        },
+        "int8": {
+          "level": "emulated",
+          "note": "The published MAC widths stop at 16x16 -- 8-bit data is widened into a 16-bit multiply. Cadence's own HiFi 4 neural-network library declares the 4-bit entry points and ships them as stubs that return an error, while the next generation implements them for real."
+        },
+        "int4": {
+          "level": "none",
+          "note": "See int8: not a MAC operand on this core."
+        }
+      }
+    },
+    {
+      "id": "cadence-hifi5",
+      "vendor": "Cadence",
+      "arch": "Tensilica HiFi 5 DSP",
+      "engine": "Xtensa VLIW/SIMD DSP + NN extensions",
+      "class": "dsp",
+      "source": "Cadence Tensilica HiFi DSP family datasheet + the per-core HiFi product specifications",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "Optional single-precision floating-point MACs -- floating point is a licensing choice on these DSPs, not a given."
+        },
+        "fp16": {
+          "level": "vector",
+          "note": "Optional half-precision floating-point MACs, at twice the single-precision rate."
+        },
+        "bf16": {
+          "level": "unknown",
+          "note": "Cadence enumerates MAC widths and an optional FPU, never a closed list of floating-point formats, so bf16 is unaddressed rather than excluded."
+        },
+        "fp8e4m3": {
+          "level": "unknown",
+          "note": "No published operand list for fp8 to be present in or absent from."
+        },
+        "fp8e5m2": {
+          "level": "unknown",
+          "note": "No published operand list for fp8 to be present in or absent from."
+        },
+        "int8": {
+          "level": "vector",
+          "note": "The optional neural-network MAC block does 32 MACs per cycle on a 16-bit-by-8-bit pair -- an audio DSP with an inference unit bolted on."
+        },
+        "int4": {
+          "level": "vector",
+          "note": "The same neural-network MAC block is specified for a 16-bit-by-4-bit pair as well, and the vendor's own library implements the 4-bit kernels on a native 4-bit MAC intrinsic."
+        }
+      }
+    },
+    {
+      "id": "x86-avx2",
+      "vendor": "x86-64",
+      "arch": "AVX2 + F16C",
+      "engine": "256-bit SIMD FMA",
+      "class": "cpu-simd",
+      "source": "Intel 64 and IA-32 Architectures Software Developer's Manual, Vol. 2 (instruction set reference)",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "VFMADD -- the baseline vector FMA."
+        },
+        "fp16": {
+          "level": "emulated",
+          "note": "F16C is defined as 16-bit floating-point CONVERSION only: you unpack fp16 to fp32, compute, and pack back. Real fp16 arithmetic does not exist on x86 until AVX512-FP16."
+        },
+        "bf16": {
+          "level": "none"
+        },
+        "fp8e4m3": {
+          "level": "none"
+        },
+        "fp8e5m2": {
+          "level": "none"
+        },
+        "int8": {
+          "level": "vector",
+          "note": "VPMADDUBSW multiplies unsigned by signed bytes into 16-bit intermediates -- real 8-bit multipliers. What VNNI adds later is the fused 4-wide accumulate into int32."
+        },
+        "int4": {
+          "level": "none",
+          "note": "x86 SIMD element sizes are 8/16/32/64-bit; there is no 4-bit operand."
+        }
+      }
+    },
+    {
+      "id": "x86-avx512-vnni",
+      "vendor": "x86-64",
+      "arch": "AVX-512 (VNNI + BF16 + FP16)",
+      "engine": "512-bit SIMD FMA + dot-product",
+      "class": "cpu-simd",
+      "source": "Intel Architecture Instruction Set Extensions Programming Reference (AVX512_VNNI, AVX512_BF16, AVX512_FP16)",
+      "dtypes": {
+        "fp32": {
+          "level": "vector"
+        },
+        "fp16": {
+          "level": "vector",
+          "note": "AVX512-FP16 adds real half-precision arithmetic; without that extension fp16 is convert-only."
+        },
+        "bf16": {
+          "level": "vector",
+          "note": "VDPBF16PS -- a bf16 pair dot-product into fp32. Convert-and-dot, not full bf16 arithmetic."
+        },
+        "fp8e4m3": {
+          "level": "none"
+        },
+        "fp8e5m2": {
+          "level": "none"
+        },
+        "int8": {
+          "level": "vector",
+          "note": "VPDPBUSD: a 4-wide u8 x s8 dot product into an int32 accumulator -- the instruction the whole int8 CPU path is built on. Base VNNI is mixed-signedness only; a later AVX-VNNI-INT8 extension adds the s8xs8, u8xu8 and u8xs8 forms."
+        },
+        "int4": {
+          "level": "none",
+          "note": "int4 weights on a CPU are unpacked to int8 in registers first."
+        }
+      }
+    },
+    {
+      "id": "x86-amx",
+      "vendor": "x86-64",
+      "arch": "AMX (Advanced Matrix Extensions)",
+      "engine": "TMUL tile matrix unit",
+      "class": "cpu-simd",
+      "source": "Intel Architecture Instruction Set Extensions and Future Features Programming Reference (AMX-INT8 / AMX-BF16 / AMX-FP16 / AMX-FP8, enumerated in CPUID.1EH.01H:EAX)",
+      "dtypes": {
+        "fp32": {
+          "level": "none",
+          "note": "Tiles accumulate INTO fp32, but fp32 is not a tile operand."
+        },
+        "fp16": {
+          "level": "native",
+          "note": "AMX-FP16 -- a later addition than the original INT8/BF16 pair."
+        },
+        "bf16": {
+          "level": "native",
+          "note": "AMX-BF16, in the first AMX generation."
+        },
+        "fp8e4m3": {
+          "level": "native",
+          "note": "AMX-FP8 (the TDP*F8PS family) takes E5M2 and E4M3 tiles -- including mixed E5M2xE4M3 -- and always accumulates into fp32. It is enumerated separately from the original INT8/BF16 pair and arrives in a later AMX generation."
+        },
+        "fp8e5m2": {
+          "level": "native",
+          "note": "AMX-FP8 (the TDP*F8PS family) takes E5M2 and E4M3 tiles -- including mixed E5M2xE4M3 -- and always accumulates into fp32. It is enumerated separately from the original INT8/BF16 pair and arrives in a later AMX generation."
+        },
+        "int8": {
+          "level": "native",
+          "note": "AMX-INT8 -- a genuine matrix engine inside a CPU core, which is why this row reads like a GPU row."
+        },
+        "int4": {
+          "level": "none"
+        }
+      }
+    },
+    {
+      "id": "arm-neon-v80",
+      "vendor": "Arm",
+      "arch": "AArch64 NEON (Armv8.0 baseline)",
+      "engine": "128-bit SIMD FMA",
+      "class": "cpu-simd",
+      "source": "Arm Architecture Reference Manual for A-profile",
+      "dtypes": {
+        "fp32": {
+          "level": "vector"
+        },
+        "fp16": {
+          "level": "emulated",
+          "note": "Half-precision ARITHMETIC is gated behind a separate architecture feature; baseline NEON only converts fp16 to fp32 and back."
+        },
+        "bf16": {
+          "level": "none"
+        },
+        "fp8e4m3": {
+          "level": "none"
+        },
+        "fp8e5m2": {
+          "level": "none"
+        },
+        "int8": {
+          "level": "vector",
+          "note": "Widening multiply-accumulate (SMLAL) -- no dot-product instruction yet."
+        },
+        "int4": {
+          "level": "none",
+          "note": "Advanced SIMD element sizes are 8/16/32/64-bit, so no 4-bit operand exists -- Arm never writes a sentence denying int4, the element-size table is simply closed."
+        }
+      }
+    },
+    {
+      "id": "arm-neon-dotprod",
+      "vendor": "Arm",
+      "arch": "AArch64 NEON + FEAT_FP16 + FEAT_DotProd",
+      "engine": "128-bit SIMD FMA + SDOT/UDOT",
+      "class": "cpu-simd",
+      "source": "Arm Architecture Reference Manual for A-profile (FEAT_FP16, FEAT_DotProd)",
+      "dtypes": {
+        "fp32": {
+          "level": "vector"
+        },
+        "fp16": {
+          "level": "vector",
+          "note": "FEAT_FP16 makes half-precision a real arithmetic type."
+        },
+        "bf16": {
+          "level": "none"
+        },
+        "fp8e4m3": {
+          "level": "none"
+        },
+        "fp8e5m2": {
+          "level": "none"
+        },
+        "int8": {
+          "level": "vector",
+          "note": "SDOT/UDOT: 4-wide int8 dot into an int32 lane -- the Arm counterpart of VNNI and DP4A."
+        },
+        "int4": {
+          "level": "none"
+        }
+      }
+    },
+    {
+      "id": "arm-neon-i8mm",
+      "vendor": "Arm",
+      "arch": "AArch64 NEON + FEAT_I8MM + FEAT_BF16",
+      "engine": "128-bit SIMD + int8/bf16 matrix multiply",
+      "class": "cpu-simd",
+      "source": "Arm Architecture Reference Manual for A-profile (FEAT_I8MM, FEAT_BF16)",
+      "dtypes": {
+        "fp32": {
+          "level": "vector",
+          "note": "fp32 is the accumulator for every NEON matrix instruction, never a multiplicand: fp32 matrix multiply exists only in SVE, not in Advanced SIMD, at any feature level."
+        },
+        "fp16": {
+          "level": "vector"
+        },
+        "bf16": {
+          "level": "native",
+          "note": "BFMMLA multiplies a 2x4 by a 4x2 bf16 block into a 2x2 fp32 accumulator -- a matrix instruction on a CPU. BFDOT gives the same operand type a plain 2-wide dot into fp32."
+        },
+        "fp8e4m3": {
+          "level": "none",
+          "note": "FP8 reaches the A-profile architecture later (Armv9.2), as its own feature set with its own matrix instructions."
+        },
+        "fp8e5m2": {
+          "level": "none",
+          "note": "See e4m3: a later architecture revision, not this feature set."
+        },
+        "int8": {
+          "level": "native",
+          "note": "SMMLA/UMMLA multiply a 2x8 by an 8x2 int8 block into a 2x2 int32 accumulator -- equivalent to an 8-way dot product per destination element."
+        },
+        "int4": {
+          "level": "none"
+        }
+      }
+    }
+  ]
+}

@@ -1,12 +1,13 @@
 // softmax concept page -- logits -> probabilities, phase by phase.
-// Interactive per the framework contract (plan/framework.md): drag any logit
+// Interactive per the shared render framework's contract: drag any logit
 // bar vertically to change z[i] and watch the probabilities redistribute live
 // (softmax recomputed); hover a logit for its value, hover a probability for
 // its full derivation; the max→exp→sum→normalize transport auto-plays + loops.
 import { mount } from '../framework/layout.js';
 import { softmaxSteps, collectSteps, seededRandn } from '../framework/tensor.js';
+import { T } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', GREEN = '#2ca02c', ORANGE = '#d2691e', RED = '#d6273a';
+
 const fmt = (x) => (Math.abs(x) >= 1e4 || (x !== 0 && Math.abs(x) < 1e-3) ? x.toExponential(2) : String(Number(x.toPrecision(3))));
 
 // Shared between buildData(), draw(), and onPointer(). buildData() runs (via
@@ -48,7 +49,7 @@ function bars(page, vals, rect, o) {
   const baseY = o.signed ? rect.y + rect.h * 0.52 : rect.y + rect.h - 2;
   const maxH = o.signed ? rect.h * 0.42 : rect.h - 16;
   ctx.save();
-  if (o.signed) { ctx.strokeStyle = '#d0d7de'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(rect.x, baseY); ctx.lineTo(rect.x + rect.w, baseY); ctx.stroke(); }
+  if (o.signed) { ctx.strokeStyle = T.n6; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(rect.x, baseY); ctx.lineTo(rect.x + rect.w, baseY); ctx.stroke(); }
   ctx.textAlign = 'center';
   for (let i = 0; i < k; i++) {
     if (o.upto != null && i > o.upto) continue;
@@ -57,11 +58,11 @@ function bars(page, vals, rect, o) {
     ctx.globalAlpha = i === o.activeI ? 1 : 0.82;
     ctx.fillStyle = o.color; ctx.fillRect(cx - bw / 2, top, bw, h);
     ctx.globalAlpha = 1;
-    ctx.fillStyle = '#3a4047'; ctx.font = '10px ui-monospace, monospace';
+    ctx.fillStyle = T.n12; ctx.font = '10px ui-monospace, monospace';
     ctx.fillText(fmt(v), cx, (o.signed && v < 0) ? baseY + h + 10 : baseY - h - 4);
-    ctx.fillStyle = '#9aa4ad'; ctx.fillText(String(i), cx, rect.y + rect.h + 1);
-    if (i === o.maxIdx) { ctx.strokeStyle = RED; ctx.lineWidth = 2; ctx.strokeRect(cx - bw / 2 - 1.5, Math.min(top, baseY) - 1.5, bw + 3, h + 3); }
-    if (i === o.activeI) { ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.strokeRect(cx - bw / 2 - 1.5, Math.min(top, baseY) - 1.5, bw + 3, h + 3); }
+    ctx.fillStyle = T.n9; ctx.fillText(String(i), cx, rect.y + rect.h + 1);
+    if (i === o.maxIdx) { ctx.strokeStyle = T.bad; ctx.lineWidth = 2; ctx.strokeRect(cx - bw / 2 - 1.5, Math.min(top, baseY) - 1.5, bw + 3, h + 3); }
+    if (i === o.activeI) { ctx.strokeStyle = T.n14; ctx.lineWidth = 2; ctx.strokeRect(cx - bw / 2 - 1.5, Math.min(top, baseY) - 1.5, bw + 3, h + 3); }
   }
   ctx.restore();
 }
@@ -102,9 +103,12 @@ mount({
   draw: (page) => {
     const r = page.renderer, st = page.state, v = cur.v;
     if (!v) return;
-    r.clear('#ffffff');
-    const k = v.length, T = st.temp;
-    const z = Float32Array.from(v, (x) => x / T);
+    r.clear(T.n0);
+    // NOTE: the temperature is `tau`, NOT `T` -- `T` is the theme token table
+    // imported at the top of this file, and a local `T = st.temp` shadows it
+    // for the whole draw() body (TDZ on r.clear(T.n0), then T.accent === undefined).
+    const k = v.length, tau = st.temp;
+    const z = Float32Array.from(v, (x) => x / tau);
     const mx = Math.max(...z), mi = z.indexOf(mx);
     const e = Float32Array.from(z, (x) => Math.exp(x - mx));
     const sum = e.reduce((a, b) => a + b, 0);
@@ -130,12 +134,12 @@ mount({
     logitRect = band(0);
     probRect = band(2);
 
-    rowLabel('logits z', 0, BLUE);
-    bars(page, v, band(0), { signed: true, color: BLUE, domain: maxAbsV, maxIdx: mi, activeI: (s && s.phase !== 'norm') ? activeI : -1 });
-    rowLabel('exp(zᵢ/T − max)', 1, GREEN);
-    bars(page, e, band(1), { signed: false, color: GREEN, domain: 1, upto: expUpto, activeI: (s && s.phase === 'exp') ? activeI : -1 });
-    rowLabel('softmax p', 2, ORANGE);
-    bars(page, p, band(2), { signed: false, color: ORANGE, domain: maxP, upto: probUpto, activeI: (s && s.phase === 'norm') ? activeI : -1 });
+    rowLabel('logits z', 0, T.accent);
+    bars(page, v, band(0), { signed: true, color: T.accent, domain: maxAbsV, maxIdx: mi, activeI: (s && s.phase !== 'norm') ? activeI : -1 });
+    rowLabel('exp(zᵢ/T − max)', 1, T.ok);
+    bars(page, e, band(1), { signed: false, color: T.ok, domain: 1, upto: expUpto, activeI: (s && s.phase === 'exp') ? activeI : -1 });
+    rowLabel('softmax p', 2, T.warn);
+    bars(page, p, band(2), { signed: false, color: T.warn, domain: maxP, upto: probUpto, activeI: (s && s.phase === 'norm') ? activeI : -1 });
 
     // Hover-to-inspect: tooltip with the logit value or the probability derivation.
     if (page.pointer.over && !grab) {
@@ -145,14 +149,14 @@ mount({
       let tip = null;
       if (li >= 0) tip = `z[${li}] = ${v[li].toFixed(3)}\ndrag ↕ to change`;
       else if (pi >= 0) {
-        const zi = v[pi] / T;
+        const zi = v[pi] / tau;
         tip = `p[${pi}] = exp(z[${pi}]/T − max) / Σexp\n= e^(${(zi - mx).toFixed(2)}) / ${fmt(sum)}\n= ${e[pi].toFixed(3)} / ${fmt(sum)} = ${p[pi].toFixed(4)}`;
       }
       if (tip) page.setTip(tip);
     }
 
     const pSum = probUpto < 0 ? 0 : Array.from(p).slice(0, probUpto + 1).reduce((a, b) => a + b, 0);
-    let out = `softmax(z)ᵢ = exp(zᵢ/T) / Σⱼ exp(zⱼ/T)    T = ${T.toFixed(1)}    argmax = z[${mi}]    Σexp = ${fmt(sum)}    tier:${r.name}\n`;
+    let out = `softmax(z)ᵢ = exp(zᵢ/T) / Σⱼ exp(zⱼ/T)    T = ${tau.toFixed(1)}    argmax = z[${mi}]    Σexp = ${fmt(sum)}    tier:${r.name}\n`;
     out += s ? `${s.label}\n` : '(drag logit bars ↕ to edit · press ▶ or scrub: max → exp → sum → normalize)\n';
     out += `Σ p (revealed) = ${fmt(pSum)}${probUpto === k - 1 ? '  →  1.0 ✓' : ''}`;
     page.setReadout(out);

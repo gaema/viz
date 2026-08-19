@@ -5,7 +5,7 @@
 Interactive page: **group-wise affine weight quantization** -- how fp16 weights
 become low-bit integers (int4, even int3/int2) so a large model fits in a small
 amount of memory, and what error that costs. **Anchor**: G (quantization /
-deployment); Family G ().
+deployment); Family G (see `../plan/curriculum.md`).
 
 ## What it shows
 

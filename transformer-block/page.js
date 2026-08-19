@@ -8,8 +8,10 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { matmul, transpose, softmax, rmsnorm, sigmoid, seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', GREEN = '#2ca02c', PURPLE = '#8957e5', GREY = '#8a939b';
+
+
 const M = (r, c) => ({ data: new Float32Array(r * c), rows: r, cols: c });
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 
@@ -74,9 +76,9 @@ function block() {
 
 function fbox(ctx, x, y, w, h, label, color, active) {
   ctx.save();
-  ctx.fillStyle = active ? color : '#f3f4f7'; ctx.globalAlpha = active ? 0.16 : 1; ctx.fillRect(x, y, w, h); ctx.globalAlpha = 1;
-  ctx.strokeStyle = active ? color : '#c4ccd3'; ctx.lineWidth = active ? 2.5 : 1.4; ctx.strokeRect(x, y, w, h);
-  ctx.fillStyle = active ? color : '#3a4047'; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = active ? color : T.n2; ctx.globalAlpha = active ? 0.16 : 1; ctx.fillRect(x, y, w, h); ctx.globalAlpha = 1;
+  ctx.strokeStyle = active ? color : T.n7; ctx.lineWidth = active ? 2.5 : 1.4; ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = active ? color : T.n12; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const [k, ln] of label.split('\n').entries()) ctx.fillText(ln, x + w / 2, y + h / 2 + (k - (label.split('\n').length - 1) / 2) * 12);
   ctx.restore();
 }
@@ -90,7 +92,7 @@ function arrow(ctx, x1, y1, x2, y2, color, dim) {
   ctx.restore();
 }
 function oplus(ctx, x, y, active) {
-  ctx.save(); ctx.strokeStyle = active ? GREEN : '#9aa4ad'; ctx.fillStyle = '#fff'; ctx.lineWidth = active ? 2.5 : 1.5;
+  ctx.save(); ctx.strokeStyle = active ? T.ok : T.n9; ctx.fillStyle = T.n0; ctx.lineWidth = active ? 2.5 : 1.5;
   ctx.beginPath(); ctx.arc(x, y, 11, 0, 7); ctx.fill(); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(x - 6, y); ctx.lineTo(x + 6, y); ctx.moveTo(x, y - 6); ctx.lineTo(x, y + 6); ctx.stroke();
   ctx.restore();
@@ -124,7 +126,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { N, D } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const B = block();
     const s = page.step(), stage = s ? s.i : STAGES.length - 1;   // reveal up to this stage
 
@@ -144,24 +146,24 @@ mount({
       const rect = { x: cx - hw / 2, y: top, w: hw, h: hh };
       ctx.save(); if (faded) ctx.globalAlpha = 0.18;
       r.heatmap(T, { rows: T.rows, cols: T.cols, rect, ramp: ramps.diverging, domain: [-dom, dom] });
-      r.grid({ stroke: 'rgba(0,0,0,0.10)' });
+      r.grid({ stroke: alphaOf('n14', 0.10) });
       ctx.restore();
       return rect;
     };
 
     // ---- residual spine (the identity highway) ----
-    ctx.save(); ctx.strokeStyle = '#c4ccd3'; ctx.lineWidth = 3;
+    ctx.save(); ctx.strokeStyle = T.n7; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(sX, yMid); ctx.lineTo(sOut, yMid); ctx.stroke(); ctx.restore();
-    r.label('residual stream (identity)', sX - hw / 2, ySpine - 8, { color: GREY, font: '10px ui-monospace, monospace' });
+    r.label('residual stream (identity)', sX - hw / 2, ySpine - 8, { color: T.n10, font: '10px ui-monospace, monospace' });
 
     // ---- spine nodes: x, h1, out ----
     xRect = drawHeat(cur.x, sX, ySpine, false);
     h1Rect = drawHeat(B.h1, sH1, ySpine, stage < 2);
     outRect = drawHeat(B.out, sOut, ySpine, stage < 5);
-    r.label('x [N×D]', sX - hw / 2, ySpine + hh + 14, { color: INK, font: '11px ui-monospace, monospace' });
-    r.label('h1 = x+a', sH1 - hw / 2, ySpine + hh + 14, { color: stage < 2 ? GREY : INK, font: '11px ui-monospace, monospace' });
-    r.label('out = h1+m', sOut - hw / 2, ySpine + hh + 14, { color: stage < 5 ? GREY : INK, font: '11px ui-monospace, monospace' });
-    ctx.save(); ctx.fillStyle = GREEN; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    r.label('x [N×D]', sX - hw / 2, ySpine + hh + 14, { color: T.n14, font: '11px ui-monospace, monospace' });
+    r.label('h1 = x+a', sH1 - hw / 2, ySpine + hh + 14, { color: stage < 2 ? T.n10 : T.n14, font: '11px ui-monospace, monospace' });
+    r.label('out = h1+m', sOut - hw / 2, ySpine + hh + 14, { color: stage < 5 ? T.n10 : T.n14, font: '11px ui-monospace, monospace' });
+    ctx.save(); ctx.fillStyle = T.ok; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     ctx.fillText('drag ↕ to steer', sX, ySpine + hh + 26); ctx.restore();
 
     // ---- the two branches (attn, mlp) ----
@@ -177,10 +179,10 @@ mount({
       oplus(ctx, op_x, yMid, opActive);
       return aRectB;
     };
-    aRect = branch(ox1, 'RMSNorm', 'Attention', BLUE, B.a, STAGES[stage].tag === 'attn', stage >= 1, ox1, stage >= 2);
-    mRect = branch(ox2, 'RMSNorm', 'MLP·SwiGLU', PURPLE, B.m, STAGES[stage].tag === 'mlp', stage >= 4, ox2, stage >= 5);
-    r.label('a = Attn(norm(x))', aRect.x, yBranch - 6, { color: stage >= 1 ? BLUE : GREY, font: '10px ui-monospace, monospace' });
-    r.label('m = MLP(norm(h1))', mRect.x, yBranch - 6, { color: stage >= 4 ? PURPLE : GREY, font: '10px ui-monospace, monospace' });
+    aRect = branch(ox1, 'RMSNorm', 'Attention', T.accent, B.a, STAGES[stage].tag === 'attn', stage >= 1, ox1, stage >= 2);
+    mRect = branch(ox2, 'RMSNorm', 'MLP·SwiGLU', T.violet, B.m, STAGES[stage].tag === 'mlp', stage >= 4, ox2, stage >= 5);
+    r.label('a = Attn(norm(x))', aRect.x, yBranch - 6, { color: stage >= 1 ? T.accent : T.n10, font: '10px ui-monospace, monospace' });
+    r.label('m = MLP(norm(h1))', mRect.x, yBranch - 6, { color: stage >= 4 ? T.violet : T.n10, font: '10px ui-monospace, monospace' });
 
     // ---- hover-to-inspect ----
     if (page.pointer.over && !grab) {

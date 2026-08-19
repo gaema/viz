@@ -8,9 +8,32 @@
 // rebuild -- that wipes drag edits).
 import { mount } from '../framework/layout.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, alphaOf, rgbOf, effectiveTheme, signedColor, mixColor } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', ORANGE = '#d2691e', GREEN = '#2ca02c', GREY = '#9aa4ad';
-const divcol = (v, dom) => { const t = Math.max(-1, Math.min(1, v / (dom || 1))), m = Math.abs(t); return t >= 0 ? `rgb(255,${Math.round(255 - m * 150)},${Math.round(255 - m * 165)})` : `rgb(${Math.round(255 - m * 165)},${Math.round(255 - m * 120)},255)`; };
+// --- theme fixups the mechanical hex migration could not make. A wash, a scrim
+// or a value ramp keyed to a FIXED rgb silently inverts its meaning when the
+// page ground flips, so key it to the theme instead. Every helper below is
+// pixel-identical to the old literal in LIGHT mode; only dark changes.
+const _lum = (c) => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+const _POS = [255, 105, 90], _NEG = [90, 135, 255];        // ramp ends -- unchanged from the light original
+// Diverging ramp anchored on the page GROUND rather than a fixed white: on a
+// dark page a white zero-cell is the brightest thing on screen, so every
+// near-zero value glares while the real signal recedes. Same reasoning as
+// framework/render.js `ramps.diverging`.
+// Delegates to the framework ramp, passing this page's own ends: signedColor()
+// takes a {pos, neg} override, so the shared implementation is used and no cell
+// changes colour.
+const _t = (v, dom) => Math.max(-1, Math.min(1, v / (dom || 1)));
+const divcol = (v, dom) => signedColor(_t(v, dom), { pos: _POS, neg: _NEG });
+// ...and an ink that survives ON that fill. In light every cell stays pale, so
+// this always resolves to the dark ink it used to be; only dark gains a branch.
+// KEPT (not framework inkOn): inkOn picks between two FIXED extremes at a Rec.601
+// threshold of 150; this picks between T.n0/T.n12 per theme at Rec.709 0.5, which is
+// the pair the light original used.
+const divink = (v, dom) => { const t = _t(v, dom); const c = rgbOf(mixColor(T.n0, t >= 0 ? _POS : _NEG, Math.abs(t))); const dk = effectiveTheme() === 'dark'; return _lum(c) > 0.5 ? (dk ? T.n0 : T.n12) : (dk ? T.n12 : T.n0); };
+
+
+
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 
 let cur = null;
@@ -70,7 +93,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { X, W, n, k } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const C = conv(st), { out, Hpad, Hout, p, s, dil } = C; geomP = p;
     page.probe = { Hout, n: cur.n };
     const sp = page.step(), oy = sp ? sp.oy : Hout - 1, ox = sp ? sp.ox : Hout - 1, ostep = sp ? (oy * Hout + ox) : Hout * Hout - 1;
@@ -79,54 +102,54 @@ mount({
     const pad = 16, topY = 64;
     ic = Math.max(16, Math.min(34, Math.min((page.W * 0.34) / Hpad, (page.H * 0.56) / Hpad)));
     inRect = { x: pad + 24, y: topY, w: Hpad * ic, h: Hpad * ic };
-    r.label(`input X  (n=${n}, pad ${p})  — drag a cell ↕`, inRect.x, topY - 12, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label(`input X  (n=${n}, pad ${p})  — drag a cell ↕`, inRect.x, topY - 12, { color: T.n14, font: '11px ui-monospace, monospace' });
 
     // padded input grid
     ctx.save(); ctx.font = `${Math.max(8, ic * 0.34)}px ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (let rr = 0; rr < Hpad; rr++) for (let cc = 0; cc < Hpad; cc++) {
       const x = inRect.x + cc * ic, y = inRect.y + rr * ic, isPad = !(rr >= p && rr < p + n && cc >= p && cc < p + n);
       const v = isPad ? 0 : X[(rr - p) * n + (cc - p)];
-      ctx.fillStyle = isPad ? '#f4f5f6' : divcol(v, xdom); ctx.fillRect(x, y, ic - 1, ic - 1);
-      if (isPad) { ctx.strokeStyle = '#e0e3e6'; ctx.strokeRect(x + 0.5, y + 0.5, ic - 2, ic - 2); ctx.fillStyle = '#c4ccd3'; ctx.fillText('0', x + ic / 2, y + ic / 2); }
-      else { ctx.fillStyle = '#33383d'; ctx.fillText(v.toFixed(1), x + ic / 2, y + ic / 2); }
+      ctx.fillStyle = isPad ? T.n2 : divcol(v, xdom); ctx.fillRect(x, y, ic - 1, ic - 1);
+      if (isPad) { ctx.strokeStyle = T.n4; ctx.strokeRect(x + 0.5, y + 0.5, ic - 2, ic - 2); ctx.fillStyle = T.n7; ctx.fillText('0', x + ic / 2, y + ic / 2); }
+      else { ctx.fillStyle = divink(v, xdom); ctx.fillText(v.toFixed(1), x + ic / 2, y + ic / 2); }
     }
     // receptive field for (oy,ox): the dilated kernel taps, with weights overlaid
     for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) {
       const rr = oy * s + i * dil, cc = ox * s + j * dil, x = inRect.x + cc * ic, y = inRect.y + rr * ic;
-      ctx.strokeStyle = BLUE; ctx.lineWidth = 2.4; ctx.strokeRect(x + 1, y + 1, ic - 3, ic - 3);
-      ctx.fillStyle = ORANGE; ctx.font = `${Math.max(7, ic * 0.26)}px ui-monospace, monospace`; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillText(W[i * k + j].toFixed(1), x + ic - 2, y + 1);
+      ctx.strokeStyle = T.accent; ctx.lineWidth = 2.4; ctx.strokeRect(x + 1, y + 1, ic - 3, ic - 3);
+      ctx.fillStyle = T.warn; ctx.font = `${Math.max(7, ic * 0.26)}px ui-monospace, monospace`; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillText(W[i * k + j].toFixed(1), x + ic - 2, y + 1);
     }
     ctx.restore();
 
     // kernel legend
     const kc = Math.max(16, ic * 0.8), kx = inRect.x + Hpad * ic + 40, ky = topY + 6;
     kRect = { x: kx, y: ky, w: k * kc, h: k * kc };
-    r.label('kernel W (orange)', kx, ky - 12, { color: ORANGE, font: '11px ui-monospace, monospace' });
+    r.label('kernel W (orange)', kx, ky - 12, { color: T.warn, font: '11px ui-monospace, monospace' });
     ctx.save(); ctx.font = `${Math.max(8, kc * 0.34)}px ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) { const x = kx + j * kc, y = ky + i * kc; ctx.fillStyle = divcol(W[i * k + j], wdom); ctx.fillRect(x, y, kc - 1, kc - 1); ctx.strokeStyle = 'rgba(210,105,30,0.5)'; ctx.strokeRect(x + 0.5, y + 0.5, kc - 1, kc - 1); ctx.fillStyle = '#33383d'; ctx.fillText(W[i * k + j].toFixed(1), x + kc / 2, y + kc / 2); }
+    for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) { const x = kx + j * kc, y = ky + i * kc; ctx.fillStyle = divcol(W[i * k + j], wdom); ctx.fillRect(x, y, kc - 1, kc - 1); ctx.strokeStyle = alphaOf(T.warn, 0.5); ctx.strokeRect(x + 0.5, y + 0.5, kc - 1, kc - 1); ctx.fillStyle = divink(W[i * k + j], wdom); ctx.fillText(W[i * k + j].toFixed(1), x + kc / 2, y + kc / 2); }
     ctx.restore();
 
     // output grid
     oc = Math.max(18, Math.min(40, Math.min((page.W * 0.20) / Hout, (page.H * 0.5) / Hout)));
     const outX = kx + k * kc + 60, outY = topY + 6;
     outRect = { x: outX, y: outY, w: Hout * oc, h: Hout * oc };
-    r.label(`output  ${Hout}×${Hout}`, outX, outY - 12, { color: GREEN, font: '11px ui-monospace, monospace' });
+    r.label(`output  ${Hout}×${Hout}`, outX, outY - 12, { color: T.ok, font: '11px ui-monospace, monospace' });
     ctx.save(); ctx.font = `${Math.max(8, oc * 0.32)}px ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (let yy = 0; yy < Hout; yy++) for (let xx = 0; xx < Hout; xx++) {
       const x = outX + xx * oc, y = outY + yy * oc, idx = yy * Hout + xx, done = idx <= ostep;
-      ctx.fillStyle = done ? divcol(out[idx], odom) : '#f4f5f6'; ctx.fillRect(x, y, oc - 1, oc - 1);
-      ctx.strokeStyle = '#e0e3e6'; ctx.strokeRect(x + 0.5, y + 0.5, oc - 1, oc - 1);
-      if (done) { ctx.fillStyle = '#33383d'; ctx.fillText(out[idx].toFixed(1), x + oc / 2, y + oc / 2); }
-      if (yy === oy && xx === ox) { ctx.strokeStyle = BLUE; ctx.lineWidth = 2.6; ctx.strokeRect(x + 1, y + 1, oc - 2, oc - 2); }
+      ctx.fillStyle = done ? divcol(out[idx], odom) : T.n2; ctx.fillRect(x, y, oc - 1, oc - 1);
+      ctx.strokeStyle = T.n4; ctx.strokeRect(x + 0.5, y + 0.5, oc - 1, oc - 1);
+      if (done) { ctx.fillStyle = divink(out[idx], odom); ctx.fillText(out[idx].toFixed(1), x + oc / 2, y + oc / 2); }
+      if (yy === oy && xx === ox) { ctx.strokeStyle = T.accent; ctx.lineWidth = 2.6; ctx.strokeRect(x + 1, y + 1, oc - 2, oc - 2); }
     }
     ctx.restore();
     // arrow kernel-field -> current output
-    ctx.save(); ctx.strokeStyle = GREY; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(kx + k * kc + 6, ky + k * kc / 2); ctx.lineTo(outX - 6, outY + oy * oc + oc / 2); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.strokeStyle = T.n9; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(kx + k * kc + 6, ky + k * kc / 2); ctx.lineTo(outX - 6, outY + oy * oc + oc / 2); ctx.stroke(); ctx.restore();
 
     // sum-of-products readout for the current pixel
     let terms = '', acc = 0; const xpad = C.xpad;
     for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) { const w = W[i * k + j], xv = xpad(oy * s + i * dil, ox * s + j * dil); acc += w * xv; if (i * k + j < 4) terms += `${i + j === 0 ? '' : ' + '}${w.toFixed(1)}·${xv.toFixed(1)}`; }
-    r.label(`out[${oy},${ox}] = Σ W⊙field = ${terms}${k * k > 4 ? ' + …' : ''} = ${acc.toFixed(2)}   (${k * k} products)`, inRect.x, inRect.y + Hpad * ic + 24, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label(`out[${oy},${ox}] = Σ W⊙field = ${terms}${k * k > 4 ? ' + …' : ''} = ${acc.toFixed(2)}   (${k * k} products)`, inRect.x, inRect.y + Hpad * ic + 24, { color: T.n14, font: '12px ui-monospace, monospace' });
 
     // hover
     if (page.pointer.over && !grab) {

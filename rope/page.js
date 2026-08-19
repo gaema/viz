@@ -1,5 +1,5 @@
 // rope concept page -- per-pair 2-D rotation by position·θ (RoPE).
-// Interactive per the framework contract (plan/framework.md): DRAG the
+// Interactive per the shared render framework's contract: DRAG the
 // position (horizontal drag on the canvas, or the position handle) to change
 // the token position and watch every pair's rotation angle Δ = p·θᵢ update
 // live -- fast pairs (low i) spin, slow pairs (high i) barely move, the RoPE
@@ -9,8 +9,9 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { rope, ropeAngles, seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', GRAY = 'rgba(150,160,170,0.85)', ORANGE = '#d2691e';
+
 const fmt = (x) => (x === 0 ? '0' : Math.abs(x) < 1e-2 || Math.abs(x) >= 1e4 ? x.toExponential(1) : String(Number(x.toPrecision(3))));
 
 // Live continuous position, shared between draw(), onPointer(), and the
@@ -78,7 +79,7 @@ mount({
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state;
     const d = st.d, N = st.N, base = st.base, seed = st.seed | 0;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     hmDims = { N, d };
 
     // --- position source ---
@@ -97,18 +98,18 @@ mount({
     // --- per-pair rotation planes ---
     const pad = 16, np = d / 2, planeRowY = 70;
     const planeW = (page.W - 2 * pad) / np, planeSize = Math.min(planeW - 14, 142), R = planeSize * 0.34;
-    r.label(`per-pair 2-D rotation at position ${fmt(p)}  (drag ↔ to move; hover a plane to inspect)`, pad, planeRowY - 24, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label(`per-pair 2-D rotation at position ${fmt(p)}  (drag ↔ to move; hover a plane to inspect)`, pad, planeRowY - 24, { color: T.n14, font: '12px ui-monospace, monospace' });
 
     // Draggable position track (the "scrub on canvas" handle).
     const trkY = 40, trkX0 = pad + 6, trkX1 = page.W - pad - 6, trkW = trkX1 - trkX0;
     posHandle = { x: trkX0, y: trkY - 8, w: trkW, h: 16 };
     ctx.save();
-    ctx.strokeStyle = '#d7dbe0'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.strokeStyle = T.n5; ctx.lineWidth = 4; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(trkX0, trkY); ctx.lineTo(trkX1, trkY); ctx.stroke();
     const hx = trkX0 + (N <= 1 ? 0 : (p / (N - 1)) * trkW);
-    ctx.fillStyle = grabbingPos ? ORANGE : BLUE;
+    ctx.fillStyle = grabbingPos ? T.warn : T.accent;
     ctx.beginPath(); ctx.arc(hx, trkY, 7, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#586069'; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = T.n11; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left';
     ctx.fillText('pos 0', trkX0, trkY - 12);
     ctx.textAlign = 'right'; ctx.fillText(`pos ${N - 1}`, trkX1, trkY - 12);
     ctx.restore();
@@ -120,24 +121,25 @@ mount({
       const cx = pad + i * planeW + planeW / 2, cy = planeRowY + planeSize / 2;
       planes.push({ i, cx, cy, R, theta, delta, phi, a, b });
       ctx.save();
-      ctx.strokeStyle = '#e7eaee'; ctx.lineWidth = 1;
+      ctx.strokeStyle = T.n3; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.stroke();
       // spiral tracing the sweep phi -> phi+delta (radius grows so multi-turns show)
       if (delta > 0.001) {
-        ctx.strokeStyle = 'rgba(31,111,235,0.55)'; ctx.lineWidth = 1.4; ctx.beginPath();
+        ctx.strokeStyle = alphaOf(T.accent, 0.55); ctx.lineWidth = 1.4; ctx.beginPath();
         const steps = Math.max(10, Math.min(600, Math.round(delta / 0.06)));
         for (let s2 = 0; s2 <= steps; s2++) { const t = s2 / steps, an = phi + delta * t, rad = R * (0.22 + 0.66 * t); const x = cx + rad * Math.cos(an), y = cy - rad * Math.sin(an); s2 === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
         ctx.stroke();
       }
       ctx.restore();
       const tip = (an, len) => ({ x: cx + len * Math.cos(an), y: cy - len * Math.sin(an) });
-      r.arrow({ x: cx, y: cy }, tip(phi, R * 0.9), { color: GRAY, width: 1.5, head: 6, alpha: 1 });
-      r.arrow({ x: cx, y: cy }, tip(phi + delta, R * 0.9), { color: BLUE, width: 2.5, head: 7, alpha: 1 });
+      // pre-rotation ghost arrow: a mid-neutral that reads against EITHER ground.
+      r.arrow({ x: cx, y: cy }, tip(phi, R * 0.9), { color: alphaOf('n9', 0.85), width: 1.5, head: 6, alpha: 1 });
+      r.arrow({ x: cx, y: cy }, tip(phi + delta, R * 0.9), { color: T.accent, width: 2.5, head: 7, alpha: 1 });
       const ly = planeRowY + planeSize + 4;
-      r.label(`pair ${i}`, cx, ly, { color: INK, font: '11px ui-monospace, monospace', align: 'center' });
-      r.label(`θ=${fmt(theta)}`, cx, ly + 14, { color: '#586069', font: '10px ui-monospace, monospace', align: 'center' });
-      r.label(`Δ=${fmt(delta)} rad`, cx, ly + 27, { color: BLUE, font: '10px ui-monospace, monospace', align: 'center' });
+      r.label(`pair ${i}`, cx, ly, { color: T.n14, font: '11px ui-monospace, monospace', align: 'center' });
+      r.label(`θ=${fmt(theta)}`, cx, ly + 14, { color: T.n11, font: '10px ui-monospace, monospace', align: 'center' });
+      r.label(`Δ=${fmt(delta)} rad`, cx, ly + 27, { color: T.accent, font: '10px ui-monospace, monospace', align: 'center' });
     }
 
     // --- [N×d] heatmap: rotated components across all positions (the RoPE wave) ---
@@ -148,12 +150,12 @@ mount({
     const cw = Math.max(8, Math.min(26, (page.W - 2 * pad - 150) / d)), ch = Math.max(6, Math.min(11, (page.H - hy - 22) / N));
     const hxh = pad + 130, hRect = { x: hxh, y: hy, w: d * cw, h: N * ch };
     hmRect = hRect;
-    r.label('rotated components across positions (RoPE wave):', pad, hy - 8, { color: '#586069', font: '11px ui-monospace, monospace' });
-    r.label('positions ↓ / dims →', pad, hy + 12, { color: '#9aa4ad', font: '10px ui-monospace, monospace' });
+    r.label('rotated components across positions (RoPE wave):', pad, hy - 8, { color: T.n11, font: '11px ui-monospace, monospace' });
+    r.label('positions ↓ / dims →', pad, hy + 12, { color: T.n9, font: '10px ui-monospace, monospace' });
     r.heatmap(comp, { rows: N, cols: d, rect: hRect, ramp: ramps.diverging, domain: [-dom, dom] });
     const prow = Math.round(p);
-    ctx.save(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.strokeRect(hRect.x - 1, hRect.y + prow * ch - 1, d * cw + 2, ch + 2); ctx.restore();
-    r.label(`pos ${prow}`, hxh + d * cw + 6, hy + prow * ch + ch / 2 + 3, { color: INK, font: '10px ui-monospace, monospace' });
+    ctx.save(); ctx.strokeStyle = T.n14; ctx.lineWidth = 2; ctx.strokeRect(hRect.x - 1, hRect.y + prow * ch - 1, d * cw + 2, ch + 2); ctx.restore();
+    r.label(`pos ${prow}`, hxh + d * cw + 6, hy + prow * ch + ch / 2 + 3, { color: T.n14, font: '10px ui-monospace, monospace' });
 
     // --- hover-to-inspect ---------------------------------------------------
     // A rotation plane -> θᵢ, Δ = p·θᵢ, (cos,sin), and the rotated (x,y).

@@ -4,7 +4,7 @@
 
 Interactive page: how a token's embedding is projected into query, key, and
 value vectors by three learned weight matrices. **Anchor**: A5 embedding / A2
-head_dim (Family B1).
+head_dim (Family B1; see `../plan/curriculum.md`).
 
 ## What it shows
 

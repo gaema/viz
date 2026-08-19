@@ -8,8 +8,9 @@
 // arbitrary -- the point is to watch the MECHANISM, the data flowing through.
 import { mount } from '../framework/layout.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, signedColor } from '../framework/theme.js';
 
-const INK = '#111', GREY = '#9aa4ad', BLUE = '#1f6feb', ORANGE = '#d2691e', GREEN = '#2ca02c', PURPLE = '#8250df', RED = '#d1242f';
+
 const VOCAB = ['the', 'a', 'cat', 'dog', 'sat', 'ran', 'on', 'to', 'mat', 'park', 'big', 'red', 'quick', 'lazy', 'fox', 'jumped'];
 // Type any prompt: split on spaces, lowercase, cap at 8 words. Words in the toy
 // vocab use their index; unseen words map to a token by hashing (so arbitrary
@@ -64,7 +65,7 @@ function build(words, seed, temp, headSel) {
 }
 
 // small heatmap of a [r×c] matrix
-function heat(ctx, x, y, M, cw, chh, dom) { for (let i = 0; i < M.r; i++) for (let j = 0; j < M.c; j++) { const v = M.d[i * M.c + j]; const t = Math.max(-1, Math.min(1, v / dom)), m = Math.abs(t); ctx.fillStyle = t >= 0 ? `rgb(255,${Math.round(255 - m * 150)},${Math.round(255 - m * 165)})` : `rgb(${Math.round(255 - m * 165)},${Math.round(255 - m * 120)},255)`; ctx.fillRect(x + j * cw, y + i * chh, cw - 0.5, chh - 0.5); } }
+function heat(ctx, x, y, M, cw, chh, dom) { for (let i = 0; i < M.r; i++) for (let j = 0; j < M.c; j++) { const v = M.d[i * M.c + j]; ctx.fillStyle = signedColor(Math.max(-1, Math.min(1, v / dom))); ctx.fillRect(x + j * cw, y + i * chh, cw - 0.5, chh - 0.5); } }
 
 mount({
   mount: 'body',
@@ -96,7 +97,7 @@ mount({
     const sig = `${st.prompt}|${st.seed}|${st.temp}|${st.head}`;
     if (sig !== bsig && bsig !== 'manual') { const words = parsePrompt(st.prompt); cur = build(words, st.seed | 0, st.temp, st.head | 0); cur._words = words.slice(); bsig = sig; }
     else if (bsig === 'manual' && (st.prompt + st.seed) !== cur._lock) { /* keep manual edits until a control changes */ }
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const cs = page.step(), k = cs ? cs.stage : 5;          // current stage (default: final)
     page.probe = { topP: cur.probs[cur.pred], k };
     const n = cur.n, head = st.head | 0;
@@ -105,61 +106,61 @@ mount({
     const rbY = 36, chipW = (W - 40) / STAGES.length;
     STAGES.forEach((s, i) => {
       const x = 20 + i * chipW, on = i === k, done = i < k;
-      ctx.save(); ctx.fillStyle = on ? 'rgba(31,111,235,0.15)' : done ? 'rgba(44,160,44,0.08)' : '#f4f5f7'; ctx.fillRect(x + 3, rbY, chipW - 12, 22); ctx.strokeStyle = on ? BLUE : done ? GREEN : '#d0d7de'; ctx.lineWidth = on ? 1.6 : 1; ctx.strokeRect(x + 3, rbY, chipW - 12, 22); ctx.fillStyle = on ? BLUE : done ? GREEN : '#586069'; ctx.font = (on ? 'bold ' : '') + '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(`${i + 1}·${s}`, x + 3 + (chipW - 12) / 2, rbY + 15); if (i < STAGES.length - 1) { ctx.strokeStyle = GREY; ctx.beginPath(); ctx.moveTo(x + chipW - 8, rbY + 11); ctx.lineTo(x + chipW + 1, rbY + 11); ctx.stroke(); } ctx.restore();
+      ctx.save(); ctx.fillStyle = on ? 'rgba(31,111,235,0.15)' : done ? 'rgba(44,160,44,0.08)' : T.n2; ctx.fillRect(x + 3, rbY, chipW - 12, 22); ctx.strokeStyle = on ? T.accent : done ? T.ok : T.n6; ctx.lineWidth = on ? 1.6 : 1; ctx.strokeRect(x + 3, rbY, chipW - 12, 22); ctx.fillStyle = on ? T.accent : done ? T.ok : T.n11; ctx.font = (on ? 'bold ' : '') + '10px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(`${i + 1}·${s}`, x + 3 + (chipW - 12) / 2, rbY + 15); if (i < STAGES.length - 1) { ctx.strokeStyle = T.n9; ctx.beginPath(); ctx.moveTo(x + chipW - 8, rbY + 11); ctx.lineTo(x + chipW + 1, rbY + 11); ctx.stroke(); } ctx.restore();
     });
 
     // ===== residual stream (left, persistent) =====
     const Xshow = k <= 1 ? cur.X0 : k === 2 ? cur.X1 : cur.X2, sLabel = k <= 1 ? 'X₀ (embeddings)' : k === 2 ? 'X₁ (+attention)' : 'X₂ (+MLP)';
     const lx = 20, lyTok = 86, tokH = 17;
-    r.label('prompt — drag a token ↕', lx, lyTok - 8, { color: INK, font: '10px ui-monospace, monospace' });
+    r.label('prompt — drag a token ↕', lx, lyTok - 8, { color: T.n14, font: '10px ui-monospace, monospace' });
     tokRects = [];
-    for (let i = 0; i < n; i++) { const y = lyTok + i * (tokH + 3); ctx.save(); ctx.fillStyle = i === dragTok ? 'rgba(210,105,30,0.18)' : '#f2f4f6'; ctx.fillRect(lx, y, 96, tokH); ctx.strokeStyle = i === n - 1 ? PURPLE : '#d0d7de'; ctx.lineWidth = i === n - 1 ? 1.5 : 1; ctx.strokeRect(lx, y, 96, tokH); ctx.fillStyle = INK; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.fillText(`${cur.tok[i]}`.padStart(2) + ' ' + cur._words[i], lx + 4, y + 12); ctx.restore(); tokRects.push({ x: lx, y, w: 96, h: tokH }); }
-    r.label('"' + cur._words[n - 1] + '" = last → predicts next', lx, lyTok + n * (tokH + 3) + 6, { color: PURPLE, font: '8px ui-monospace, monospace' });
+    for (let i = 0; i < n; i++) { const y = lyTok + i * (tokH + 3); ctx.save(); ctx.fillStyle = i === dragTok ? 'rgba(210,105,30,0.18)' : T.n2; ctx.fillRect(lx, y, 96, tokH); ctx.strokeStyle = i === n - 1 ? T.violet : T.n6; ctx.lineWidth = i === n - 1 ? 1.5 : 1; ctx.strokeRect(lx, y, 96, tokH); ctx.fillStyle = T.n14; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.fillText(`${cur.tok[i]}`.padStart(2) + ' ' + cur._words[i], lx + 4, y + 12); ctx.restore(); tokRects.push({ x: lx, y, w: 96, h: tokH }); }
+    r.label('"' + cur._words[n - 1] + '" = last → predicts next', lx, lyTok + n * (tokH + 3) + 6, { color: T.violet, font: '8px ui-monospace, monospace' });
     // residual stream heatmap
     const rsY = lyTok + n * (tokH + 3) + 28, rcw = 13, rch = 13;
-    r.label(sLabel + '  [' + n + '×' + D + ']', lx, rsY - 6, { color: BLUE, font: '10px ui-monospace, monospace' });
+    r.label(sLabel + '  [' + n + '×' + D + ']', lx, rsY - 6, { color: T.accent, font: '10px ui-monospace, monospace' });
     if (k >= 1) heat(ctx, lx, rsY, Xshow, rcw, rch, 2.2);
-    else { ctx.save(); ctx.strokeStyle = '#e6e8ea'; ctx.strokeRect(lx, rsY, D * rcw, n * rch); ctx.fillStyle = '#b8bec4'; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('(not embedded yet)', lx + D * rcw / 2, rsY + n * rch / 2); ctx.restore(); }
-    r.label('rows = tokens, cols = d=8 channels', lx, rsY + n * rch + 12, { color: '#8a939b', font: '8px ui-monospace, monospace' });
+    else { ctx.save(); ctx.strokeStyle = T.n4; ctx.strokeRect(lx, rsY, D * rcw, n * rch); ctx.fillStyle = T.n8; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('(not embedded yet)', lx + D * rcw / 2, rsY + n * rch / 2); ctx.restore(); }
+    r.label('rows = tokens, cols = d=8 channels', lx, rsY + n * rch + 12, { color: T.n10, font: '8px ui-monospace, monospace' });
 
     // ===== stage detail (center/right) =====
     const dx = 200, dy = 80, dw = W - dx - 16;
     ctx.save(); ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'left';
     if (k === 0) {
-      r.label('tokenize: prompt words → integer IDs (indices into a vocab of ' + V + ')', dx, dy, { color: INK, font: '11px ui-monospace, monospace' });
-      for (let i = 0; i < n; i++) { const yy = dy + 22 + i * 22; ctx.fillStyle = '#f2f4f6'; ctx.fillRect(dx, yy, 90, 18); ctx.strokeStyle = '#d0d7de'; ctx.strokeRect(dx, yy, 90, 18); ctx.fillStyle = INK; ctx.fillText('"' + cur._words[i] + '"', dx + 6, yy + 13); ctx.strokeStyle = GREY; ctx.beginPath(); ctx.moveTo(dx + 94, yy + 9); ctx.lineTo(dx + 120, yy + 9); ctx.stroke(); ctx.fillStyle = PURPLE; ctx.fillText('id ' + cur.tok[i], dx + 126, yy + 13); }
-      r.label('each id will index one row of the embedding table next →', dx, dy + 22 + n * 22 + 6, { color: '#586069', font: '9px ui-monospace, monospace' });
+      r.label('tokenize: prompt words → integer IDs (indices into a vocab of ' + V + ')', dx, dy, { color: T.n14, font: '11px ui-monospace, monospace' });
+      for (let i = 0; i < n; i++) { const yy = dy + 22 + i * 22; ctx.fillStyle = T.n2; ctx.fillRect(dx, yy, 90, 18); ctx.strokeStyle = T.n6; ctx.strokeRect(dx, yy, 90, 18); ctx.fillStyle = T.n14; ctx.fillText('"' + cur._words[i] + '"', dx + 6, yy + 13); ctx.strokeStyle = T.n9; ctx.beginPath(); ctx.moveTo(dx + 94, yy + 9); ctx.lineTo(dx + 120, yy + 9); ctx.stroke(); ctx.fillStyle = T.violet; ctx.fillText('id ' + cur.tok[i], dx + 126, yy + 13); }
+      r.label('each id will index one row of the embedding table next →', dx, dy + 22 + n * 22 + 6, { color: T.n11, font: '9px ui-monospace, monospace' });
     } else if (k === 1) {
-      r.label('embed: X₀[i] = E[id[i]] + position[i]   — a lookup + a positional offset', dx, dy, { color: INK, font: '11px ui-monospace, monospace' });
-      r.label('the ' + n + ' selected rows of the embedding table E [' + V + '×' + D + '] become the residual stream (left).', dx, dy + 20, { color: '#586069', font: '10px ui-monospace, monospace' });
+      r.label('embed: X₀[i] = E[id[i]] + position[i]   — a lookup + a positional offset', dx, dy, { color: T.n14, font: '11px ui-monospace, monospace' });
+      r.label('the ' + n + ' selected rows of the embedding table E [' + V + '×' + D + '] become the residual stream (left).', dx, dy + 20, { color: T.n11, font: '10px ui-monospace, monospace' });
       heat(ctx, dx, dy + 34, cur.X0, 18, 16, 2.2);
-      r.label('X₀  (this is what every later block reads + writes back)', dx, dy + 34 + n * 16 + 12, { color: BLUE, font: '9px ui-monospace, monospace' });
+      r.label('X₀  (this is what every later block reads + writes back)', dx, dy + 34 + n * 16 + 12, { color: T.accent, font: '9px ui-monospace, monospace' });
     } else if (k === 2) {
-      r.label('attention (head ' + head + '): scores = QKᵀ/√dₕ → causal softmax → weighted sum of V; then X₁ = X₀ + Wₒ·ctx', dx, dy, { color: INK, font: '10px ui-monospace, monospace' });
+      r.label('attention (head ' + head + '): scores = QKᵀ/√dₕ → causal softmax → weighted sum of V; then X₁ = X₀ + Wₒ·ctx', dx, dy, { color: T.n14, font: '10px ui-monospace, monospace' });
       const A = cur.attn[head], ac = Math.min(28, 150 / n);
       heat(ctx, dx, dy + 18, A, ac, ac, 1);
-      ctx.strokeStyle = '#e6e8ea'; ctx.strokeRect(dx, dy + 18, n * ac, n * ac);
-      r.label('attention weights [' + n + '×' + n + '] — row i attends to cols j≤i (causal)', dx, dy + 18 + n * ac + 12, { color: ORANGE, font: '9px ui-monospace, monospace' });
-      r.label('result added back into the stream → X₁ (left now shows X₁)', dx, dy + 18 + n * ac + 26, { color: '#586069', font: '9px ui-monospace, monospace' });
+      ctx.strokeStyle = T.n4; ctx.strokeRect(dx, dy + 18, n * ac, n * ac);
+      r.label('attention weights [' + n + '×' + n + '] — row i attends to cols j≤i (causal)', dx, dy + 18 + n * ac + 12, { color: T.warn, font: '9px ui-monospace, monospace' });
+      r.label('result added back into the stream → X₁ (left now shows X₁)', dx, dy + 18 + n * ac + 26, { color: T.n11, font: '9px ui-monospace, monospace' });
     } else if (k === 3) {
-      r.label('gated MLP (last token): down( silu(x·W_g) ⊙ (x·W_u) ); then X₂ = X₁ + mlp', dx, dy, { color: INK, font: '10px ui-monospace, monospace' });
+      r.label('gated MLP (last token): down( silu(x·W_g) ⊙ (x·W_u) ); then X₂ = X₁ + mlp', dx, dy, { color: T.n14, font: '10px ui-monospace, monospace' });
       const g = cur.hidLast.g, u = cur.hidLast.u, hh = cur.hidLast.hid, bw = (dw - 10) / DFF;
       const barRow = (vals, yy, col, lab) => { r.label(lab, dx, yy - 2, { color: col, font: '9px ui-monospace, monospace' }); for (let j = 0; j < DFF; j++) { const v = Math.max(-2, Math.min(2, vals[j])), bh = Math.abs(v) / 2 * 22; ctx.fillStyle = col; ctx.fillRect(dx + j * bw, v >= 0 ? yy + 22 - bh : yy + 22, bw - 1, bh); } };
-      barRow(g.map(silu), dy + 30, GREEN, 'silu(gate)  [' + DFF + ' hidden]');
-      barRow(u, dy + 84, BLUE, 'up');
-      barRow(hh, dy + 138, PURPLE, 'silu(gate) ⊙ up  → down-projected back to d=8, added to X₂');
+      barRow(g.map(silu), dy + 30, T.ok, 'silu(gate)  [' + DFF + ' hidden]');
+      barRow(u, dy + 84, T.accent, 'up');
+      barRow(hh, dy + 138, T.violet, 'silu(gate) ⊙ up  → down-projected back to d=8, added to X₂');
     } else if (k === 4) {
-      r.label('lm-head: take the LAST token\'s hidden, project onto every vocab row → ' + V + ' logits (tied: logits = h·Eᵀ)', dx, dy, { color: INK, font: '10px ui-monospace, monospace' });
+      r.label('lm-head: take the LAST token\'s hidden, project onto every vocab row → ' + V + ' logits (tied: logits = h·Eᵀ)', dx, dy, { color: T.n14, font: '10px ui-monospace, monospace' });
       const bw = (dw - 4) / V, mx = Math.max(...Array.from(cur.logits, Math.abs)) || 1;
-      for (let w = 0; w < V; w++) { const v = cur.logits[w], bh = Math.abs(v) / mx * 70, yy = dy + 100; ctx.fillStyle = w === cur.pred ? RED : BLUE; ctx.fillRect(dx + w * bw, v >= 0 ? yy - bh : yy, bw - 1.5, bh); ctx.save(); ctx.translate(dx + w * bw + bw / 2, yy + 12); ctx.rotate(-Math.PI / 2.6); ctx.fillStyle = '#586069'; ctx.font = '8px ui-monospace, monospace'; ctx.textAlign = 'right'; ctx.fillText(VOCAB[w], 0, 0); ctx.restore(); }
-      r.label('one logit per vocab word (higher = more likely next). Softmax turns these into probabilities →', dx, dy + 150, { color: '#586069', font: '9px ui-monospace, monospace' });
+      for (let w = 0; w < V; w++) { const v = cur.logits[w], bh = Math.abs(v) / mx * 70, yy = dy + 100; ctx.fillStyle = w === cur.pred ? T.bad : T.accent; ctx.fillRect(dx + w * bw, v >= 0 ? yy - bh : yy, bw - 1.5, bh); ctx.save(); ctx.translate(dx + w * bw + bw / 2, yy + 12); ctx.rotate(-Math.PI / 2.6); ctx.fillStyle = T.n11; ctx.font = '8px ui-monospace, monospace'; ctx.textAlign = 'right'; ctx.fillText(VOCAB[w], 0, 0); ctx.restore(); }
+      r.label('one logit per vocab word (higher = more likely next). Softmax turns these into probabilities →', dx, dy + 150, { color: T.n11, font: '9px ui-monospace, monospace' });
     } else {
-      r.label('sample: probs = softmax(logits / T=' + st.temp.toFixed(1) + ') → pick the next token', dx, dy, { color: INK, font: '11px ui-monospace, monospace' });
+      r.label('sample: probs = softmax(logits / T=' + st.temp.toFixed(1) + ') → pick the next token', dx, dy, { color: T.n14, font: '11px ui-monospace, monospace' });
       const bw = (dw - 4) / V, mx = Math.max(...cur.probs);
-      for (let w = 0; w < V; w++) { const bh = cur.probs[w] / mx * 80, yy = dy + 110; ctx.fillStyle = w === cur.pred ? RED : 'rgba(31,111,235,0.55)'; ctx.fillRect(dx + w * bw, yy - bh, bw - 1.5, bh); ctx.save(); ctx.translate(dx + w * bw + bw / 2, yy + 12); ctx.rotate(-Math.PI / 2.6); ctx.fillStyle = w === cur.pred ? RED : '#586069'; ctx.font = '8px ui-monospace, monospace'; ctx.textAlign = 'right'; ctx.fillText(VOCAB[w], 0, 0); ctx.restore(); }
-      ctx.fillStyle = INK; ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'left';
-      ctx.fillText('next token →', dx, dy + 150); ctx.fillStyle = RED; ctx.font = 'bold 13px ui-monospace, monospace'; ctx.fillText('"' + VOCAB[cur.pred] + '"  (p=' + (cur.probs[cur.pred] * 100).toFixed(0) + '%)', dx + 90, dy + 150);
-      r.label(cur._words.join(' ') + '  →  ' + VOCAB[cur.pred], dx, dy + 172, { color: '#586069', font: '10px ui-monospace, monospace' });
+      for (let w = 0; w < V; w++) { const bh = cur.probs[w] / mx * 80, yy = dy + 110; ctx.fillStyle = w === cur.pred ? T.bad : 'rgba(31,111,235,0.55)'; ctx.fillRect(dx + w * bw, yy - bh, bw - 1.5, bh); ctx.save(); ctx.translate(dx + w * bw + bw / 2, yy + 12); ctx.rotate(-Math.PI / 2.6); ctx.fillStyle = w === cur.pred ? T.bad : T.n11; ctx.font = '8px ui-monospace, monospace'; ctx.textAlign = 'right'; ctx.fillText(VOCAB[w], 0, 0); ctx.restore(); }
+      ctx.fillStyle = T.n14; ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'left';
+      ctx.fillText('next token →', dx, dy + 150); ctx.fillStyle = T.bad; ctx.font = 'bold 13px ui-monospace, monospace'; ctx.fillText('"' + VOCAB[cur.pred] + '"  (p=' + (cur.probs[cur.pred] * 100).toFixed(0) + '%)', dx + 90, dy + 150);
+      r.label(cur._words.join(' ') + '  →  ' + VOCAB[cur.pred], dx, dy + 172, { color: T.n11, font: '10px ui-monospace, monospace' });
     }
     ctx.restore();
 

@@ -6,7 +6,7 @@
 <title>real-attention | viz</title>
 </head>
 <body>
-<!-- REAL GPT-2 attention. transformers.js can't
+<!-- Phase 9 (real-model grounding): REAL GPT-2 attention. transformers.js can't
      emit attentions (the ONNX export drops them — Optimum #325), so we fetch the
      raw safetensors and run a verified GPT-2 forward in vanilla JS (gpt2.js),
      capturing softmax(QKᵀ/√d) at every layer/head. Type any sentence and find the

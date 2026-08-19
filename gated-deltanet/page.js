@@ -11,8 +11,18 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, alphaOf, effectiveTheme } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', GREEN = '#2ca02c', ORANGE = '#d2691e', PURPLE = '#8957e5', GREY = '#9aa4ad';
+// --- theme fixups the mechanical hex migration could not make. A wash, a scrim
+// or a value ramp keyed to a FIXED rgb silently inverts its meaning when the
+// page ground flips, so key it to the theme instead. Every helper below is
+// pixel-identical to the old literal in LIGHT mode; only dark changes.
+// KEPT (not framework inkOn): takes no fill -- it is unconditionally the LIGHT end of
+// the ramp, for chips whose fill is known-dark in both themes.
+const inkLight = () => (effectiveTheme() === 'dark' ? T.n14 : T.n0);   // ink that stays LIGHT on a filled chip in both themes
+
+
+
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 
 let cur = null, curStep = 0;
@@ -46,7 +56,7 @@ function scan(st) {
 
 const strip = (r, data, d, rect, dom, labelEach) => {
   r.heatmap({ data, rows: 1, cols: d }, { rows: 1, cols: d, rect, ramp: ramps.diverging, domain: [-dom, dom] });
-  r.grid({ stroke: 'rgba(0,0,0,0.12)' });
+  r.grid({ stroke: alphaOf('n14', 0.12) });
 };
 
 mount({
@@ -76,62 +86,62 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;                          // built by the transport compute
     const { K, V, Q, L, d } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const states = scan(st), s = page.step(), t = s ? s.t : L - 1;
     curStep = t;
     const cs = states[t], Sprev = t > 0 ? states[t - 1].S : new Float32Array(d * d);
     const sdom = Math.max(maxAbs(cs.S), 1e-3), wdom = Math.max(maxAbs(cs.W), 1e-3);
     const kvqdom = Math.max(maxAbs(K), maxAbs(V), maxAbs(Q), 0.5), odom = Math.max(maxAbs(cs.o), 0.5);
 
-    r.label('Sₜ = αₜ · Sₜ₋₁ · (I − βₜ kₜ kₜᵀ)  +  βₜ vₜ kₜᵀ        oₜ = Sₜ qₜ', 18, 34, { color: INK, font: '13px ui-monospace, monospace' });
+    r.label('Sₜ = αₜ · Sₜ₋₁ · (I − βₜ kₜ kₜᵀ)  +  βₜ vₜ kₜᵀ        oₜ = Sₜ qₜ', 18, 34, { color: T.n14, font: '13px ui-monospace, monospace' });
 
     const pad = 16, topY = 64;
     // left: the current token's k / v / q strips (v draggable) + α/β
     const lvX = pad + 28, sw = d * cw;
     const krow = topY + 6, vrow = krow + 34, qrow = vrow + 34;
-    r.label(`token t=${t}`, pad, topY - 8, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label(`token t=${t}`, pad, topY - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
     kRect = { x: lvX, y: krow, w: sw, h: 22 }; strip(r, K.subarray(t * d, t * d + d), d, kRect, kvqdom);
     vRect = { x: lvX, y: vrow, w: sw, h: 22 }; strip(r, V.subarray(t * d, t * d + d), d, vRect, kvqdom);
     qRect = { x: lvX, y: qrow, w: sw, h: 22 }; strip(r, Q.subarray(t * d, t * d + d), d, qRect, kvqdom);
-    r.label('kₜ (key, unit)', lvX, krow - 6, { color: BLUE, font: '10px ui-monospace, monospace' });
-    r.label('vₜ (value) — drag ↕', lvX, vrow - 6, { color: ORANGE, font: '10px ui-monospace, monospace' });
-    r.label('qₜ (query)', lvX, qrow - 6, { color: GREEN, font: '10px ui-monospace, monospace' });
-    r.label(`α = ${st.alpha.toFixed(2)}  (decay/forget)`, pad, qrow + 44, { color: PURPLE, font: '11px ui-monospace, monospace' });
-    r.label(`β = ${st.beta.toFixed(2)}  (write strength)`, pad, qrow + 62, { color: '#bc6c25', font: '11px ui-monospace, monospace' });
-    r.label(st.delta ? 'delta rule ON: erase old value at kₜ, then write' : 'delta OFF: plain accumulate (memory saturates)', pad, qrow + 84, { color: st.delta ? INK : '#d1242f', font: '10px ui-monospace, monospace' });
+    r.label('kₜ (key, unit)', lvX, krow - 6, { color: T.accent, font: '10px ui-monospace, monospace' });
+    r.label('vₜ (value) — drag ↕', lvX, vrow - 6, { color: T.warn, font: '10px ui-monospace, monospace' });
+    r.label('qₜ (query)', lvX, qrow - 6, { color: T.ok, font: '10px ui-monospace, monospace' });
+    r.label(`α = ${st.alpha.toFixed(2)}  (decay/forget)`, pad, qrow + 44, { color: T.violet, font: '11px ui-monospace, monospace' });
+    r.label(`β = ${st.beta.toFixed(2)}  (write strength)`, pad, qrow + 62, { color: T.warn, font: '11px ui-monospace, monospace' });
+    r.label(st.delta ? 'delta rule ON: erase old value at kₜ, then write' : 'delta OFF: plain accumulate (memory saturates)', pad, qrow + 84, { color: st.delta ? T.n14 : T.bad, font: '10px ui-monospace, monospace' });
 
     // center: the state matrix S [d×d]
     const Scell = Math.max(16, Math.min(34, (page.H * 0.42) / d));
     const Sx = lvX + sw + 70, Sy = topY + 8;
     sRect = { x: Sx, y: Sy, w: d * Scell, h: d * Scell };
-    r.label('state  S [d×d]  (key→value memory)', Sx, Sy - 8, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label('state  S [d×d]  (key→value memory)', Sx, Sy - 8, { color: T.n14, font: '12px ui-monospace, monospace' });
     r.heatmap({ data: cs.S, rows: d, cols: d }, { rows: d, cols: d, rect: sRect, ramp: ramps.diverging, domain: [-sdom, sdom] });
-    r.grid({ stroke: 'rgba(0,0,0,0.12)' });
-    ctx.save(); ctx.font = '9px ui-monospace, monospace'; ctx.fillStyle = GREY; ctx.textAlign = 'center';
+    r.grid({ stroke: alphaOf('n14', 0.12) });
+    ctx.save(); ctx.font = '9px ui-monospace, monospace'; ctx.fillStyle = T.n9; ctx.textAlign = 'center';
     ctx.fillText('key dim j →', Sx + d * Scell / 2, Sy + d * Scell + 12); ctx.save(); ctx.translate(Sx - 12, Sy + d * Scell / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('value dim i', 0, 0); ctx.restore(); ctx.restore();
 
     // written association + βvkᵀ
     const wcell = Math.max(10, Scell * 0.6), Wx = Sx + d * Scell + 54, Wy = Sy + 10;
     wRect = { x: Wx, y: Wy, w: d * wcell, h: d * wcell };
-    r.label('+ βvₜkₜᵀ', Wx, Wy - 8, { color: ORANGE, font: '11px ui-monospace, monospace' });
-    r.label('(write)', Wx, Wy + d * wcell + 12, { color: ORANGE, font: '9px ui-monospace, monospace' });
+    r.label('+ βvₜkₜᵀ', Wx, Wy - 8, { color: T.warn, font: '11px ui-monospace, monospace' });
+    r.label('(write)', Wx, Wy + d * wcell + 12, { color: T.warn, font: '9px ui-monospace, monospace' });
     r.heatmap({ data: cs.W, rows: d, cols: d }, { rows: d, cols: d, rect: wRect, ramp: ramps.diverging, domain: [-wdom, wdom] });
-    r.grid({ stroke: 'rgba(0,0,0,0.10)' });
-    ctx.save(); ctx.strokeStyle = GREY; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(Sx + d * Scell + 6, Sy + d * Scell / 2); ctx.lineTo(Wx - 6, Wy + d * wcell / 2); ctx.stroke(); ctx.restore();
+    r.grid({ stroke: alphaOf('n14', 0.10) });
+    ctx.save(); ctx.strokeStyle = T.n9; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(Sx + d * Scell + 6, Sy + d * Scell / 2); ctx.lineTo(Wx - 6, Wy + d * wcell / 2); ctx.stroke(); ctx.restore();
 
     // output o = S q
     const oX = Wx + d * wcell + 56, oc = Math.max(16, Math.min(30, Scell));
     oRect = { x: oX, y: Sy, w: oc, h: d * oc };
-    r.label('o = Sq', oX - 4, Sy - 8, { color: GREEN, font: '11px ui-monospace, monospace' });
+    r.label('o = Sq', oX - 4, Sy - 8, { color: T.ok, font: '11px ui-monospace, monospace' });
     ctx.save();
-    for (let i = 0; i < d; i++) { const v = cs.o[i], h = (v / odom) * (oc * 0.46), y0 = Sy + i * oc + oc / 2; ctx.fillStyle = 'rgba(44,160,44,0.7)'; ctx.fillRect(oX, v >= 0 ? y0 - h : y0, oc, Math.abs(h)); ctx.strokeStyle = '#dfe3e6'; ctx.strokeRect(oX, Sy + i * oc, oc, oc); }
+    for (let i = 0; i < d; i++) { const v = cs.o[i], h = (v / odom) * (oc * 0.46), y0 = Sy + i * oc + oc / 2; ctx.fillStyle = alphaOf(T.ok, 0.7); ctx.fillRect(oX, v >= 0 ? y0 - h : y0, oc, Math.abs(h)); ctx.strokeStyle = T.n5; ctx.strokeRect(oX, Sy + i * oc, oc, oc); }
     ctx.restore();
 
     // time strip
     const tly = page.H - pad - 22, tbw = Math.min(26, (page.W - 2 * pad) / L);
-    r.label('seq:', pad, tly - 6, { color: GREY, font: '10px ui-monospace, monospace' });
+    r.label('seq:', pad, tly - 6, { color: T.n9, font: '10px ui-monospace, monospace' });
     ctx.save(); ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    for (let p = 0; p < L; p++) { const bx = pad + 28 + p * tbw; ctx.fillStyle = p < t ? 'rgba(31,111,235,0.35)' : p === t ? BLUE : '#eef0f2'; ctx.fillRect(bx, tly, tbw - 2, 18); ctx.fillStyle = p <= t ? '#fff' : '#9aa4ad'; ctx.fillText(String(p), bx + (tbw - 2) / 2, tly + 9); } ctx.restore();
+    for (let p = 0; p < L; p++) { const bx = pad + 28 + p * tbw; ctx.fillStyle = p < t ? alphaOf(T.accent, 0.35) : p === t ? T.accent : T.n3; ctx.fillRect(bx, tly, tbw - 2, 18); ctx.fillStyle = p <= t ? inkLight() : T.n9; ctx.fillText(String(p), bx + (tbw - 2) / 2, tly + 9); } ctx.restore();
 
     // hover
     if (page.pointer.over && !grab) {

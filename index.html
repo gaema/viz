@@ -4,38 +4,117 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>viz — concept visualizations</title>
+<link rel="stylesheet" href="framework/theme.css">
+<script src="framework/theme-boot.js"></script>
 <style>
-  body{font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1a1d21;max-width:1080px;margin:0 auto;padding:24px 18px}
-  h1{font-size:24px;margin:0 0 4px} .sub{color:#586069;margin:0 0 20px}
-  h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:#586069;margin:26px 0 10px;border-bottom:1px solid #e3e6ea;padding-bottom:6px}
+  html{background:var(--vz-n0)}
+  .vz-theme{display:inline-flex;border:1px solid var(--vz-n6);border-radius:6px;overflow:hidden;vertical-align:middle}
+  .vz-theme-btn{font:12px ui-monospace,monospace;line-height:1.6;border:0;background:var(--vz-n0);color:var(--vz-n11);padding:2px 8px;cursor:pointer}
+  .vz-theme-btn+.vz-theme-btn{border-left:1px solid var(--vz-n6)}
+  .vz-theme-btn[aria-pressed="true"]{background:var(--vz-accent);color:var(--vz-n0)}
+
+  body{font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--vz-n14);max-width:1080px;margin:0 auto;padding:24px 18px;background:var(--vz-n0)}
+
+  h1{font-size:24px;margin:0 0 4px} .sub{color:var(--vz-n11);margin:0 0 20px}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:var(--vz-n11);margin:26px 0 10px;border-bottom:1px solid var(--vz-n4);padding-bottom:6px}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
-  .card{display:block;border:1px solid #e3e6ea;border-radius:10px;padding:12px 14px;text-decoration:none;color:inherit;background:#fff;transition:.12s}
-  a.card:hover{border-color:#1f6feb;box-shadow:0 1px 6px rgba(31,111,235,.12)}
-  .card.planned{background:#fafbfc;color:#9aa4ad;border-style:dashed}
+  .card{display:flex;flex-direction:column;border:1px solid var(--vz-n4);border-radius:10px;padding:12px 14px;text-decoration:none;color:inherit;background:var(--vz-n0);transition:.12s}
+  a.card:hover{border-color:var(--vz-accent);box-shadow:0 1px 6px rgba(31,111,235,.12)}
+  .card.planned{background:var(--vz-n1);color:var(--vz-n9);border-style:dashed}
   .t{font-weight:650;font-size:14px;font-family:ui-monospace,monospace}
-  .d{font-size:12.5px;color:#586069;margin-top:3px;min-height:2.4em}
-  .card.planned .d{color:#aab2ba}
-  .tags{margin-top:8px;display:flex;gap:6px;align-items:center}
+  .d{font-size:12.5px;color:var(--vz-n11);margin-top:3px;min-height:2.4em}
+  .card.planned .d{color:var(--vz-n8)}
+  .tags{margin-top:auto;padding-top:8px;display:flex;gap:6px;align-items:center}
   .badge{font:11px ui-monospace,monospace;border-radius:5px;padding:1px 6px}
-  .b-ok{background:#e6ffec;color:#0a7227;border:1px solid #b7f5c2}
-  .b-plan{background:#f0f2f5;color:#8a93a0;border:1px solid #dfe3e8}
-  .b-tier{background:#eef3ff;color:#1f5fd0;border:1px solid #d4e1ff}
+  .b-ok{background:var(--vz-okBg);color:var(--vz-okDeep);border:1px solid var(--vz-okLine)}
+  .b-plan{background:var(--vz-n2);color:var(--vz-n10);border:1px solid var(--vz-n4)}
+  .b-tier{background:var(--vz-accentBg);color:var(--vz-accent);border:1px solid var(--vz-accentBg)}
+  .p{font-size:13px;color:var(--vz-n12);margin-top:3px}
+  .modes{display:inline-flex;border:1px solid var(--vz-accentBg);border-radius:7px;overflow:hidden;margin-left:10px;vertical-align:middle}
+  .modes button{font:600 12.5px system-ui,sans-serif;border:0;background:var(--vz-n0);color:var(--vz-accent);padding:5px 11px;cursor:pointer}
+  .modes button[aria-pressed="true"]{background:var(--vz-accent);color:var(--vz-n0)}
+  body[data-mode="plain"] .d{display:none}
+  body[data-mode="tech"] .p{display:none}
 </style>
 </head>
 <body>
 <h1>viz</h1>
 <p class="sub">Interactive visualizations of CNN/LLM internal math. Each page shows the linear algebra of one mechanism, step by step, following an A1–A12 shape taxonomy.</p>
-<p style="margin:0 0 18px;font-size:14px"><a href="tour.html" style="display:inline-block;background:#1f6feb;color:#fff;text-decoration:none;border-radius:7px;padding:7px 15px;font-weight:600">🎓 New here? Take the guided tour →</a> &nbsp;<span style="color:#586069">— a narrated walkthrough of all the demos in curriculum order, with a progress track.</span></p>
+<p style="margin:0 0 18px;font-size:14px"><a href="tour.html" style="display:inline-block;background:var(--vz-accent);color:var(--vz-n0);text-decoration:none;border-radius:7px;padding:7px 15px;font-weight:600">🎓 New here? Take the guided tour →</a> &nbsp;<span style="color:var(--vz-n11)">— a narrated walkthrough of all the demos in curriculum order, with a progress track.</span></p>
+<p style="margin:0 0 18px;font-size:13.5px;color:var(--vz-n12)">Describe each demo in
+  <span class="modes" id="modes"><button id="m-plain" aria-pressed="true">Plain English</button><button id="m-tech" aria-pressed="false">Technical</button></span>
+  &nbsp;<span style="color:var(--vz-n11)">— plain English says <b>why it matters in the real world</b>; technical says what the page shows mathematically.</span>
+  &nbsp;&nbsp;<span style="color:var(--vz-n11)">Theme</span> <span data-theme-switch></span></p>
 <div id="root"></div>
 
+<!-- PLAIN:BEGIN -->
+<!-- GENERATED -- do not hand-edit; regenerate with tools/gen_plain.py -->
+<script>
+const PLAIN = {
+  "activations": "The little non-linear function (GeLU, SiLU\u2026) inside each layer. Without it, stacking layers would collapse into one boring linear step and the model couldn't learn anything interesting. The page lines the common ones up side by side.",
+  "attention-patterns": "Letting every word see every other word is expensive, so real models use patterns \u2014 sliding windows, \"sink\" tokens \u2014 to read long documents cheaply (how a model skims a 100-page PDF without melting the GPU).",
+  "backprop": "Everything else shows a model using what it knows; this shows it learning. The model makes a guess, measures how wrong it is (the \"loss\"), and then \u2014 this is the magic trick \u2014 figures out exactly how to nudge every one of its billions of numbers to be a little less wrong, using the chain rule from calculus. Flip on \"descend\" and watch the error fall to zero. That loop, run on trillions of words, is how every model you've ever used was trained.",
+  "batchnorm": "A normalization for image networks that re-centers each channel to keep training fast and stable, and behaves differently in training vs. when you actually use it. The quiet workhorse of older vision models.",
+  "causal-mask": "A language model writes left-to-right and must not peek at future words while learning. The mask enforces that, which is what lets a model train on whole books at once yet still generate one word at a time.",
+  "convolution": "The basic operation of image AI: a small filter slides over a picture, multiplying-and-summing to detect a pattern (an edge, a color). Stack these and you get image recognition. Stride / padding / dilation are the dials for resolution and reach.",
+  "depthwise-separable": "A way to do convolution far more cheaply by splitting it into two simpler steps. It's the trick behind MobileNet and most on-device / phone-camera vision.",
+  "dot-product": "The dot product measures how much two lists of numbers point the same way \u2014 a model's basic \"how similar are these two things?\" It's the atom inside matmul and attention, and it's exactly the \"cosine similarity\" that powers search and recommendation engines.",
+  "dtype-bits": "A model's numbers can be stored with more or fewer bits (fp32, fp16, int8, int4). Fewer bits = a smaller, faster model but less precision. This trade-off is the whole idea behind \"quantized\" models that run on a phone or a small GPU; the page shows what's actually lost when you shrink the numbers. A second view answers the question that decides whether the saving is real: which chips can actually multiply in that format? Every vendor's engine takes a different set \u2014 int8 nearly everywhere, fp8 only on recent hardware, int4 on strikingly few \u2014 and a format your silicon lacks gets unpacked to a bigger one before any maths happens, so the memory saving survives and the speed-up may not.",
+  "embedding": "Computers only do math, so each word/token is first looked up as a row of numbers (its \"embedding\"). This is the very first thing that happens to your prompt, and the same table is often reused to produce the output.",
+  "feature-maps": "What a CNN actually sees at each depth: early layers find edges, middle layers textures, deep layers parts and objects. This makes the famous edges \u2192 textures \u2192 parts story visible \u2014 the clearest intuition for \"what is the network learning?\"",
+  "flash-attention": "A clever way to compute attention without ever building the giant word-by-word comparison table in memory \u2014 it streams through in tiles. This single optimization is what makes long-context models practical; it's in nearly every modern stack.",
+  "forward-pass": "The whole thing at once: type a few words and watch them turn into the model's next word, passing through every stage you saw in the other demos (tokenize \u2192 look up word vectors \u2192 attention \u2192 the MLP \u2192 score every possible next word \u2192 pick one). This is literally what happens every time you press enter in ChatGPT \u2014 repeated once per word it writes back. Seeing the same \"residual stream\" get nudged a little at each stage is the single best way to understand that a transformer isn't magic: it's this short pipeline, run over and over.",
+  "gated-deltanet": "A newer \"linear attention\" memory used in hybrid models (Qwen3-Next): a compact memory that overwrites an old fact when its key comes back, instead of piling up forever. Part of the race to get attention-quality at SSM-like cost.",
+  "gqa-mqa": "A money-saving trick: instead of every head keeping its own memory, heads share it. This is why modern models (Llama, Qwen) can hold longer conversations in less GPU memory.",
+  "hybrid-by-layer": "The newest models (Jamba, Zamba, Qwen3-Next) mix the two: mostly cheap SSM layers with a few full-attention layers sprinkled in. The page shows where the expensive memory (the KV cache) actually lives \u2014 and why these hybrids need far less of it.",
+  "kv-cache": "When a chatbot types its reply word by word, it saves its earlier work in a \"KV cache\" so it doesn't redo the whole conversation each step. This cache is why long chats eat more memory, why there's a \"context limit,\" and why your GPU fills up.",
+  "lm-head": "The final step that scores every possible next word in the vocabulary. The page shows how those scores come out and the real-world tricks (tied weights, soft-capping) used to keep it cheap and stable.",
+  "logit-lens": "Peeks at the model's guess at every layer instead of only the last one, so you can watch the answer form with depth (ran -> running -> through -> away -> up). The practical payoff: it shows that early layers do grammar and late layers do meaning, which is why techniques like early exit and layer skipping work at all.",
+  "mamba-block": "The full Mamba layer wrapped around that running summary: a short convolution to catch local patterns, a gate that decides how much of each new word to let in, then the scan itself. It's the drop-in replacement for a transformer block in models like Mamba and Jamba \u2014 same job (mix information across a sequence), different cost curve.",
+  "matmul": "Multiplying grids of numbers (matrices) is the operation a neural network is built from: every layer is a matrix multiply. It's the reason AI needs powerful GPUs \u2014 a model \"thinking\" is mostly doing trillions of these. Understand this one thing and \"compute cost\" stops being a mystery.",
+  "mlp-gated": "After attention mixes words, each word passes through a small two-layer network where much of the model's knowledge lives \u2014 it's roughly two-thirds of all the parameters. The \"gated\" (SwiGLU) form is what modern models use.",
+  "moe-balance": "For MoE to work, traffic must spread evenly across experts; otherwise a few overload (and drop tokens) while others never get trained and \"starve.\" The page shows that failure and the load-balancing fix \u2014 a big reason MoE models are finicky to train.",
+  "moe-routing": "An MoE model has many sub-networks (\"experts\") but uses only a few per word \u2014 like an ER routing each patient to the right specialists. This lets a model be huge (lots of knowledge) yet cheap to run (only a slice active per token). It's how Mixtral, DeepSeek, and Qwen-MoE work.",
+  "multi-head": "Models run several attentions in parallel (\"heads\"), each watching a different kind of relationship \u2014 grammar, meaning, position. It's how a model tracks many things about a sentence at once.",
+  "multimodal-inject": "How images and audio get fed into a text model: encode them into the same kind of vectors as words and splice them into the sequence. It's the mechanism behind \"send the model a photo\" (GPT-4o, Claude, Gemini).",
+  "normalization": "Keeps the numbers flowing through a deep network from exploding or vanishing, so training stays stable. RMSNorm/LayerNorm sit before every block \u2014 unglamorous, but in every model ever shipped.",
+  "patch-embedding": "How a Vision Transformer turns an image into \"words\": chop it into patches and flatten each into a vector. This bridge is what let transformers (built for text) handle images \u2014 the basis of ViT, CLIP, and today's multimodal models.",
+  "pooling": "Shrinks an image map by keeping the strongest signal (max) or the average in each patch \u2014 cheaper compute plus a little \"don't care exactly where it was\" tolerance. The classic downsampling step in a CNN.",
+  "prefill-vs-decode": "The two phases of running a model: reading your whole prompt at once (fast, \"prefill\") vs writing the answer one word at a time (slow, \"decode\"). It explains the pause-then-stream you see, and why decode is the expensive part to serve at scale.",
+  "qkv-projection": "Before attention, each word becomes three views: a Query (what am I looking for?), a Key (what do I offer?), and a Value (what do I carry?). This first step is how a transformer sets up words to find and pull information from each other.",
+  "quantization": "Compressing a model's numbers to fewer bits (int8 / int4) so it's smaller and faster \u2014 how a 70-billion-parameter model squeezes onto a single GPU or a laptop. The page shows what accuracy you trade for the savings.",
+  "real-attention": "Real GPT-2 attention, computed in your browser. Type a sentence and look through all 144 attention heads to find the ones researchers named: the head that copies a repeated pattern (induction), the one that just looks one word back, the one that parks on the first token. This is what \"interpretability\" work actually looks like \u2014 evidence that a model's behaviour is made of findable, nameable parts.",
+  "real-embeddings": "Runs a real sentence-embedding model on words you type and draws the real similarity map: king lands next to queen, paris next to tokyo. This is the same machinery behind semantic search, \"related articles,\" and the retrieval step in every RAG system \u2014 seen on real weights rather than a toy.",
+  "real-generate": "A real GPT-2 writing text in your browser, one token at a time, with the sampling knobs live. Watching the loop \u2014 predict, pick, append, repeat \u2014 is the fastest cure for thinking a model \"plans\" a sentence: it only ever chooses the next word.",
+  "real-kv-cache": "Watch the model's short-term memory physically grow, one slot per word, as a real GPT-2 writes. It's the concrete version of \"why does a long conversation get slower and more expensive?\" \u2014 you can see the thing that is filling up.",
+  "real-logits": "The real next-word distribution from GPT-2 for whatever prefix you type (\"the cat ran\" -> up / away / off / out), and what temperature, top-k and top-p really do to it. It turns the abstract \"creativity slider\" in every chat UI into something you can watch move.",
+  "real-neurons": "Which individual neurons inside the model light up for which words. Some fire for a topic, some for a syntax pattern, some for nothing you can name. This is the raw material of mechanistic interpretability \u2014 and the reason \"we don't fully know what's inside\" is a statement about scale, not about mystery.",
+  "real-quant": "Takes one real weight matrix out of GPT-2 and compresses it in front of you, so the accuracy you lose at 8 / 4 / 3 bits is measured on real weights rather than asserted. This is the exact decision behind \"will the 4-bit build be good enough on my laptop?\"",
+  "real-vision": "A real Vision Transformer classifying a real photo, showing the image chopped into the 16x16 patches it treats as \"words\" plus its actual top-5 answers. It closes the loop from patch-embedding: the same transformer machinery, applied to pixels.",
+  "receptive-field": "How much of the original image one deep neuron can \"see.\" Stacking tiny filters grows that view, so a deep network perceives the whole image even though each filter is small \u2014 the reason depth (and dilation, \u00e0 la WaveNet) matters.",
+  "residual-block": "ResNet's skip connection for vision \u2014 the idea that let networks jump from ~20 layers to 1000+ by giving the learning signal a shortcut. Transformers borrowed the very same residual trick.",
+  "residual-stream": "The \"highway\" running the length of a transformer: each block reads from it, does a little work, and adds the result back instead of overwriting. This skip-connection idea is why we can train models hundreds of layers deep.",
+  "rope": "How a model knows word order \u2014 \"dog bites man\" vs \"man bites dog.\" RoPE encodes each word's position by rotating its numbers; it's also the trick behind extending a model's context length past what it trained on.",
+  "sampling": "How the model actually picks the next word from its probabilities \u2014 always the top one (deterministic) or rolling the dice (creative). Temperature / top-k / top-p are the knobs behind \"make it more creative\" vs \"make it more focused.\"",
+  "scaled-dot-attention": "Attention lets each word gather meaning from the others \u2014 \"the cat sat on it; what is it?\" This is the core mechanism behind every transformer (GPT, Claude, Gemini): compare, weight, combine.",
+  "shard-planner": "The engineering question that comes after \"how does it work?\": what hardware does it take to run? Pick a model, a compression level, and a set of real accelerator cards, and see in 3D how the model's layers get split across them \u2014 what fits, what overflows, and how much traffic the cards must exchange for every token. It's the planning step behind any self-hosted deployment: how many cards, which split, and where the bottleneck will be. Every number it prints is an estimate from published specs, not a measurement.",
+  "softmax": "Softmax turns a list of raw scores into probabilities that add up to 100%. It's how a model goes from \"this word scored 8.3, that one 2.1\" to \"70% chance it's this word.\" Every classifier and every next-word prediction ends in a softmax.",
+  "ssm-scan": "An alternative to attention (Mamba) that keeps a small running summary of everything so far instead of a growing memory of every word. The payoff: cost stays flat as the text gets longer (attention's cost grows with the square), which is promising for very long inputs.",
+  "tokenization": "Models don't read letters; they read a fixed list of \"tokens\" (whole words or word-pieces). Byte-Pair Encoding builds that list by repeatedly gluing together the most common pair of characters. It's why your prompt is billed per token, why rare words split into chunks, and why a model has a \"vocabulary\" at all.",
+  "transformer-block": "One full layer assembled end to end (norm \u2192 attention \u2192 add \u2192 norm \u2192 MLP \u2192 add). Stack 30\u2013100 of these and you have GPT / Claude. The page shows how the pieces snap together.",
+  "vram-budget": "The arithmetic behind \"will this model fit on my GPU?\": weights + KV cache + activations. It demystifies the single most practical question in running a model yourself."
+};
+</script>
+<!-- PLAIN:END -->
+
 <!-- Static (no module imports) so it opens over file:// or http. The page list
-     mirrors plan/curriculum.md; flip `done:true` + add the slug as pages ship. -->
+     mirrors the curriculum order; flip `done:true` + add the slug as pages ship. -->
 <script>
 const FAMILIES = [
   ['A — Foundational primitives', [
     {slug:'matmul', t:'matmul', tier:'T2', done:true, d:'GEMM as the atom: each output cell is a row·col dot product. Tiling; why everything reduces to this.'},
     {slug:'dot-product', t:'dot-product', tier:'T1', done:true, d:'a·b term by term + the geometry: projection of b onto a, angle θ, cosine similarity.'},
-    {slug:'dtype-bits', t:'dtype-bits', tier:'T1', done:true, d:'fp32/fp16/bf16/fp8/int8/int4 bit layout; reveal bits to rebuild the value; rounding error vs bit-width.'},
+    {slug:'dtype-bits', t:'dtype-bits', tier:'T1', done:true, d:'fp32/fp16/bf16/fp8/int8/int4 bit layout; reveal bits to rebuild the value; rounding error vs bit-width. Second view: a vendor \u00d7 dtype support matrix \u2014 which architectures take each dtype as a native matrix-engine operand vs vector-only, emulated, or undocumented.'},
     {slug:'softmax', t:'softmax', tier:'T1', done:true, d:'Logits → exp(z−max) → normalize → probabilities. Temperature; the max-subtract stability trick.'},
   ]],
   ['B — Attention', [
@@ -90,7 +169,7 @@ const FAMILIES = [
     {slug:'forward-pass', t:'forward-pass', tier:'T2', done:true, d:'CAPSTONE: one prompt → next token through a tiny real transformer — tokenize→embed→attention→MLP→lm-head→sample, the residual stream transforming at each stage; step it, drag a token.'},
     {slug:'backprop', t:'backprop', tier:'T1', done:true, d:'The backward pass: gradients flow back through a tiny graph by the chain rule; flip “descend” and watch the loss fall to 0 — training. Drag any leaf node.'},
   ]],
-  ['I — Real-model grounding', [
+  ['I — Real-model grounding (Phase 9)', [
     {slug:'real-embeddings', t:'real-embeddings', tier:'T1', done:true, d:'REAL vectors: a trained model (all-MiniLM-L6-v2) fetched + run in-browser via transformers.js; type words → real cosine heatmap + 2D semantic map. Real math AND real weights. Offline → labelled synthetic stand-in.'},
     {slug:'real-attention', t:'real-attention', tier:'T2', done:true, d:'REAL GPT-2 attention: fetch the raw weights, run a verified forward in vanilla JS (transformers.js can’t emit attentions), capture every head. Type a sentence; the head-map finds the induction / prev-token / attention-sink heads. Verified vs PyTorch. WebGPU + CPU.'},
     {slug:'real-logits', t:'real-logits', tier:'T2', done:true, d:'REAL GPT-2 next-token distribution: the verified forward + ln_f + tied lm_head → logits for a typed prefix; reshape with temperature / top-k / top-p like a sampler. “the cat ran” → up/away/off/out. Verified vs PyTorch. CPU + WebGPU.'},
@@ -98,25 +177,42 @@ const FAMILIES = [
     {slug:'real-quant', t:'real-quant', tier:'T1', done:true, d:'REAL int4 quantization: range-fetch ONE GPT-2 weight tensor (~9 MB, not 548 MB), see its real distribution (Gaussian σ≈0.14 + outliers), apply group-wise int-N quant → real RMSE vs bits/group. Verified vs numpy.'},
     {slug:'real-generate', t:'real-generate', tier:'T2', done:true, d:'CAPSTONE: watch a REAL GPT-2 WRITE text — logits→sample→append→repeat, streaming token by token, with greedy / temperature / top-k / top-p. Greedy verified token-for-token vs HF generate().'},
   ]],
+  ['J — Deployment & planning', [
+  ]],
 ];
 const root = document.getElementById('root');
-let total = 0;
+let built = 0, total = 0;
 for (const [name, pages] of FAMILIES) {
   const h = document.createElement('h2'); h.textContent = name; root.appendChild(h);
   const g = document.createElement('div'); g.className = 'grid';
   for (const p of pages) {
-    total++;
+    total++; if (p.done) built++;
     const el = document.createElement(p.done ? 'a' : 'div');
     el.className = 'card' + (p.done ? '' : ' planned');
     if (p.done) el.href = './' + p.slug + '/index.html';
-    el.innerHTML = `<div class="t">${p.t}</div><div class="d">${p.d}</div>`
-      + `<div class="tags">`
+    const plain = (typeof PLAIN === 'object' && PLAIN[p.slug]) || p.d;
+    el.innerHTML = `<div class="t">${p.t}</div><div class="d">${p.d}</div><div class="p">${plain}</div>`
+      + `<div class="tags"><span class="badge ${p.done ? 'b-ok' : 'b-plan'}">${p.done ? '✓ built' : 'planned'}</span>`
       + `<span class="badge b-tier">${p.tier}</span></div>`;
     g.appendChild(el);
   }
   root.appendChild(g);
 }
+// description mode: plain English (default) vs technical. ?mode=tech or the toggle.
+const q = new URLSearchParams(location.search).get('mode');
+let mode = q === 'tech' || q === 'plain' ? q : (localStorage.getItem('viz-desc-mode') || 'plain');
+function setMode(m) {
+  mode = m;
+  document.body.dataset.mode = m;
+  try { localStorage.setItem('viz-desc-mode', m); } catch (e) { /* private mode */ }
+  document.getElementById('m-plain').setAttribute('aria-pressed', String(m === 'plain'));
+  document.getElementById('m-tech').setAttribute('aria-pressed', String(m === 'tech'));
+}
+document.getElementById('m-plain').onclick = () => setMode('plain');
+document.getElementById('m-tech').onclick = () => setMode('tech');
+setMode(mode);
+
+document.querySelector('.sub').insertAdjacentHTML('beforeend', ` <b>${built}/${total} pages built.</b>`);
 </script>
-<footer style="margin:42px 0 10px;padding-top:14px;border-top:1px solid #e3e6ea;color:#586069;font-size:12.5px">© gaema · <a href="https://creativecommons.org/licenses/by-sa/4.0/" style="color:#1f6feb;text-decoration:none">CC BY-SA 4.0</a></footer>
 </body>
 </html>

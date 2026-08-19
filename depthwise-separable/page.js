@@ -8,9 +8,11 @@
 //   ratio = full/dwsep = (k²·Cout)/(k² + Cout) = 1 / (1/Cout + 1/k²)
 // Drag the input/output channel stacks (or use the sliders) and watch the bar.
 import { mount } from '../framework/layout.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', GREY = '#9aa4ad', BLUE = '#1f6feb', ORANGE = '#d2691e', GREEN = '#2ca02c', PURPLE = '#8250df';
-const PAL = ['#1f6feb', '#d2691e', '#2ca02c', '#8250df', '#d1242f', '#0a9396', '#bc6c25', '#5a189a'];
+
+
+const PAL = () => [T.accent, T.warn, T.ok, T.violet, T.bad, T.tealDeep, T.warn, T.violetDeep];
 const fmt = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + 'G' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : '' + Math.round(n);
 
 let stdInRect = null, stdOutRect = null, dragMode = '', lastY = 0;
@@ -20,7 +22,7 @@ function col(ctx, cx, yc, n, sz, glow) {
   const gap = sz + 3, h = n * gap - 3, y0 = yc - h / 2, cs = [];
   for (let i = 0; i < n; i++) {
     const y = y0 + i * gap;
-    ctx.fillStyle = PAL[i % PAL.length]; ctx.globalAlpha = glow ? 1 : 0.85; ctx.fillRect(cx - sz / 2, y, sz, sz); ctx.globalAlpha = 1;
+    ctx.fillStyle = PAL()[i % PAL().length]; ctx.globalAlpha = glow ? 1 : 0.85; ctx.fillRect(cx - sz / 2, y, sz, sz); ctx.globalAlpha = 1;
     cs.push([cx, y + sz / 2]);
   }
   return { cs, x: cx - sz / 2, y: y0, w: sz, h };
@@ -54,7 +56,7 @@ mount({
   },
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state, W = page.W, H = page.H;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const k = st.k | 0, Cin = st.Cin | 0, Cout = st.Cout | 0, hw = st.HW | 0;
     const full = hw * hw * Cin * Cout * k * k, dw = hw * hw * Cin * k * k, pw = hw * hw * Cin * Cout, dwsep = dw + pw;
     const ratio = full / dwsep;
@@ -62,46 +64,46 @@ mount({
     const stage = ((page.t || 0) % 3) < 1.5 ? 'dw' : 'pw';  // animate the two stages in turn
 
     // ===== standard conv (left) =====
-    r.label('standard convolution', 20, 34, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label('standard convolution', 20, 34, { color: T.n14, font: '12px ui-monospace, monospace' });
     const a = col(ctx, 56, yc, nIn, sz, true); stdInRect = a;
     const b = col(ctx, 196, yc, nOut, sz, true); stdOutRect = b;
-    ctx.save(); ctx.strokeStyle = 'rgba(130,80,223,0.22)'; ctx.lineWidth = 0.7; // dense connections: every in→every out
+    ctx.save(); ctx.strokeStyle = alphaOf(T.violet, 0.22); ctx.lineWidth = 0.7; // dense connections: every in→every out
     for (const p of a.cs) for (const q of b.cs) { ctx.beginPath(); ctx.moveTo(p[0] + sz / 2, p[1]); ctx.lineTo(q[0] - sz / 2, q[1]); ctx.stroke(); } ctx.restore();
-    r.label('Cin (drag ↕)', 30, yc + a.h / 2 + 16, { color: '#586069', font: '9px ui-monospace, monospace' });
-    r.label('Cout (drag ↕)', 168, yc + b.h / 2 + 16, { color: '#586069', font: '9px ui-monospace, monospace' });
+    r.label('Cin (drag ↕)', 30, yc + a.h / 2 + 16, { color: T.n11, font: '9px ui-monospace, monospace' });
+    r.label('Cout (drag ↕)', 168, yc + b.h / 2 + 16, { color: T.n11, font: '9px ui-monospace, monospace' });
     // k×k spatial badge on the link
-    drawKbadge(ctx, r, 126, yc - 42, k, PURPLE, `${k}×${k} + all channels`);
-    r.label(`MACs = H·W·Cin·Cout·k² = ${fmt(full)}  (Cin=${Cin}→Cout=${Cout}, k=${k})`, 20, yc + a.h / 2 + 32, { color: PURPLE, font: '10px ui-monospace, monospace' });
+    drawKbadge(ctx, r, 126, yc - 42, k, T.violet, `${k}×${k} + all channels`);
+    r.label(`MACs = H·W·Cin·Cout·k² = ${fmt(full)}  (Cin=${Cin}→Cout=${Cout}, k=${k})`, 20, yc + a.h / 2 + 32, { color: T.violet, font: '10px ui-monospace, monospace' });
 
     // ===== depthwise separable (right) =====
     const x0 = 360;
-    r.label('depthwise separable', x0, 34, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label('depthwise separable', x0, 34, { color: T.n14, font: '12px ui-monospace, monospace' });
     const di = col(ctx, x0 + 36, yc, nIn, sz, stage === 'dw'); const dm = col(ctx, x0 + 150, yc, nIn, sz, true); const dou = col(ctx, x0 + 264, yc, nOut, sz, stage === 'pw');
     // depthwise: channel i -> channel i only (no mixing), k×k spatial
-    ctx.save(); ctx.lineWidth = stage === 'dw' ? 1.6 : 1; for (let i = 0; i < nIn; i++) { ctx.strokeStyle = stage === 'dw' ? GREEN : 'rgba(44,160,44,0.4)'; ctx.beginPath(); ctx.moveTo(di.cs[i][0] + sz / 2, di.cs[i][1]); ctx.lineTo(dm.cs[i][0] - sz / 2, dm.cs[i][1]); ctx.stroke(); } ctx.restore();
+    ctx.save(); ctx.lineWidth = stage === 'dw' ? 1.6 : 1; for (let i = 0; i < nIn; i++) { ctx.strokeStyle = stage === 'dw' ? T.ok : alphaOf(T.ok, 0.4); ctx.beginPath(); ctx.moveTo(di.cs[i][0] + sz / 2, di.cs[i][1]); ctx.lineTo(dm.cs[i][0] - sz / 2, dm.cs[i][1]); ctx.stroke(); } ctx.restore();
     // pointwise: every mid -> every out, 1×1 (channel mix, no space)
-    ctx.save(); ctx.lineWidth = 0.7; for (const p of dm.cs) for (const q of dou.cs) { ctx.strokeStyle = stage === 'pw' ? 'rgba(210,105,30,0.5)' : 'rgba(210,105,30,0.18)'; ctx.beginPath(); ctx.moveTo(p[0] + sz / 2, p[1]); ctx.lineTo(q[0] - sz / 2, q[1]); ctx.stroke(); } ctx.restore();
-    drawKbadge(ctx, r, x0 + 93, yc - 42, k, GREEN, `${k}×${k} per-channel`);
-    drawKbadge(ctx, r, x0 + 207, yc - 42, 1, ORANGE, `1×1 mix`);
-    r.label('depthwise', x0 + 18, yc + di.h / 2 + 16, { color: GREEN, font: '9px ui-monospace, monospace' });
-    r.label('pointwise', x0 + 200, yc + dou.h / 2 + 16, { color: ORANGE, font: '9px ui-monospace, monospace' });
-    r.label(`depthwise ${fmt(dw)}  +  pointwise ${fmt(pw)}  =  ${fmt(dwsep)} MACs`, x0, yc + di.h / 2 + 32, { color: INK, font: '10px ui-monospace, monospace' });
+    ctx.save(); ctx.lineWidth = 0.7; for (const p of dm.cs) for (const q of dou.cs) { ctx.strokeStyle = stage === 'pw' ? alphaOf(T.warn, 0.5) : alphaOf(T.warn, 0.18); ctx.beginPath(); ctx.moveTo(p[0] + sz / 2, p[1]); ctx.lineTo(q[0] - sz / 2, q[1]); ctx.stroke(); } ctx.restore();
+    drawKbadge(ctx, r, x0 + 93, yc - 42, k, T.ok, `${k}×${k} per-channel`);
+    drawKbadge(ctx, r, x0 + 207, yc - 42, 1, T.warn, `1×1 mix`);
+    r.label('depthwise', x0 + 18, yc + di.h / 2 + 16, { color: T.ok, font: '9px ui-monospace, monospace' });
+    r.label('pointwise', x0 + 200, yc + dou.h / 2 + 16, { color: T.warn, font: '9px ui-monospace, monospace' });
+    r.label(`depthwise ${fmt(dw)}  +  pointwise ${fmt(pw)}  =  ${fmt(dwsep)} MACs`, x0, yc + di.h / 2 + 32, { color: T.n14, font: '10px ui-monospace, monospace' });
 
     // ===== MAC comparison bars (bottom) =====
     const by = 206, bx = 20, bw = W - 40, maxv = full;
-    r.label('multiply-add (MAC) cost — drag a channel stack to rescale', bx, by - 8, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label('multiply-add (MAC) cost — drag a channel stack to rescale', bx, by - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
     const barH = 20;
     // full
-    ctx.fillStyle = PURPLE; ctx.fillRect(bx, by, bw * (full / maxv), barH);
-    r.label(`full conv: ${fmt(full)}`, bx + 6, by + 14, { color: '#fff', font: '10px ui-monospace, monospace' });
+    ctx.fillStyle = T.violet; ctx.fillRect(bx, by, bw * (full / maxv), barH);
+    r.label(`full conv: ${fmt(full)}`, bx + 6, by + 14, { color: T.n0, font: '10px ui-monospace, monospace' });
     // dwsep (dw + pw segments)
     const y2 = by + barH + 8, wdw = bw * (dw / maxv), wpw = bw * (pw / maxv);
-    ctx.fillStyle = GREEN; ctx.fillRect(bx, y2, wdw, barH); ctx.fillStyle = ORANGE; ctx.fillRect(bx + wdw, y2, wpw, barH);
-    r.label(`depthwise+pointwise: ${fmt(dwsep)}`, bx + 6, y2 + 14, { color: '#fff', font: '10px ui-monospace, monospace' });
+    ctx.fillStyle = T.ok; ctx.fillRect(bx, y2, wdw, barH); ctx.fillStyle = T.warn; ctx.fillRect(bx + wdw, y2, wpw, barH);
+    r.label(`depthwise+pointwise: ${fmt(dwsep)}`, bx + 6, y2 + 14, { color: T.n0, font: '10px ui-monospace, monospace' });
     // ratio call-out
-    ctx.save(); ctx.fillStyle = INK; ctx.font = 'bold 15px ui-monospace, monospace'; ctx.textAlign = 'left';
+    ctx.save(); ctx.fillStyle = T.n14; ctx.font = 'bold 15px ui-monospace, monospace'; ctx.textAlign = 'left';
     ctx.fillText(`${ratio.toFixed(1)}× fewer`, bx + Math.max(wdw + wpw + 12, 160), y2 + 15); ctx.restore();
-    r.label(`ratio = (k²·Cout)/(k²+Cout) = (${k * k}·${Cout})/(${k * k}+${Cout}) = ${ratio.toFixed(2)}×   ·   params: ${fmt(Cin * Cout * k * k)} → ${fmt(Cin * k * k + Cin * Cout)} (${(Cin * Cout * k * k / (Cin * k * k + Cin * Cout)).toFixed(1)}×)`, bx, y2 + barH + 18, { color: '#586069', font: '10px ui-monospace, monospace' });
+    r.label(`ratio = (k²·Cout)/(k²+Cout) = (${k * k}·${Cout})/(${k * k}+${Cout}) = ${ratio.toFixed(2)}×   ·   params: ${fmt(Cin * Cout * k * k)} → ${fmt(Cin * k * k + Cin * Cout)} (${(Cin * Cout * k * k / (Cin * k * k + Cin * Cout)).toFixed(1)}×)`, bx, y2 + barH + 18, { color: T.n11, font: '10px ui-monospace, monospace' });
 
     // hover
     if (page.pointer.over && !dragMode) {

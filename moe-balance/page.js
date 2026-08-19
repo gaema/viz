@@ -8,9 +8,11 @@
 // their targets (animate).
 import { mount } from '../framework/layout.js';
 import { softmax, seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', RED = '#d1242f', GREY = '#9aa4ad', TEAL = '#0a9396';
-const CAT = ['#1f6feb', '#2ca02c', '#d2691e', '#8957e5', '#d1242f', '#0a9396', '#bc6c25', '#5e548e'];
+
+
+const CAT = () => [T.accent, T.ok, T.warn, T.violet, T.bad, T.tealDeep, T.warn, T.violetDeep];
 const TOKENS = 120;
 
 let cur = null, builtSig = null;       // {skew, E}
@@ -61,7 +63,7 @@ mount({
     const E = st.E | 0, lam = st.lam, sig = `${st.seed}|${E}`;
     if (builtSig !== sig) { cur = { skew: buildSkew(st.seed, E), E }; userMult = new Float32Array(E).fill(1); displayed = new Float32Array(E); builtSig = sig; }
     if (pendingShift && pendingShift.e < E) { userMult[pendingShift.e] = pendingShift.m; pendingShift = null; }
-    r.clear('#ffffff');
+    r.clear(T.n0);
 
     // effective routing = (skew lerp uniform by λ) modulated by drag, renormalized
     const inv = 1 / E;
@@ -90,32 +92,32 @@ mount({
     const sc = barsH / axisMax, capY = baseY - cap * sc;
     geom = { barsX, barsW, slot, bw, baseY, topBars, sc, capY, E };
 
-    r.label('per-expert load (tokens) — drag a bar ↕ to shift load', barsX, topBars - 12, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label('per-expert load (tokens) — drag a bar ↕ to shift load', barsX, topBars - 12, { color: T.n14, font: '12px ui-monospace, monospace' });
     ctx.save();
     // baseline + capacity line
-    ctx.strokeStyle = '#e3e6ea'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(barsX - 6, baseY); ctx.lineTo(barsX + barsW, baseY); ctx.stroke();
-    ctx.strokeStyle = RED; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(barsX - 6, capY); ctx.lineTo(barsX + E * slot, capY); ctx.stroke(); ctx.setLineDash([]);
-    r.label(`cap ${cap} (drag ↕)`, barsX + E * slot + 2, capY, { color: RED, font: '10px ui-monospace, monospace' });
+    ctx.strokeStyle = T.n4; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(barsX - 6, baseY); ctx.lineTo(barsX + barsW, baseY); ctx.stroke();
+    ctx.strokeStyle = T.bad; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(barsX - 6, capY); ctx.lineTo(barsX + E * slot, capY); ctx.stroke(); ctx.setLineDash([]);
+    r.label(`cap ${cap} (drag ↕)`, barsX + E * slot + 2, capY, { color: T.bad, font: '10px ui-monospace, monospace' });
     // uniform reference line (T/E)
-    const uniY = baseY - (TOKENS / E) * sc; ctx.strokeStyle = 'rgba(44,160,44,0.5)'; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(barsX - 6, uniY); ctx.lineTo(barsX + E * slot, uniY); ctx.stroke(); ctx.setLineDash([]);
-    r.label(`uniform ${Math.round(TOKENS / E)}`, barsX + E * slot + 2, uniY, { color: '#2ca02c', font: '10px ui-monospace, monospace' });
+    const uniY = baseY - (TOKENS / E) * sc; ctx.strokeStyle = alphaOf(T.ok, 0.5); ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(barsX - 6, uniY); ctx.lineTo(barsX + E * slot, uniY); ctx.stroke(); ctx.setLineDash([]);
+    r.label(`uniform ${Math.round(TOKENS / E)}`, barsX + E * slot + 2, uniY, { color: T.ok, font: '10px ui-monospace, monospace' });
 
     ctx.font = '10px ui-monospace, monospace';
     for (let e = 0; e < E; e++) {
       const x = barsX + e * slot + (slot - bw) / 2, h = displayed[e] * sc, isStarved = starved.includes(e);
       const loadH = Math.min(displayed[e], cap) * sc, dropH = Math.max(0, displayed[e] - cap) * sc;
-      ctx.fillStyle = isStarved ? '#dfe3e6' : CAT[e % CAT.length]; ctx.globalAlpha = isStarved ? 1 : 0.82; ctx.fillRect(x, baseY - loadH, bw, loadH); ctx.globalAlpha = 1;
-      if (dropH > 0) { ctx.fillStyle = RED; ctx.fillRect(x, baseY - loadH - dropH, bw, dropH); }
-      ctx.fillStyle = '#1a1d21'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(String(load[e]), x + bw / 2, baseY - h - 3);
-      ctx.fillStyle = isStarved ? RED : CAT[e % CAT.length]; ctx.textBaseline = 'top'; ctx.fillText(`e${e}`, x + bw / 2, baseY + 4);
-      if (isStarved) { ctx.fillStyle = RED; ctx.fillText('starving', x + bw / 2, baseY + 16); }
+      ctx.fillStyle = isStarved ? T.n5 : CAT()[e % CAT().length]; ctx.globalAlpha = isStarved ? 1 : 0.82; ctx.fillRect(x, baseY - loadH, bw, loadH); ctx.globalAlpha = 1;
+      if (dropH > 0) { ctx.fillStyle = T.bad; ctx.fillRect(x, baseY - loadH - dropH, bw, dropH); }
+      ctx.fillStyle = T.n14; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(String(load[e]), x + bw / 2, baseY - h - 3);
+      ctx.fillStyle = isStarved ? T.bad : CAT()[e % CAT().length]; ctx.textBaseline = 'top'; ctx.fillText(`e${e}`, x + bw / 2, baseY + 4);
+      if (isStarved) { ctx.fillStyle = T.bad; ctx.fillText('starving', x + bw / 2, baseY + 16); }
     }
     // shared expert (always-on)
     if (st.shared) {
       const x = barsX + E * slot + slot * 0.4 + (slot - bw) / 2, h = TOKENS * sc;
-      ctx.fillStyle = TEAL; ctx.globalAlpha = 0.82; ctx.fillRect(x, baseY - h, bw, h); ctx.globalAlpha = 1;
-      ctx.fillStyle = '#1a1d21'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(String(TOKENS), x + bw / 2, baseY - h - 3);
-      ctx.fillStyle = TEAL; ctx.textBaseline = 'top'; ctx.fillText('shared', x + bw / 2, baseY + 4);
+      ctx.fillStyle = T.tealDeep; ctx.globalAlpha = 0.82; ctx.fillRect(x, baseY - h, bw, h); ctx.globalAlpha = 1;
+      ctx.fillStyle = T.n14; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(String(TOKENS), x + bw / 2, baseY - h - 3);
+      ctx.fillStyle = T.tealDeep; ctx.textBaseline = 'top'; ctx.fillText('shared', x + bw / 2, baseY + 4);
       ctx.fillText('always', x + bw / 2, baseY + 16);
     }
     ctx.restore();
@@ -124,17 +126,17 @@ mount({
     const py = topBars + 6;
     const lamState = lam < 0.2 ? 'COLLAPSED' : lam < 0.7 ? 'partial' : 'BALANCED';
     const lines = [
-      ['balance λ', `${lam.toFixed(2)}  (${lamState})`, lam < 0.2 ? RED : lam > 0.7 ? '#2ca02c' : '#bc6c25'],
-      ['aux loss  E·Σfₑ·Pₑ', `${aux.toFixed(3)}`, aux > 1.4 ? RED : aux > 1.12 ? '#bc6c25' : '#2ca02c'],
-      ['  (1.0 = uniform)', '', GREY],
-      ['load CV', `${cv.toFixed(3)}`, cv > 0.5 ? RED : '#3a4047'],
-      ['starved experts', `${starved.length} / ${E}`, starved.length ? RED : '#2ca02c'],
-      ['dropped tokens', `${drops}`, drops ? RED : '#2ca02c'],
+      ['balance λ', `${lam.toFixed(2)}  (${lamState})`, lam < 0.2 ? T.bad : lam > 0.7 ? T.ok : T.warn],
+      ['aux loss  E·Σfₑ·Pₑ', `${aux.toFixed(3)}`, aux > 1.4 ? T.bad : aux > 1.12 ? T.warn : T.ok],
+      ['  (1.0 = uniform)', '', T.n9],
+      ['load CV', `${cv.toFixed(3)}`, cv > 0.5 ? T.bad : T.n12],
+      ['starved experts', `${starved.length} / ${E}`, starved.length ? T.bad : T.ok],
+      ['dropped tokens', `${drops}`, drops ? T.bad : T.ok],
     ];
     ctx.save(); ctx.textAlign = 'left';
     for (let i = 0; i < lines.length; i++) {
       const [k, v, col] = lines[i];
-      r.label(k, px, py + i * 22, { color: '#586069', font: '11px ui-monospace, monospace' });
+      r.label(k, px, py + i * 22, { color: T.n11, font: '11px ui-monospace, monospace' });
       r.label(v, px + 4, py + i * 22 + 11, { color: col, font: '12px ui-monospace, monospace' });
     }
     ctx.restore();

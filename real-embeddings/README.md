@@ -1,4 +1,4 @@
-# real-embeddings -- a trained model's semantic geometry
+# real-embeddings -- a trained model's semantic geometry (Phase 9)
 
 > **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + network for the real model: `python3 -m http.server 8099`
 
@@ -7,7 +7,8 @@ The synthetic page shows the *mechanism* (a token id is a row lookup in a seeded
 table `E[V×D]`); this page shows the numbers are **real** by fetching a small
 trained sentence-embedding model and running it in your browser on the words you
 type. **Anchor**: A1 token embedding (same attribute as the synthetic sibling).
-First increment of **real-model grounding**.
+First increment of **Phase 9 — real-model grounding** (see
+`../plan/phase9.md`).
 
 ## What it shows
 
@@ -23,21 +24,22 @@ You type a list of words. Each becomes a unit vector from
   close: `king·queen·prince`, `paris·tokyo·berlin`, `cat·dog·horse` form visible
   clusters with **no demo trickery** — that structure is in the trained weights.
 
-The point: every other page runs *real math on synthetic
+The point of Phase 9: every page through Phase 8 runs *real math on synthetic
 weights*; here both the math **and** the weights are real.
 
 ## Real model, fetched at runtime (no build, no committed weights)
 
 The model is loaded via [transformers.js] as a CDN ES module and cached by the
-browser on first open — same no-build ethos as every other page, and nothing
-heavy enters git (per the viz CLAUDE.md "fetch them at runtime"
-rule). A banner shows the state: `downloading… NN%` → `running…` →
-`● real model`.
+browser — same no-build ethos as every other page, and nothing heavy enters git
+(per the viz CLAUDE.md "fetch them at runtime" rule). **The page
+does NOT auto-download** (large-model consent rule): it opens on the synthetic
+stand-in and fetches the real model only when you click **"load real model"**
+(or pass `?autoload=1`). A banner shows the state: `downloading… NN%` →
+`running…` → `● real model`.
 
-**Offline / no network** (`file://` with no fetch, CDN blocked): the page never
-goes blank — it renders a clearly-labelled **synthetic stand-in** (the default
-clusters are hand-seeded so it still teaches) and swaps in the real vectors the
-moment the model finishes downloading.
+**Before you load (or offline / no network):** the page renders a clearly-
+labelled **synthetic stand-in** (the default clusters are hand-seeded so it still
+teaches) and swaps in the real vectors once you load the model.
 
 [transformers.js]: https://github.com/huggingface/transformers.js
 

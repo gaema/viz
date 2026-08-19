@@ -1,4 +1,4 @@
-// real-attention concept page.
+// real-attention concept page — Phase 9 (real-model grounding).
 //
 // REAL GPT-2 attention. transformers.js can't emit attentions (the ONNX export
 // drops them — Optimum #325), so gpt2.js fetches the raw safetensors and runs a
@@ -12,13 +12,14 @@
 //   - attention-sink head: dumps attention on token 0 as a no-op.
 //
 // The synthetic `attention-patterns` page shows IDEALIZED versions of these
-// shapes; this page shows the real model's. Breadcrumbs to ../design/
-// architectures.md A2 (attention).
+// shapes; this page shows the real model's. Breadcrumbs to the shape taxonomy,
+// attribute A2 (attention).
 //
 // Offline / no network: renders a clearly-labelled IDEALIZED synthetic stand-in
 // (the same three head shapes, hand-built) on the default sentence, and swaps in
 // the real model once the ~548 MB weights download. ?real=0 forces synthetic.
 import { mount } from '../framework/layout.js';
+import { T, rgbOf } from '../framework/theme.js';
 import { loadGPT2, GPT2_CONFIG } from './gpt2.js';
 import { getWebGPU, GPT2WebGPU } from './gpt2-webgpu.js';
 
@@ -34,8 +35,8 @@ const DEFAULT_IDS = [1169, 3797, 3332, 319, 262, 2603, 764, 262, 3797, 4966];
 const DEFAULT_TOKENS = ['the', ' cat', ' sat', ' on', ' the', ' mat', ' .', ' the', ' cat', ' ran'];
 // literature head locations (used to seed the synthetic idealized stand-in).
 const PREV = [4, 11], SINK = [7, 2], IND = [5, 5];
-const CAT = { prev: { c: '#1f6feb', label: 'previous-token' }, sink: { c: '#9a6700', label: 'attention-sink' }, induction: { c: '#0a7227', label: 'induction' }, none: { c: '#c8ccd1', label: '—' } };
-const GREEN = '#0a7227', AMBER = '#9a6700';
+// A thunk, not a captured object: T is mutated in place on a theme change.
+const CAT = () => ({ prev: { c: T.accent, label: 'previous-token' }, sink: { c: T.goldDeep, label: 'attention-sink' }, induction: { c: T.okDeep, label: 'induction' }, none: { c: T.n7, label: '—' } });
 
 let M = { status: 'init', progress: 0, source: 'synthetic', ids: DEFAULT_IDS, tokens: DEFAULT_TOKENS, att: null, scores: null, sel: [0, 0], model: 'gpt2', err: '', backend: 'cpu', gpuAvail: false, gpuCheck: null, times: {} };
 let tokenizer = null, gpt2 = null, gpu = null, webgpu = null, loadStarted = false, injected = null;
@@ -153,13 +154,15 @@ async function reanalyze(page, text) {
 }
 
 const td = (s) => (s || '').replace(/^ /, '·').replace(/\n/g, '⏎').slice(0, 7) || '∅';
-const lerpCol = (a, t) => { const r = Math.round(255 + (31 - 255) * t), g = Math.round(255 + (111 - 255) * t), b = Math.round(255 + (235 - 255) * t); return `rgb(${r},${g},${b})`; };  // white→blue
+// ground→accent, not white→blue: on a dark theme a white zero-weight cell is
+// the brightest thing on screen and the attention pattern disappears under it.
+const lerpCol = (a, t) => { const g0 = rgbOf(T.n0), c1 = rgbOf(T.accent); const c = g0.map((v, i) => Math.round(v + (c1[i] - v) * t)); return `rgb(${c[0]},${c[1]},${c[2]})`; };
 
 mount({
   mount: 'body',
   slug: 'real-attention',
   title: 'real attention — finding GPT-2’s heads',
-  blurb: 'The synthetic attention pages show idealized head shapes on seeded numbers; this page runs a REAL GPT-2 in your browser — we fetch the raw weights and run a verified forward in vanilla JS (transformers.js can’t emit attentions), capturing softmax(QKᵀ/√d) at every layer/head. Type a sentence; the 12×12 head-map colours each head by what it does. Hunt for the previous-token head (sub-diagonal), the induction head (attends to what followed a repeated token last time — the in-context-learning trick), and the attention-sink head (dumps on token 0). Offline it shows a labelled idealized stand-in; the real model needs a ~548 MB one-time download.',
+  blurb: 'Phase 9 (real-model grounding). The synthetic attention pages show idealized head shapes on seeded numbers; this page runs a REAL GPT-2 in your browser — we fetch the raw weights and run a verified forward in vanilla JS (transformers.js can’t emit attentions), capturing softmax(QKᵀ/√d) at every layer/head. Type a sentence; the 12×12 head-map colours each head by what it does. Hunt for the previous-token head (sub-diagonal), the induction head (attends to what followed a repeated token last time — the in-context-learning trick), and the attention-sink head (dumps on token 0). Offline it shows a labelled idealized stand-in; the real model needs a ~548 MB one-time download.',
   prefer: 'canvas2d',
   aspect: '16 / 9',
   controls: (c, page) => {
@@ -182,7 +185,7 @@ mount({
   },
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     // sync selection from steppers (so keyboard/url changes move it too)
     if (st.layer != null && st.head != null && (st.layer !== M.sel[0] || st.head !== M.sel[1])) M.sel = [st.layer | 0, Math.min(CFG.nHead - 1, st.head | 0)];
     const [sl, sh] = M.sel, n = M.ids.length;
@@ -191,18 +194,18 @@ mount({
 
     // banner
     const ban = (() => {
-      if (M.status === 'loading-tok') return { t: '↓ loading tokenizer…', c: AMBER };
-      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB, one time)`, c: AMBER };
-      if (M.status === 'running') return { t: '⟳ running GPT-2…', c: AMBER };
+      if (M.status === 'loading-tok') return { t: '↓ loading tokenizer…', c: T.goldDeep };
+      if (M.status === 'loading-weights') return { t: `↓ downloading GPT-2 weights… ${(M.progress * 100 | 0)}% (~548 MB, one time)`, c: T.goldDeep };
+      if (M.status === 'running') return { t: '⟳ running GPT-2…', c: T.goldDeep };
       if (M.source === 'real') {
         const be = M.backend === 'gpu' ? 'WebGPU compute' : 'CPU compute';
         const mism = M.gpuCheck && !M.gpuCheck.ok;
         const chk = M.gpuCheck ? `  ${mism ? '⚠ GPU≠CPU → using CPU' : '✓ GPU=CPU'} (max|Δ|=${M.gpuCheck.maxDiff.toExponential(1)})` : (M.gpuAvail ? '' : '  (WebGPU n/a → CPU)');
         const tm = (M.times.gpu && M.times.cpu) ? `  ·  GPU ${M.times.gpu | 0}ms vs CPU ${M.times.cpu | 0}ms` : '';
-        return { t: `● real GPT-2 (124M) — ${be}${chk}${tm}`, c: mism ? AMBER : GREEN };
+        return { t: `● real GPT-2 (124M) — ${be}${chk}${tm}`, c: mism ? T.goldDeep : T.okDeep };
       }
-      if (M.status === 'offline') return { t: '○ offline — idealized synthetic stand-in (click “load real GPT-2”)', c: AMBER };
-      return { t: '○ idealized synthetic stand-in — click “load real GPT-2” for true attention', c: '#586069' };
+      if (M.status === 'offline') return { t: '○ offline — idealized synthetic stand-in (click “load real GPT-2”)', c: T.goldDeep };
+      return { t: '○ idealized synthetic stand-in — click “load real GPT-2” for true attention', c: T.n11 };
     })();
     ctx.save(); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = ban.c; ctx.fillText(ban.t, 14, 9); ctx.restore();
     if (!M.att) { page.setReadout('loading…'); return; }
@@ -215,15 +218,15 @@ mount({
     const cell = Math.max(8, avail / n);
     heatRect = { x: pad + lblW, y: gridTop, w: cell * n, h: cell * n };
     const catSel = sc ? sc.cat : 'none';
-    r.label(`layer ${sl} · head ${sh}`, heatRect.x, topY + 4, { color: '#24292e', font: '12px ui-monospace, monospace' });
-    ctx.save(); ctx.font = '11px ui-monospace, monospace'; ctx.fillStyle = CAT[catSel].c; ctx.fillText(catSel !== 'none' ? `  ← ${CAT[catSel].label} head` : '', heatRect.x + 96, topY + 4); ctx.restore();
+    r.label(`layer ${sl} · head ${sh}`, heatRect.x, topY + 4, { color: T.n13, font: '12px ui-monospace, monospace' });
+    ctx.save(); ctx.font = '11px ui-monospace, monospace'; ctx.fillStyle = CAT()[catSel].c; ctx.fillText(catSel !== 'none' ? `  ← ${CAT()[catSel].label} head` : '', heatRect.x + 96, topY + 4); ctx.restore();
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
       const x = heatRect.x + j * cell, y = heatRect.y + i * cell;
-      if (j > i) { ctx.fillStyle = '#f3f4f6'; ctx.fillRect(x, y, cell - 1, cell - 1); continue; }   // causal mask
+      if (j > i) { ctx.fillStyle = T.n2; ctx.fillRect(x, y, cell - 1, cell - 1); continue; }   // causal mask
       ctx.fillStyle = lerpCol(0, Math.min(1, A[i * n + j])); ctx.fillRect(x, y, cell - 1, cell - 1);
     }
     // token labels (query rows on the left, key cols on top)
-    ctx.save(); ctx.font = `${Math.min(11, cell - 1)}px ui-monospace, monospace`; ctx.fillStyle = '#586069';
+    ctx.save(); ctx.font = `${Math.min(11, cell - 1)}px ui-monospace, monospace`; ctx.fillStyle = T.n11;
     ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     for (let i = 0; i < n; i++) ctx.fillText(td(M.tokens[i]), heatRect.x - 4, heatRect.y + i * cell + cell / 2);
     ctx.textAlign = 'left'; ctx.translate(0, 0);
@@ -235,22 +238,22 @@ mount({
     const hx = heatRect.x + heatRect.w + 70;
     const hmCell = Math.max(10, Math.min(22, Math.min((page.W - pad - hx) / H, (page.H - gridTop - 70) / L)));
     hmRect = { x: hx, y: gridTop, w: hmCell * H, h: hmCell * L };
-    r.label('head-map — every head, colored by role (click to select)', hx, topY + 4, { color: '#586069', font: '11px ui-monospace, monospace' });
+    r.label('head-map — every head, colored by role (click to select)', hx, topY + 4, { color: T.n11, font: '11px ui-monospace, monospace' });
     for (let l = 0; l < L; l++) for (let h = 0; h < H; h++) {
       const s = M.scores[l][h], x = hx + h * hmCell, y = gridTop + l * hmCell;
       const inten = s.cat === 'none' ? 0.12 : Math.min(1, s.cat === 'prev' ? s.prev : s.cat === 'sink' ? s.sink : s.induction);
-      ctx.fillStyle = s.cat === 'none' ? '#eef0f2' : CAT[s.cat].c; ctx.globalAlpha = s.cat === 'none' ? 1 : 0.25 + 0.75 * inten;
+      ctx.fillStyle = s.cat === 'none' ? T.n3 : CAT()[s.cat].c; ctx.globalAlpha = s.cat === 'none' ? 1 : 0.25 + 0.75 * inten;
       ctx.fillRect(x, y, hmCell - 1.5, hmCell - 1.5); ctx.globalAlpha = 1;
     }
     // selected ring
-    ctx.save(); ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(hx + sh * hmCell - 1, gridTop + sl * hmCell - 1, hmCell, hmCell); ctx.restore();
+    ctx.save(); ctx.strokeStyle = T.n14; ctx.lineWidth = 2; ctx.strokeRect(hx + sh * hmCell - 1, gridTop + sl * hmCell - 1, hmCell, hmCell); ctx.restore();
     // axes
-    ctx.save(); ctx.font = '9px ui-monospace, monospace'; ctx.fillStyle = '#9aa4ad'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.save(); ctx.font = '9px ui-monospace, monospace'; ctx.fillStyle = T.n9; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     for (let l = 0; l < L; l++) ctx.fillText('L' + l, hx - 3, gridTop + l * hmCell + hmCell / 2);
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('heads 0→11 →', hx + hmRect.w / 2, gridTop - 16); ctx.restore();
     // legend
     let lx = hx, ly = gridTop + hmRect.h + 12; ctx.save(); ctx.font = '10px ui-monospace, monospace'; ctx.textBaseline = 'middle';
-    for (const k of ['prev', 'induction', 'sink']) { ctx.fillStyle = CAT[k].c; ctx.fillRect(lx, ly - 5, 10, 10); ctx.fillStyle = '#586069'; ctx.textAlign = 'left'; ctx.fillText(' ' + CAT[k].label, lx + 10, ly); lx += 11 + CAT[k].label.length * 6.2 + 14; }
+    for (const k of ['prev', 'induction', 'sink']) { ctx.fillStyle = CAT()[k].c; ctx.fillRect(lx, ly - 5, 10, 10); ctx.fillStyle = T.n11; ctx.textAlign = 'left'; ctx.fillText(' ' + CAT()[k].label, lx + 10, ly); lx += 11 + CAT()[k].label.length * 6.2 + 14; }
     ctx.restore();
 
     // hover on the attention heatmap
@@ -287,5 +290,5 @@ mount({
   runSynthetic(ids, tokens, 'init');
   if (q.has('hover')) { const [hx, hy] = q.get('hover').split(',').map(Number); page.pointer.x = hx; page.pointer.y = hy; page.pointer.over = true; }
   page.redraw();
-  if (q.get('real') !== '0') ensureReal(page);
+  if (q.get('real') === '1' || q.get('autoload') === '1') ensureReal(page);   // large download: opt-in only
 });

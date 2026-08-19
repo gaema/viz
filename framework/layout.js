@@ -1,5 +1,5 @@
-// layout.js -- page chrome + orchestrator for viz concept pages.
-// Design: plan/framework.md.
+// layout.js -- page chrome + orchestrator for ai/models/viz concept pages.
+// Design: the shared render framework's contract.
 //
 // Builds the standard shell:
 //   +----------------------------------------------+
@@ -19,7 +19,7 @@
 //   const page = await mount({
 //     title, blurb, prefer: 'webgl2',
 //     controls: (c, page) => { c.stepper('n', {...}); c.transport({ compute: () => ... }); },
-//     draw: (page) => { page.renderer.clear('#fff'); ...; page.setReadout('...'); },
+//     draw: (page) => { page.renderer.clear(T.n0); ...; page.setReadout('...'); },
 //   });
 //
 // The draw callback receives `page`:
@@ -32,71 +32,78 @@
 import { Renderer } from './render.js';
 import { Controls } from './controls.js';
 import { currentSlug, neighbours } from './order.js';
+import { T, themeSwitch, onThemeChange, alphaOf } from './theme.js';
 
 const STYLE_ID = 'vz-style';
 const CSS = `
-.vz-page{font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1a1d21;max-width:1100px;margin:0 auto;padding:16px}
+:root{color-scheme:light}
+html,body{background:var(--vz-n0);margin:0}
+.vz-page{font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--vz-n14);max-width:1100px;margin:0 auto;padding:16px}
+.vz-theme{display:inline-flex;border:1px solid var(--vz-n6);border-radius:6px;overflow:hidden}
+.vz-theme-btn{font:12px ui-monospace,monospace;line-height:1.5;border:0;background:var(--vz-n0);color:var(--vz-n11);padding:2px 7px;cursor:pointer}
+.vz-theme-btn+.vz-theme-btn{border-left:1px solid var(--vz-n6)}
+.vz-theme-btn[aria-pressed="true"]{background:var(--vz-accent);color:var(--vz-n0)}
 .vz-nav{display:flex;align-items:center;gap:10px;font:12px ui-monospace,monospace;margin-bottom:10px;flex-wrap:wrap}
-.vz-nav a{color:#1f6feb;text-decoration:none;border:1px solid #d7e3f4;background:#f3f8ff;border-radius:6px;padding:2px 9px;white-space:nowrap}
-.vz-nav a:hover{background:#e3efff;border-color:#9ec3f0}
+.vz-nav a{color:var(--vz-accent);text-decoration:none;border:1px solid var(--vz-accentBg);background:var(--vz-accentBg);border-radius:6px;padding:2px 9px;white-space:nowrap}
+.vz-nav a:hover{background:var(--vz-accentBg);border-color:var(--vz-accentLine)}
 .vz-nav .vz-nav-home{font-weight:600}
-.vz-nav .vz-nav-pos{color:#8a939b}
-.vz-nav .vz-nav-fam{color:#586069;background:#f0f2f5;border:1px solid #dfe3e8;border-radius:6px;padding:1px 7px}
+.vz-nav .vz-nav-pos{color:var(--vz-n10)}
+.vz-nav .vz-nav-fam{color:var(--vz-n11);background:var(--vz-n2);border:1px solid var(--vz-n4);border-radius:6px;padding:1px 7px}
 .vz-nav .vz-nav-sp{flex:1 1 auto}
-.vz-nav .vz-nav-copy{cursor:pointer;color:#24292e;background:#fff;border:1px solid #d0d7de}
-.vz-nav .vz-nav-copy:hover{background:#f3f4f6}
-.vz-nav .vz-nav-dim{color:#b8bec4;border-color:#ececec;background:#fafbfc;cursor:default}
-.vz-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid #e3e6ea;padding-bottom:8px}
+.vz-nav .vz-nav-copy{cursor:pointer;color:var(--vz-n13);background:var(--vz-n0);border:1px solid var(--vz-n6)}
+.vz-nav .vz-nav-copy:hover{background:var(--vz-n2)}
+.vz-nav .vz-nav-dim{color:var(--vz-n8);border-color:var(--vz-n3);background:var(--vz-n1);cursor:default}
+.vz-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--vz-n4);padding-bottom:8px}
 .vz-head h1{font-size:20px;margin:0;font-weight:650}
-.vz-badge{font:12px ui-monospace,monospace;color:#586069;background:#f0f2f5;border:1px solid #dfe3e8;border-radius:6px;padding:2px 8px;white-space:nowrap}
-.vz-blurb{color:#3a4047;margin:10px 0 14px}
+.vz-badge{font:12px ui-monospace,monospace;color:var(--vz-n11);background:var(--vz-n2);border:1px solid var(--vz-n4);border-radius:6px;padding:2px 8px;white-space:nowrap}
+.vz-blurb{color:var(--vz-n12);margin:10px 0 14px}
 .vz-body{display:flex;gap:16px;align-items:flex-start}
 .vz-controls{flex:0 0 230px;display:flex;flex-direction:column;gap:10px}
-.vz-stage{flex:1 1 auto;min-width:0;background:#fafbfc;border:1px solid #e3e6ea;border-radius:8px;padding:8px}
+.vz-stage{flex:1 1 auto;min-width:0;background:var(--vz-n1);border:1px solid var(--vz-n4);border-radius:8px;padding:8px}
 .vz-stage canvas{width:100%;height:auto;display:block;border-radius:4px;touch-action:none}
 .vz-cmp-row{display:flex;flex-direction:column;gap:14px;width:100%}
 .vz-cmp-pane{width:100%}
 .vz-cmp-row:not(.on) .vz-cmp-b{display:none}
 .vz-cmp-cap{display:none;font:12px ui-monospace,monospace;font-weight:600;margin-bottom:5px;padding:2px 9px;border-radius:5px;text-align:center}
 .vz-cmp-row.on .vz-cmp-cap{display:block}
-.vz-cmp-cap-a{color:#1f6feb;background:#eef3ff;border:1px solid #d4e1ff}
-.vz-cmp-cap-b{color:#d2691e;background:#fff3e9;border:1px solid #f0ddc9}
-.vz-readout{margin-top:12px;font:12.5px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:#24292e;background:#f6f8fa;border:1px solid #e3e6ea;border-radius:8px;padding:10px 12px;white-space:pre-wrap;min-height:1.45em}
-.vz-challenge{margin-top:10px;border:1px solid #e9ddcb;border-radius:8px;overflow:hidden;font-size:13px}
-.vz-ch-head{display:flex;align-items:center;gap:8px;padding:7px 11px;cursor:pointer;background:#fff7ed;color:#9a5b1a;font-weight:600;user-select:none}
-.vz-ch-head .vz-ch-ar{margin-left:auto;color:#b8763a;font-size:11px;font-weight:400}
-.vz-ch-body{padding:9px 12px;display:none;background:#fffdfa;border-top:1px solid #f0e3d4}
+.vz-cmp-cap-a{color:var(--vz-accent);background:var(--vz-accentBg);border:1px solid var(--vz-accentBg)}
+.vz-cmp-cap-b{color:var(--vz-warn);background:var(--vz-warnBg);border:1px solid var(--vz-warnLine)}
+.vz-readout{margin-top:12px;font:12.5px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--vz-n13);background:var(--vz-n1);border:1px solid var(--vz-n4);border-radius:8px;padding:10px 12px;white-space:pre-wrap;min-height:1.45em}
+.vz-challenge{margin-top:10px;border:1px solid var(--vz-goldLine);border-radius:8px;overflow:hidden;font-size:13px}
+.vz-ch-head{display:flex;align-items:center;gap:8px;padding:7px 11px;cursor:pointer;background:var(--vz-goldBg);color:var(--vz-warnDeep);font-weight:600;user-select:none}
+.vz-ch-head .vz-ch-ar{margin-left:auto;color:var(--vz-warn);font-size:11px;font-weight:400}
+.vz-ch-body{padding:9px 12px;display:none;background:var(--vz-n0);border-top:1px solid var(--vz-warnBg)}
 .vz-challenge.open .vz-ch-body{display:block}
-.vz-ch-goal{color:#24292e;margin-bottom:6px}
+.vz-ch-goal{color:var(--vz-n13);margin-bottom:6px}
 .vz-ch-status{font:12px ui-monospace,monospace;font-weight:600}
-.vz-ch-ok{color:#2ca02c}
-.vz-ch-no{color:#d1242f}
-.vz-ch-hint{color:#9a8b73;font-size:12px;margin-top:5px}
-.vz-ch-next{margin-top:8px;font:12px system-ui;cursor:pointer;background:#fff;border:1px solid #e0d3c2;border-radius:6px;padding:3px 10px;color:#9a5b1a}
-.vz-ch-next:hover{background:#fff3e3}
+.vz-ch-ok{color:var(--vz-ok)}
+.vz-ch-no{color:var(--vz-bad)}
+.vz-ch-hint{color:var(--vz-gold);font-size:12px;margin-top:5px}
+.vz-ch-next{margin-top:8px;font:12px system-ui;cursor:pointer;background:var(--vz-n0);border:1px solid var(--vz-goldLine);border-radius:6px;padding:3px 10px;color:var(--vz-warnDeep)}
+.vz-ch-next:hover{background:var(--vz-goldBg)}
 .vz-ctl{display:flex;flex-direction:column;gap:3px}
-.vz-ctl-label{font-size:12px;color:#586069;font-weight:550}
+.vz-ctl-label{font-size:12px;color:var(--vz-n11);font-weight:550}
 .vz-slider{display:flex;align-items:center;gap:8px}
 .vz-range{flex:1 1 auto;width:100%}
-.vz-val{font:12px ui-monospace,monospace;color:#24292e;min-width:34px;text-align:right}
-.vz-num{border:1px solid transparent;background:transparent;border-radius:4px;padding:0 3px;cursor:text;font:12px ui-monospace,monospace;color:#24292e;box-sizing:border-box}
-.vz-num:hover{border-color:#d7dde3;background:#fff}
-.vz-num:focus{outline:none;border-color:#1f6feb;background:#fff;box-shadow:0 0 0 2px rgba(31,111,235,.15)}
+.vz-val{font:12px ui-monospace,monospace;color:var(--vz-n13);min-width:34px;text-align:right}
+.vz-num{border:1px solid transparent;background:transparent;border-radius:4px;padding:0 3px;cursor:text;font:12px ui-monospace,monospace;color:var(--vz-n13);box-sizing:border-box}
+.vz-num:hover{border-color:var(--vz-n5);background:var(--vz-n0)}
+.vz-num:focus{outline:none;border-color:var(--vz-accent);background:var(--vz-n0);box-shadow:0 0 0 2px rgba(31,111,235,.15)}
 .vz-num-r{width:48px;text-align:right}
 .vz-num-c{width:42px;text-align:center}
 .vz-select,.vz-check{font:13px system-ui,sans-serif}
-.vz-text{width:100%;box-sizing:border-box;font:13px ui-monospace,SFMono-Regular,Menlo,monospace;padding:5px 8px;border:1px solid #d0d7de;border-radius:6px;color:#24292e}
-.vz-text:focus{outline:none;border-color:#1f6feb;box-shadow:0 0 0 2px rgba(31,111,235,0.18)}
+.vz-text{width:100%;box-sizing:border-box;font:13px ui-monospace,SFMono-Regular,Menlo,monospace;padding:5px 8px;border:1px solid var(--vz-n6);border-radius:6px;color:var(--vz-n13)}
+.vz-text:focus{outline:none;border-color:var(--vz-accent);box-shadow:0 0 0 2px rgba(31,111,235,0.18)}
 .vz-stepper{display:flex;align-items:center;gap:6px}
 .vz-stepper .vz-val{min-width:28px;text-align:center}
-.vz-btn{font:13px system-ui,sans-serif;cursor:pointer;background:#fff;border:1px solid #d0d7de;border-radius:6px;padding:2px 9px;color:#24292e;line-height:1.6}
-.vz-btn:hover{background:#f3f4f6}
-.vz-btn:active{background:#e9ebee}
+.vz-btn{font:13px system-ui,sans-serif;cursor:pointer;background:var(--vz-n0);border:1px solid var(--vz-n6);border-radius:6px;padding:2px 9px;color:var(--vz-n13);line-height:1.6}
+.vz-btn:hover{background:var(--vz-n2)}
+.vz-btn:active{background:var(--vz-n3)}
 .vz-btn-wide{width:100%;padding:5px}
-.vz-transport{display:flex;flex-direction:column;gap:6px;margin-top:4px;padding-top:10px;border-top:1px solid #e3e6ea}
+.vz-transport{display:flex;flex-direction:column;gap:6px;margin-top:4px;padding-top:10px;border-top:1px solid var(--vz-n4)}
 .vz-transport-row{display:flex;gap:4px}
 .vz-transport-row .vz-btn{flex:1 1 auto;padding:3px 0}
-.vz-step-label{font:11.5px ui-monospace,monospace;color:#586069;min-height:1.4em;word-break:break-word}
+.vz-step-label{font:11.5px ui-monospace,monospace;color:var(--vz-n11);min-height:1.4em;word-break:break-word}
 @media(max-width:760px){.vz-body{flex-direction:column}.vz-controls{flex-basis:auto;width:100%}}
 `;
 
@@ -136,13 +143,14 @@ export async function mount(opts = {}) {
   const nav = document.createElement('div'); nav.className = 'vz-nav';
   const mkLink = (href, text, cls) => { const a = document.createElement('a'); a.href = href; a.textContent = text; if (cls) a.className = cls; return a; };
   const mkDim = (text) => { const s = document.createElement('span'); s.className = 'vz-nav-copy vz-nav-dim'; s.textContent = text; return s; };
-  nav.append(mkLink('../index.html', '← all demos', 'vz-nav-home'));
+  nav.append(mkLink('../catalogue.html', '← all demos', 'vz-nav-home'));
   nav.append(nb.prev ? mkLink('../' + nb.prev.slug + '/index.html', '‹ ' + nb.prev.slug) : mkDim('‹ start'));
   nav.append(nb.next ? mkLink('../' + nb.next.slug + '/index.html', nb.next.slug + ' ›') : mkDim('end ›'));
   if (nb.index >= 0) { const pos = document.createElement('span'); pos.className = 'vz-nav-pos'; pos.textContent = `${nb.index + 1} / ${nb.total}`; nav.append(pos); const fam = document.createElement('span'); fam.className = 'vz-nav-fam'; fam.textContent = 'Family ' + nb.family; nav.append(fam); }
   const spacer = document.createElement('span'); spacer.className = 'vz-nav-sp'; nav.append(spacer);
-  const copyBtn = document.createElement('span'); copyBtn.className = 'vz-nav-copy'; copyBtn.style.cursor = 'pointer'; copyBtn.style.border = '1px solid #d0d7de'; copyBtn.style.borderRadius = '6px'; copyBtn.style.padding = '2px 9px'; copyBtn.style.background = '#fff'; copyBtn.textContent = '\u{1F517} copy link';
+  const copyBtn = document.createElement('span'); copyBtn.className = 'vz-nav-copy'; copyBtn.style.cursor = 'pointer'; copyBtn.style.borderRadius = '6px'; copyBtn.style.padding = '2px 9px'; copyBtn.textContent = '\u{1F517} copy link';
   copyBtn.addEventListener('click', () => { try { navigator.clipboard.writeText(location.href); const o = copyBtn.textContent; copyBtn.textContent = '✓ copied'; setTimeout(() => { copyBtn.textContent = o; }, 1200); } catch (_) {} });
+  nav.append(themeSwitch(document));
   nav.append(copyBtn);
 
   const page = document.createElement('div'); page.className = 'vz-page';
@@ -158,7 +166,7 @@ export async function mount(opts = {}) {
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
     if (e.key === 'ArrowLeft' && nb.prev) location.href = '../' + nb.prev.slug + '/index.html';
     else if (e.key === 'ArrowRight' && nb.next) location.href = '../' + nb.next.slug + '/index.html';
-    else if (e.key === '/') { e.preventDefault(); location.href = '../index.html'; }
+    else if (e.key === '/') { e.preventDefault(); location.href = '../catalogue.html'; }
   });
 
   // Give the canvas a CSS size before the renderer reads its box (DPR sizing).
@@ -196,7 +204,7 @@ export async function mount(opts = {}) {
   const controls = new Controls(panel, { onChange: () => { api.redraw(); syncURL(); } });
   api.controls = controls;
 
-  // A/B compare: render the page twice, side by side, with ONE
+  // A/B compare (Phase 8): render the page twice, side by side, with ONE
   // parameter set to two values. opts.compare = { key, a, b } overrides a state
   // key; { stepA, stepB } (numbers or 'first'/'last') overrides the transport
   // index. labelA/labelB caption each pane. A "⇄ A/B compare" nav button toggles.
@@ -219,13 +227,13 @@ export async function mount(opts = {}) {
     canvasB.addEventListener('pointerdown', (e) => { try { canvasB.setPointerCapture(e.pointerId); } catch (_) {} ptr(e, 'down', canvasB, rendererB); });
     canvasB.addEventListener('pointerup', (e) => ptr(e, 'up', canvasB, rendererB));
     canvasB.addEventListener('pointerleave', (e) => ptr(e, 'leave', canvasB, rendererB));
-    cmpBtn = document.createElement('span'); cmpBtn.className = 'vz-nav-copy'; cmpBtn.style.cssText = 'cursor:pointer;border:1px solid #d0d7de;border-radius:6px;padding:2px 9px;background:#fff';
+    cmpBtn = document.createElement('span'); cmpBtn.className = 'vz-nav-copy'; cmpBtn.style.cssText = 'cursor:pointer;border-radius:6px;padding:2px 9px';
     cmpBtn.textContent = '⇄ A/B compare';
-    cmpBtn.addEventListener('click', () => { compareOn = !compareOn; cmpRow.classList.toggle('on', compareOn); cmpBtn.textContent = compareOn ? '⇄ comparing A·B' : '⇄ A/B compare'; cmpBtn.style.background = compareOn ? '#eef3ff' : '#fff'; if (compareOn && controls._transport) { const tr = controls._transport; tr.pause(); if (tr.steps && tr.steps.length) tr.seek(tr.steps.length - 1); } else if (!compareOn && cmp.rebuild && controls._transport) { controls._transport.rebuild(); } api.redraw(); });
+    cmpBtn.addEventListener('click', () => { compareOn = !compareOn; cmpRow.classList.toggle('on', compareOn); cmpBtn.textContent = compareOn ? '⇄ comparing A·B' : '⇄ A/B compare'; cmpBtn.style.background = compareOn ? T.accentBg : T.n0; if (compareOn && controls._transport) { const tr = controls._transport; tr.pause(); if (tr.steps && tr.steps.length) tr.seek(tr.steps.length - 1); } else if (!compareOn && cmp.rebuild && controls._transport) { controls._transport.rebuild(); } api.redraw(); });
     nav.insertBefore(cmpBtn, copyBtn);
   }
 
-  // Challenge mode: optional goals with a live pass/fail check. A page
+  // Challenge mode (Phase 8): optional goals with a live pass/fail check. A page
   // declares mount({ challenges: [{goal, check, hint}] }); check(api) reads
   // api.state + api.probe (set by draw) and returns {solved, detail}. The card
   // toggles open; chEval runs after each draw.
@@ -324,6 +332,10 @@ export async function mount(opts = {}) {
   if (cmpBtn && typeof location !== 'undefined' && new URLSearchParams(location.search).get('compare') === '1') cmpBtn.click();
 
   if (typeof window !== 'undefined') window.addEventListener('resize', () => api.redraw());
+  // A theme flip changes every colour the page paints, and canvas pixels do not
+  // restyle themselves the way the DOM chrome does -- so repaint on the switch
+  // (and on an OS change while in auto).
+  onThemeChange(() => api.redraw());
 
   // Ambient animation clock (dataflow motion): advance api.t + redraw each frame.
   if (opts.animate) {
@@ -352,10 +364,13 @@ function drawTip(api, text) {
   if (x + bw > api.W) x = p.x - bw - 12;
   if (y + bh > api.H) y = p.y - bh - 12;
   x = Math.max(2, x); y = Math.max(2, y);
-  ctx.fillStyle = 'rgba(17,19,23,0.92)'; ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1;
+  // The tooltip INVERTS: it is painted in the ink colour with ground-coloured
+  // text, so it stays a high-contrast bubble in both themes instead of a dark
+  // box sitting on an equally dark canvas.
+  ctx.fillStyle = alphaOf('n14', 0.93); ctx.strokeStyle = alphaOf('n0', 0.22); ctx.lineWidth = 1;
   if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, bw, bh, 5); ctx.fill(); ctx.stroke(); }
   else { ctx.fillRect(x, y, bw, bh); ctx.strokeRect(x, y, bw, bh); }
-  ctx.fillStyle = '#fff';
+  ctx.fillStyle = T.n0;
   for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x + padX, y + padY + i * lh);
   ctx.restore();
 }

@@ -7,7 +7,7 @@ experts -- router logits → softmax gate → top-k selection → per-expert loa
 capacity, and dropped tokens. **Anchor**: A6 MLP / MoE variant (the gated-MLP
 sublayer replaced by routed experts); Family D (see
 `../../design/emerging-architectures.md`
-MoE and).
+MoE and `../plan/curriculum.md`).
 
 ## What it shows
 

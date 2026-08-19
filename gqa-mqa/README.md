@@ -3,7 +3,8 @@
 > **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: how query heads share key/value heads, and why that shrinks
-the KV cache. **Anchor**: A2 head_dim layout / A4 KV cache (Family B4).
+the KV cache. **Anchor**: A2 head_dim layout / A4 KV cache (Family B4; see
+`../plan/curriculum.md`).
 
 ## What it shows
 

@@ -1,7 +1,7 @@
 // mlp-gated concept page -- SwiGLU/GeGLU gated FFN. Uses the verified framework:
 // layout.mount() + controls + a per-stage Transport.
 //
-// Interactive per the framework contract (plan/framework.md): drag any input (x)
+// Interactive per the shared render framework's contract: drag any input (x)
 // cell vertically and watch gate, up, gated (act(g)⊙up), and out all recompute
 // live -- the element-wise gating "aha"; hover any gate / up / gated cell for its
 // derivation (gate[j]=SiLU((xW_g)[j]); gated[j]=gate[j]·up[j]); the five stages
@@ -9,8 +9,10 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { seededRandn, silu, gelu } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', ORANGE = '#d2691e';
+
+
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 const fx = (v) => (v >= 0 ? ' ' : '') + v.toFixed(2);
 
@@ -93,7 +95,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { x, Wd, gate, up, D, I } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const actName = st.act === 'gelu' ? 'GELU' : 'SiLU', glu = st.act === 'gelu' ? 'GeGLU' : 'SwiGLU';
     const act = st.act === 'gelu' ? gelu(gate) : silu(gate);
     const hidden = new Float32Array(I); for (let i = 0; i < I; i++) hidden[i] = act[i] * up[i];
@@ -117,23 +119,23 @@ mount({
     for (let ri = 0; ri < rows.length; ri++) {
       const row = rows[ri], y = topY + ri * rowH, revealed = row.stage <= si, rect = { x: x0, y, w: row.cols * cell, h: cell };
       rowRects.push({ key: row.key, rect, cols: row.cols });
-      r.label(row.lab, pad, y + cell / 2 + 3, { color: ri === 0 || ri === 5 ? INK : '#586069', font: '11px ui-monospace, monospace' });
+      r.label(row.lab, pad, y + cell / 2 + 3, { color: ri === 0 || ri === 5 ? T.n14 : T.n11, font: '11px ui-monospace, monospace' });
       if (revealed) {
         r.heatmap(row.d, { rows: 1, cols: row.cols, rect, ramp: ramps.diverging, domain: [-maxAbs(row.d), maxAbs(row.d)] });
-        r.grid({ stroke: 'rgba(0,0,0,0.10)' });
+        r.grid({ stroke: alphaOf('n14', 0.10) });
         if (cell >= 22 && row.cols <= 16) {
           for (let i = 0; i < row.cols; i++) {
             const v = row.d[i];
-            r.cell(0, i, { stroke: false, label: v.toFixed(1), labelColor: Math.abs(v) > maxAbs(row.d) * 0.6 ? '#fff' : '#222', font: '9px ui-monospace, monospace' });
+            r.cell(0, i, { stroke: false, label: v.toFixed(1), labelColor: Math.abs(v) > maxAbs(row.d) * 0.6 ? T.n0 : T.n13, font: '9px ui-monospace, monospace' });
           }
         }
-      } else { ctx.save(); ctx.strokeStyle = '#e3e6ea'; ctx.setLineDash([4, 3]); ctx.strokeRect(rect.x, rect.y, rect.w, rect.h); ctx.restore(); }
-      if (hl.includes(ri)) { ctx.save(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.strokeRect(rect.x - 1, rect.y - 1, rect.w + 2, rect.h + 2); ctx.restore(); }
+      } else { ctx.save(); ctx.strokeStyle = T.n4; ctx.setLineDash([4, 3]); ctx.strokeRect(rect.x, rect.y, rect.w, rect.h); ctx.restore(); }
+      if (hl.includes(ri)) { ctx.save(); ctx.strokeStyle = T.n14; ctx.lineWidth = 2.5; ctx.strokeRect(rect.x - 1, rect.y - 1, rect.w + 2, rect.h + 2); ctx.restore(); }
     }
     // mark x as the draggable operand + the gate symbol
     const xRect = rowRects[0].rect;
-    r.label('↕ drag', xRect.x + xRect.w + 10, xRect.y + cell / 2 + 3, { color: BLUE, font: '10px ui-monospace, monospace' });
-    r.label('↘ two parallel projections of x, then gate ⊙', x0 + I * cell + 12, topY + rowH + cell, { color: '#9aa4ad', font: '10px ui-monospace, monospace' });
+    r.label('↕ drag', xRect.x + xRect.w + 10, xRect.y + cell / 2 + 3, { color: T.accent, font: '10px ui-monospace, monospace' });
+    r.label('↘ two parallel projections of x, then gate ⊙', x0 + I * cell + 12, topY + rowH + cell, { color: T.n9, font: '10px ui-monospace, monospace' });
 
     // Hover-to-inspect: gate/up/gated cell -> derivation; x/out cell -> value.
     if (page.pointer.over && !grab) {

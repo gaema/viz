@@ -4,7 +4,7 @@
 
 Interactive page: **Byte-Pair Encoding (BPE)** -- the step that turns text into the
 integer token IDs a model consumes, the step *before* [`embedding`](../embedding/README.md).
-**Anchor**: C (transformer block input). Family C ().
+**Anchor**: C (transformer block input). Family C (see `../plan/curriculum.md`).
 
 ## What it shows
 

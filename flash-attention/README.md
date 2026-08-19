@@ -5,7 +5,7 @@
 Interactive page: how FlashAttention computes exact attention without ever
 storing the full `N×N` score matrix, by streaming K/V in tiles and keeping a
 running ("online") softmax. **Anchor**: A3 attention pattern (Family B9, the
-T3 capstone).
+T3 capstone; see `../plan/curriculum.md`).
 
 ## What it shows
 

@@ -88,5 +88,34 @@ if (fix.greedy) {
   if (gmatch) console.log(`  ok  greedy generation: ${got.length} tokens match HF generate(do_sample=False)`);
 }
 
+// 6) KV cache (GPT2.cache): per-layer/head K & V match PyTorch past_key_values
+if (fix.kv) {
+  const c = model.cache(ids), D = c.layers[0].K.length / n, dh = fix.kv.head_dim;
+  const headMat = (buf, h) => { const m = []; for (let i = 0; i < n; i++) { const row = []; for (let cc = 0; cc < dh; cc++) row.push(buf[i * D + h * dh + cc]); m.push(row); } return m; };
+  let kvw = 0;
+  for (const [which, store] of [['K', fix.kv.K], ['V', fix.kv.V]]) for (const key in store) {
+    const [l, h] = key.split('_').map(Number), ref = store[key], got = headMat(c.layers[l][which], h);
+    for (let i = 0; i < n; i++) for (let cc = 0; cc < dh; cc++) kvw = Math.max(kvw, Math.abs(got[i][cc] - ref[i][cc]));
+  }
+  eq(kvw < 5e-3, `KV cache K/V vs PyTorch past_key_values max|Δ|=${kvw.toExponential(2)} (tol 5e-3)`);
+  if (kvw < 5e-3) console.log(`  ok  KV cache: per-layer/head K+V match PyTorch (max|Δ|=${kvw.toExponential(2)})`);
+}
+
+// 7) MLP activations (GPT2.mlp): last-token top-8 neurons per layer match PyTorch
+if (fix.mlp) {
+  const m = model.mlp(ids), dFF = fix.mlp.dFF;
+  eq(m.dFF === dFF, `dFF=${m.dFF} (expect ${dFF})`);
+  let okm = true, worstv = 0;
+  for (const ls in fix.mlp.top_last) {
+    const l = +ls, act = m.layers[l].subarray((n - 1) * dFF, n * dFF);
+    const idx = Array.from(act.keys()).sort((a, b) => act[b] - act[a]).slice(0, 8);
+    const refIds = fix.mlp.top_last[ls].map((t) => t[0]);
+    if (JSON.stringify(idx) !== JSON.stringify(refIds)) okm = false;
+    fix.mlp.top_last[ls].forEach((t) => { worstv = Math.max(worstv, Math.abs(act[t[0]] - t[1])); });
+  }
+  eq(okm && worstv < 5e-3, `MLP last-token top-8 neuron ids + values match PyTorch (worst val |Δ|=${worstv.toExponential(2)})`);
+  if (okm && worstv < 5e-3) console.log(`  ok  MLP activations: last-token top-8 neuron ids + values match PyTorch (L0/L5/L11)`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed (worst attn |Δ| = ${worst.toExponential(2)})`);
 process.exit(fail ? 1 : 0);

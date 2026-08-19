@@ -2,7 +2,7 @@
 // the past. Uses the verified framework: layout.mount() + controls + a
 // per-query-position Transport.
 //
-// Interactive per the framework contract (plan/framework.md): the decode
+// Interactive per the shared render framework's contract: the decode
 // position AUTO-PLAYS + LOOPS, sweeping down the query rows (the live animation
 // of generation advancing). Hover any mask cell for query i → key j: BLOCKED
 // (j>i, future token) or allowed (j≤i). DRAG the current-query handle down the
@@ -10,8 +10,10 @@
 // prefix) updates live, making the "only attend to the past" rule tactile.
 import { mount } from '../framework/layout.js';
 import { cellAt } from '../framework/render.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', RED = '#d6273a';
+
+
 const SENT = ['the', 'cat', 'sat', 'on', 'the', 'mat', 'by', 'noon'];
 
 let cur = null;
@@ -79,7 +81,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { N, toks } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const s = page.step();
     const qi = s ? s.i : N - 1;
     page.probe = { qi, N };
@@ -90,35 +92,35 @@ mount({
     gridRect = { x: gridX, y: gridY, w: N * cell, h: N * cell };  // capture for hit-testing
     gridCell = cell;
 
-    r.label('keys → (positions a query may read)', gridX, headerH - 14, { color: '#586069', font: '11px ui-monospace, monospace' });
+    r.label('keys → (positions a query may read)', gridX, headerH - 14, { color: T.n11, font: '11px ui-monospace, monospace' });
     ctx.save(); ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    for (let j = 0; j < N; j++) { ctx.fillStyle = j <= qi ? INK : '#c4ccd3'; ctx.fillText(toks[j], gridX + j * cell + cell / 2, gridY - 6); }
+    for (let j = 0; j < N; j++) { ctx.fillStyle = j <= qi ? T.n14 : T.n7; ctx.fillText(toks[j], gridX + j * cell + cell / 2, gridY - 6); }
     ctx.restore();
 
     // left query token labels
     ctx.save(); ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-    for (let i = 0; i < N; i++) { ctx.fillStyle = i === qi ? BLUE : '#586069'; ctx.font = (i === qi ? 'bold ' : '') + '11px ui-monospace, monospace'; ctx.fillText(toks[i], gridX - 8, gridY + i * cell + cell / 2); }
+    for (let i = 0; i < N; i++) { ctx.fillStyle = i === qi ? T.accent : T.n11; ctx.font = (i === qi ? 'bold ' : '') + '11px ui-monospace, monospace'; ctx.fillText(toks[i], gridX - 8, gridY + i * cell + cell / 2); }
     ctx.restore();
-    r.label('queries ↓', pad, gridY - 6, { color: '#586069', font: '11px ui-monospace, monospace' });
+    r.label('queries ↓', pad, gridY - 6, { color: T.n11, font: '11px ui-monospace, monospace' });
 
     // grid cells
     for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
       const x = gridX + j * cell, y = gridY + i * cell, allowed = j <= i;
-      ctx.fillStyle = allowed ? (i === qi ? BLUE : '#dbeafe') : 'rgba(55,60,68,0.82)';
+      ctx.fillStyle = allowed ? (i === qi ? T.accent : T.accentBg) : alphaOf(T.n12, 0.82);
       ctx.fillRect(x, y, cell - 1.5, cell - 1.5);
-      if (allowed && j === i) { ctx.fillStyle = i === qi ? '#fff' : '#7aa6e6'; ctx.beginPath(); ctx.arc(x + (cell - 1.5) / 2, y + (cell - 1.5) / 2, Math.max(2, cell * 0.09), 0, 7); ctx.fill(); }
+      if (allowed && j === i) { ctx.fillStyle = i === qi ? T.n0 : T.accent; ctx.beginPath(); ctx.arc(x + (cell - 1.5) / 2, y + (cell - 1.5) / 2, Math.max(2, cell * 0.09), 0, 7); ctx.fill(); }
     }
     // current row outline + the visible-prefix "frontier" emphasis (keys 0..qi)
-    ctx.save(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.strokeRect(gridX - 1, gridY + qi * cell - 1, N * cell, cell); ctx.restore();
+    ctx.save(); ctx.strokeStyle = T.n14; ctx.lineWidth = 2; ctx.strokeRect(gridX - 1, gridY + qi * cell - 1, N * cell, cell); ctx.restore();
     // the token it predicts (qi+1) is masked -> outline red
-    if (qi < N - 1) { ctx.save(); ctx.strokeStyle = RED; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(gridX + (qi + 1) * cell + 1, gridY + qi * cell + 1, cell - 3.5, cell - 3.5); ctx.restore(); }
+    if (qi < N - 1) { ctx.save(); ctx.strokeStyle = T.bad; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(gridX + (qi + 1) * cell + 1, gridY + qi * cell + 1, cell - 3.5, cell - 3.5); ctx.restore(); }
 
     // --- draggable CURRENT-QUERY handle: a ▸ tab on the diagonal of the active
     // row. Drag it down the diagonal to move which query row is "current". ---
     const hx = gridX + qi * cell, hy = gridY + qi * cell;
     handleRect = { x: hx - 14, y: hy - 3, w: cell + 18, h: cell + 6 };
     ctx.save();
-    ctx.strokeStyle = dragging ? RED : 'rgba(31,111,235,0.95)';
+    ctx.strokeStyle = dragging ? T.bad : alphaOf(T.accent, 0.95);
     ctx.lineWidth = dragging ? 3 : 2;
     ctx.strokeRect(hx + 0.5, hy + 0.5, cell - 2.5, cell - 2.5);
     ctx.fillStyle = ctx.strokeStyle;
@@ -129,13 +131,13 @@ mount({
 
     // legend (right of grid)
     const lx = gridX + N * cell + 22; let ly = gridY + 4;
-    const sw = (col, txt) => { ctx.save(); ctx.fillStyle = col; ctx.fillRect(lx, ly - 9, 13, 13); ctx.restore(); r.label(txt, lx + 19, ly + 2, { color: '#3a4047', font: '11px ui-monospace, monospace' }); ly += 24; };
-    sw('#dbeafe', 'visible  j ≤ i'); sw(BLUE, 'current query row'); sw('rgba(55,60,68,0.82)', 'masked  j > i → −∞');
-    ctx.save(); ctx.strokeStyle = RED; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(lx, ly - 9, 13, 13); ctx.restore();
-    r.label('the next token (predicted, masked)', lx + 19, ly + 2, { color: '#3a4047', font: '11px ui-monospace, monospace' });
+    const sw = (col, txt) => { ctx.save(); ctx.fillStyle = col; ctx.fillRect(lx, ly - 9, 13, 13); ctx.restore(); r.label(txt, lx + 19, ly + 2, { color: T.n12, font: '11px ui-monospace, monospace' }); ly += 24; };
+    sw(T.accentBg, 'visible  j ≤ i'); sw(T.accent, 'current query row'); sw(alphaOf(T.n12, 0.82), 'masked  j > i → −∞');
+    ctx.save(); ctx.strokeStyle = T.bad; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.strokeRect(lx, ly - 9, 13, 13); ctx.restore();
+    r.label('the next token (predicted, masked)', lx + 19, ly + 2, { color: T.n12, font: '11px ui-monospace, monospace' });
     ly += 30;
-    r.label('▸ drag the handle down', lx, ly + 2, { color: BLUE, font: '10px ui-monospace, monospace' });
-    r.label('the diagonal to move "now"', lx, ly + 16, { color: BLUE, font: '10px ui-monospace, monospace' });
+    r.label('▸ drag the handle down', lx, ly + 2, { color: T.accent, font: '10px ui-monospace, monospace' });
+    r.label('the diagonal to move "now"', lx, ly + 16, { color: T.accent, font: '10px ui-monospace, monospace' });
 
     // --- hover-to-inspect: query i → key j, allowed vs BLOCKED (+ post-mask) ---
     if (page.pointer.over && !dragging) {

@@ -1,6 +1,6 @@
-// Curriculum order -- mirrors the family/slug order in ../index.html. The
+// Curriculum order -- mirrors the family/slug order in ../catalogue.html. The
 // shared mount() framework (layout.js) imports this to build the in-demo
-// prev/next navigation strip. KEEP IN SYNC with index.html when pages are
+// prev/next navigation strip. KEEP IN SYNC with catalogue.html when pages are
 // added or reordered (the catalogue is the source of truth for the card grid;
 // this is the flat ordered list the per-page nav walks).
 export const ORDER = [
@@ -54,13 +54,14 @@ export const ORDER = [
   // H -- End-to-end (capstone) + training
   { slug: 'forward-pass', family: 'H' },
   { slug: 'backprop', family: 'H' },
-  // I -- Real-model grounding: real weights, fetched at runtime
+  // I -- Real-model grounding (Phase 9): real weights, fetched at runtime
   { slug: 'real-embeddings', family: 'I' },
   { slug: 'real-attention', family: 'I' },
   { slug: 'real-logits', family: 'I' },
   { slug: 'logit-lens', family: 'I' },
   { slug: 'real-quant', family: 'I' },
   { slug: 'real-generate', family: 'I' },
+  // J -- Deployment & planning: how a model maps onto real hardware
 ];
 
 // Resolve the current page's slug from an explicit override or the URL path

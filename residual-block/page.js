@@ -10,8 +10,10 @@
 //       is the gradient highway. Drag x; tune depth L, gain g, toggle the skip.
 import { mount } from '../framework/layout.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', ORANGE = '#d2691e', GREEN = '#2ca02c', RED = '#d1242f', GREY = '#9aa4ad', PURPLE = '#8250df';
+
+
 const N = 8, EPS = 1e-9;
 const relu = (a) => Float32Array.from(a, (v) => (v > 0 ? v : 0));
 const norm = (a) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * a[i]; return Math.sqrt(s); };
@@ -31,14 +33,14 @@ function build(seed) {
 function drawVec(r, ctx, x0, y0, w, h, vals, lo, hi, color, label) {
   const bw = w / vals.length, zy = y0 + h * (hi / (hi - lo));
   ctx.save();
-  ctx.strokeStyle = '#e6e8ea'; ctx.lineWidth = 1; ctx.strokeRect(x0, y0, w, h);
-  ctx.strokeStyle = '#c4c9ce'; ctx.beginPath(); ctx.moveTo(x0, zy); ctx.lineTo(x0 + w, zy); ctx.stroke();
+  ctx.strokeStyle = T.n4; ctx.lineWidth = 1; ctx.strokeRect(x0, y0, w, h);
+  ctx.strokeStyle = T.n7; ctx.beginPath(); ctx.moveTo(x0, zy); ctx.lineTo(x0 + w, zy); ctx.stroke();
   for (let i = 0; i < vals.length; i++) {
     const v = Math.max(lo, Math.min(hi, vals[i])), bh = Math.abs(v) / (hi - lo) * h;
     ctx.fillStyle = color; ctx.fillRect(x0 + i * bw + 1, v >= 0 ? zy - bh : zy, bw - 2, bh);
   }
   ctx.restore();
-  if (label) r.label(label, x0, y0 - 6, { color: INK, font: '10px ui-monospace, monospace' });
+  if (label) r.label(label, x0, y0 - 6, { color: T.n14, font: '10px ui-monospace, monospace' });
   return { x: x0, y: y0, w, h, n: vals.length, lo, hi };
 }
 
@@ -71,7 +73,7 @@ mount({
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (st.seed + '' !== bsig) { cur = build(st.seed | 0); bsig = st.seed + ''; }
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const g = st.gain, L = st.L | 0, skip = st.skip, x = cur.x;
     // one block, F scaled to gain g relative to x
     const h = relu(matvec(cur.W1, x)), Fraw = matvec(cur.W2, h);
@@ -81,58 +83,58 @@ mount({
 
     const W = page.W, pad = 16, lo = -1.4, hi = 2.4, vh = 92, vw = 78, ty = 56;
     // --- single block (top) ---
-    r.label('one residual block', pad, 30, { color: INK, font: '12px ui-monospace, monospace' });
-    xRect = drawVec(r, ctx, pad, ty, vw, vh, x, lo, hi, BLUE, 'input x   (drag ↕)');
+    r.label('one residual block', pad, 30, { color: T.n14, font: '12px ui-monospace, monospace' });
+    xRect = drawVec(r, ctx, pad, ty, vw, vh, x, lo, hi, T.accent, 'input x   (drag ↕)');
     const fbX = pad + vw + 34;
-    ctx.save(); ctx.fillStyle = 'rgba(130,80,223,0.08)'; ctx.fillRect(fbX, ty + 8, 86, vh - 16); ctx.strokeStyle = PURPLE; ctx.lineWidth = 1.3; ctx.strokeRect(fbX, ty + 8, 86, vh - 16);
-    ctx.fillStyle = PURPLE; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center';
-    ctx.fillText('F branch', fbX + 43, ty + 26); ctx.fillStyle = '#444'; ctx.fillText('W₂·relu(W₁x)', fbX + 43, ty + 44); ctx.fillText(`gain g=${g.toFixed(2)}`, fbX + 43, ty + 62); ctx.restore();
+    ctx.save(); ctx.fillStyle = alphaOf(T.violet, 0.08); ctx.fillRect(fbX, ty + 8, 86, vh - 16); ctx.strokeStyle = T.violet; ctx.lineWidth = 1.3; ctx.strokeRect(fbX, ty + 8, 86, vh - 16);
+    ctx.fillStyle = T.violet; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center';
+    ctx.fillText('F branch', fbX + 43, ty + 26); ctx.fillStyle = T.n12; ctx.fillText('W₂·relu(W₁x)', fbX + 43, ty + 44); ctx.fillText(`gain g=${g.toFixed(2)}`, fbX + 43, ty + 62); ctx.restore();
     const fxX = fbX + 86 + 34;
-    drawVec(r, ctx, fxX, ty, vw, vh, F, lo, hi, ORANGE, 'F(x)');
+    drawVec(r, ctx, fxX, ty, vw, vh, F, lo, hi, T.warn, 'F(x)');
     const plusX = fxX + vw + 22;
-    ctx.save(); ctx.strokeStyle = INK; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(plusX, ty + vh / 2, 11, 0, 7); ctx.stroke(); ctx.fillStyle = INK; ctx.font = '15px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('+', plusX, ty + vh / 2 + 5); ctx.restore();
+    ctx.save(); ctx.strokeStyle = T.n14; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(plusX, ty + vh / 2, 11, 0, 7); ctx.stroke(); ctx.fillStyle = T.n14; ctx.font = '15px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('+', plusX, ty + vh / 2 + 5); ctx.restore();
     const yX = plusX + 26;
-    drawVec(r, ctx, yX, ty, vw, vh, y, lo, hi, GREEN, skip ? 'y = F(x) + x' : 'y = F(x)  (no skip)');
+    drawVec(r, ctx, yX, ty, vw, vh, y, lo, hi, T.ok, skip ? 'y = F(x) + x' : 'y = F(x)  (no skip)');
     // flow arrows + the skip arc
-    ctx.save(); ctx.strokeStyle = GREY; ctx.lineWidth = 1.3;
+    ctx.save(); ctx.strokeStyle = T.n9; ctx.lineWidth = 1.3;
     const ay = ty + vh / 2;
     ctx.beginPath(); ctx.moveTo(pad + vw + 3, ay); ctx.lineTo(fbX - 3, ay); ctx.moveTo(fbX + 86 + 3, ay); ctx.lineTo(fxX - 3, ay); ctx.moveTo(fxX + vw + 3, ay); ctx.lineTo(plusX - 12, ay); ctx.moveTo(plusX + 12, ay); ctx.lineTo(yX - 3, ay); ctx.stroke();
     if (skip) { // identity highway from x over F to the +
-      ctx.strokeStyle = GREEN; ctx.lineWidth = 1.8; ctx.setLineDash([4, 3]); ctx.beginPath();
+      ctx.strokeStyle = T.ok; ctx.lineWidth = 1.8; ctx.setLineDash([4, 3]); ctx.beginPath();
       ctx.moveTo(pad + vw / 2, ty - 2); ctx.bezierCurveTo(pad + vw / 2, ty - 30, plusX, ty - 30, plusX, ty + vh / 2 - 12); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = GREEN; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('identity skip (copies x)', (pad + plusX) / 2, ty - 34);
+      ctx.fillStyle = T.ok; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('identity skip (copies x)', (pad + plusX) / 2, ty - 34);
     }
     ctx.restore();
     // gradient identity note
-    r.label(`backward:  ∂y/∂x = I + ∂F/∂x   — the "+I" is a gradient highway that bypasses F`, pad, ty + vh + 22, { color: skip ? GREEN : '#586069', font: '10px ui-monospace, monospace' });
-    r.label(g < 0.12 ? 'g small → F(x)≈0 → block ≈ identity (y≈x): a small refinement on top of the signal.' : 'larger g → F(x) contributes more; without normalization deep skips can also blow up.', pad, ty + vh + 38, { color: '#586069', font: '10px ui-monospace, monospace' });
+    r.label(`backward:  ∂y/∂x = I + ∂F/∂x   — the "+I" is a gradient highway that bypasses F`, pad, ty + vh + 22, { color: skip ? T.ok : T.n11, font: '10px ui-monospace, monospace' });
+    r.label(g < 0.12 ? 'g small → F(x)≈0 → block ≈ identity (y≈x): a small refinement on top of the signal.' : 'larger g → F(x) contributes more; without normalization deep skips can also blow up.', pad, ty + vh + 38, { color: T.n11, font: '10px ui-monospace, monospace' });
 
     // --- depth / gradient chart (bottom) ---
     const cx = pad, cTop = ty + vh + 54, cw = W - 2 * pad - 6, chH = Math.max(58, page.H - cTop - 42);
-    r.label('gradient magnitude as it flows back through the stack (log scale)', cx, cTop - 8, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label('gradient magnitude as it flows back through the stack (log scale)', cx, cTop - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
     const eLo = -22, eHi = 2.5, X = (d) => cx + d / Math.max(1, L) * cw, Y = (e) => cTop + chH - (Math.max(eLo, Math.min(eHi, e)) - eLo) / (eHi - eLo) * chH;
     ctx.save();
     // axes + 1.0 line
-    ctx.strokeStyle = '#eceef0'; ctx.lineWidth = 1; ctx.strokeRect(cx, cTop, cw, chH);
+    ctx.strokeStyle = T.n3; ctx.lineWidth = 1; ctx.strokeRect(cx, cTop, cw, chH);
     ctx.strokeStyle = 'rgba(150,160,170,0.6)'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(cx, Y(0)); ctx.lineTo(cx + cw, Y(0)); ctx.stroke(); ctx.setLineDash([]);
-    r.label('|grad| = 1', cx + cw - 64, Y(0) - 5, { color: '#8a939b', font: '9px ui-monospace, monospace' });
+    r.label('|grad| = 1', cx + cw - 64, Y(0) - 5, { color: T.n10, font: '9px ui-monospace, monospace' });
     // curves
     const noskip = (d) => d * Math.log10(g + EPS), withskip = (d) => d * Math.log10(1 + g);
     const drawCurve = (fn, col, wid) => { ctx.strokeStyle = col; ctx.lineWidth = wid; ctx.beginPath(); for (let d = 0; d <= L; d++) { const px = X(d), py = Y(fn(d)); if (d === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); } ctx.stroke(); };
-    drawCurve(noskip, skip ? 'rgba(209,36,47,0.45)' : RED, skip ? 1.5 : 2.5);
-    drawCurve(withskip, skip ? GREEN : 'rgba(44,160,44,0.45)', skip ? 2.5 : 1.5);
+    drawCurve(noskip, skip ? alphaOf(T.bad, 0.45) : T.bad, skip ? 1.5 : 2.5);
+    drawCurve(withskip, skip ? T.ok : alphaOf(T.ok, 0.45), skip ? 2.5 : 1.5);
     // animated backprop pulse traveling output(left)->input(right)
     const pd = ((page.t || 0) % 3) / 3 * L, active = skip ? withskip : noskip;
-    ctx.fillStyle = skip ? GREEN : RED; ctx.beginPath(); ctx.arc(X(pd), Y(active(pd)), 3.5, 0, 7); ctx.fill();
+    ctx.fillStyle = skip ? T.ok : T.bad; ctx.beginPath(); ctx.arc(X(pd), Y(active(pd)), 3.5, 0, 7); ctx.fill();
     ctx.restore();
     // endpoint annotations
     const gNo = Math.pow(g, L), gSk = Math.pow(1 + g, L);
     page.probe = { gNo, gSk };
-    r.label('output (layer L)', cx + 2, cTop + chH + 14, { color: '#586069', font: '9px ui-monospace, monospace' });
-    r.label('→ input (layer 0)', cx + cw - 92, cTop + chH + 14, { color: '#586069', font: '9px ui-monospace, monospace' });
-    r.label(`reaching layer 0 after ${L} blocks:`, cx + 2, cTop + chH + 30, { color: INK, font: '10px ui-monospace, monospace' });
-    r.label(`skip: ${gSk >= 0.01 ? gSk.toFixed(2) : gSk.toExponential(1)} (gradient flows)`, cx + 210, cTop + chH + 30, { color: GREEN, font: '10px ui-monospace, monospace' });
-    r.label(`no-skip: ${gNo >= 1e-4 ? gNo.toFixed(4) : gNo.toExponential(1)} ${gNo < 1e-3 ? '(vanished)' : ''}`, cx + 430, cTop + chH + 30, { color: RED, font: '10px ui-monospace, monospace' });
+    r.label('output (layer L)', cx + 2, cTop + chH + 14, { color: T.n11, font: '9px ui-monospace, monospace' });
+    r.label('→ input (layer 0)', cx + cw - 92, cTop + chH + 14, { color: T.n11, font: '9px ui-monospace, monospace' });
+    r.label(`reaching layer 0 after ${L} blocks:`, cx + 2, cTop + chH + 30, { color: T.n14, font: '10px ui-monospace, monospace' });
+    r.label(`skip: ${gSk >= 0.01 ? gSk.toFixed(2) : gSk.toExponential(1)} (gradient flows)`, cx + 210, cTop + chH + 30, { color: T.ok, font: '10px ui-monospace, monospace' });
+    r.label(`no-skip: ${gNo >= 1e-4 ? gNo.toFixed(4) : gNo.toExponential(1)} ${gNo < 1e-3 ? '(vanished)' : ''}`, cx + 430, cTop + chH + 30, { color: T.bad, font: '10px ui-monospace, monospace' });
 
     // hover
     if (page.pointer.over && dragI < 0) {

@@ -1,11 +1,12 @@
-# logit-lens -- watching a prediction form across layers
+# logit-lens -- watching a prediction form across layers (Phase 9)
 
 > **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
 
 Interactive page: the **logit lens** (nostalgebraist) on a **real GPT-2 (124M)**.
 It applies the model's final `ln_f` + tied lm_head to the residual stream at
 **every** layer — not just the last — so you can watch the next-token prediction
-crystallize with depth. **Anchor**: residual stream + A5 lm_head. Part of **real-model grounding**.
+crystallize with depth. **Anchor**: residual stream + A5 lm_head. Part of **Phase
+9 — real-model grounding** (`../plan/phase9.md`).
 
 ## What it shows
 
@@ -25,7 +26,7 @@ early; open-ended ones only at the final layer.
 ## Verified against PyTorch
 
 `GPT2.lens()` is checked against `output_hidden_states` by
-[`../real-attention/gpt2.test.mjs`](../real-attention/gpt2.test.mjs): the per-layer
+`../real-attention/gpt2.test.mjs`: the per-layer
 top-1 token ids at all 13 depths match PyTorch exactly. (Subtlety the test pins:
 HF's `hidden_states[-1]` is already post-`ln_f`, so the reference must use the
 model's true final logits for the last depth rather than applying `ln_f` twice —

@@ -8,8 +8,18 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { softmax, seededRandn } from '../framework/tensor.js';
+import { T, alphaOf, effectiveTheme } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', GREEN = '#2ca02c', ORANGE = '#d2691e', GREY = '#8a939b';
+// --- theme fixups the mechanical hex migration could not make. A wash, a scrim
+// or a value ramp keyed to a FIXED rgb silently inverts its meaning when the
+// page ground flips, so key it to the theme instead. Every helper below is
+// pixel-identical to the old literal in LIGHT mode; only dark changes.
+// KEPT (not framework inkOn): takes no fill -- it is unconditionally the LIGHT end of
+// the ramp, for chips whose fill is known-dark in both themes.
+const inkLight = () => (effectiveTheme() === 'dark' ? T.n14 : T.n0);   // ink that stays LIGHT on a filled chip in both themes
+
+
+
 const M = (r, c) => ({ data: new Float32Array(r * c), rows: r, cols: c });
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 const dotRow = (A, i, B, j, D) => { let s = 0; for (let k = 0; k < D; k++) s += A.data[i * D + k] * B.data[j * D + k]; return s; };
@@ -63,12 +73,12 @@ mount({
   },
   onPointer: (page, ev) => {
     if (!cur || !tlRect) return;
-    const T = cur.N + cur.G, tp = page.controls._transport;
+    const NT = cur.N + cur.G, tp = page.controls._transport;
     const posToStage = (pos) => (pos < cur.N ? 0 : pos - cur.N + 1);
     if (ev.type === 'down') dragTL = ev.y >= tlRect.y - 10 && ev.y <= tlRect.y + tlRect.h + 10 && ev.x >= tlRect.x - 10 && ev.x <= tlRect.x + tlRect.w + 10;
     else if (ev.type === 'up' || ev.type === 'leave') dragTL = false;
     if (dragTL && (ev.type === 'down' || ev.type === 'move') && page.pointer.down && tp) {
-      const pos = Math.max(0, Math.min(T - 1, Math.floor((ev.x - tlRect.x) / (tlRect.w / T))));
+      const pos = Math.max(0, Math.min(NT - 1, Math.floor((ev.x - tlRect.x) / (tlRect.w / NT))));
       tp.pause(); tp.seek(posToStage(pos));
     }
   },
@@ -76,36 +86,36 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { Q, K, N, G, D } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const s = page.step(), stageIdx = s ? page.controls._transport.index : 0;
     page.probe = { phase: s ? s.phase : 'prefill' };
     const isPrefill = stageIdx === 0;
     const pos = isPrefill ? N - 1 : N + stageIdx - 1;   // current position (0-based)
     const filled = pos + 1;                              // cache rows filled
-    const T = N + G;
+    const NT = N + G;
 
     // shared diverging domain over the cache
     const Kdom = maxAbs(K.data);
     const pad = 16, topY = 70;
-    const csC = Math.max(10, Math.min(20, Math.min((page.W * 0.13) / D, (page.H * 0.50) / T)));
+    const csC = Math.max(10, Math.min(20, Math.min((page.W * 0.13) / D, (page.H * 0.50) / NT)));
     const cw = D * csC;
 
     // ---- left: the KV cache [(N+G)×D], rows filled up to `filled` ----
-    cacheRect = { x: pad + 4, y: topY, w: cw, h: T * csC };
-    r.label('KV cache  [(N+G)×D]', cacheRect.x, topY - 14, { color: INK, font: '12px ui-monospace, monospace' });
-    r.heatmap(K, { rows: T, cols: D, rect: cacheRect, ramp: ramps.diverging, domain: [-Kdom, Kdom] });
-    r.grid({ stroke: 'rgba(0,0,0,0.10)' });
+    cacheRect = { x: pad + 4, y: topY, w: cw, h: NT * csC };
+    r.label('KV cache  [(N+G)×D]', cacheRect.x, topY - 14, { color: T.n14, font: '12px ui-monospace, monospace' });
+    r.heatmap(K, { rows: NT, cols: D, rect: cacheRect, ramp: ramps.diverging, domain: [-Kdom, Kdom] });
+    r.grid({ stroke: alphaOf('n14', 0.10) });
     ctx.save();
     // veil pending (not-yet-filled) rows
-    if (filled < T) { ctx.fillStyle = 'rgba(255,255,255,0.66)'; ctx.fillRect(cacheRect.x, topY + filled * csC, cw, (T - filled) * csC); }
+    if (filled < NT) { ctx.fillStyle = alphaOf('n0', 0.66); ctx.fillRect(cacheRect.x, topY + filled * csC, cw, (NT - filled) * csC); }
     // prefill bracket over rows 0..N-1
-    ctx.strokeStyle = BLUE; ctx.lineWidth = isPrefill ? 3 : 1.5; ctx.strokeRect(cacheRect.x - 2, topY - 2, cw + 4, N * csC + 4);
-    r.label('prompt (prefill: 1 pass)', cacheRect.x + cw + 8, topY + N * csC / 2, { color: BLUE, font: '10px ui-monospace, monospace' });
+    ctx.strokeStyle = T.accent; ctx.lineWidth = isPrefill ? 3 : 1.5; ctx.strokeRect(cacheRect.x - 2, topY - 2, cw + 4, N * csC + 4);
+    r.label('prompt (prefill: 1 pass)', cacheRect.x + cw + 8, topY + N * csC / 2, { color: T.accent, font: '10px ui-monospace, monospace' });
     // decode: outline current row + "reads rows 0..pos"
     if (!isPrefill) {
-      ctx.strokeStyle = GREEN; ctx.lineWidth = 2.5; ctx.strokeRect(cacheRect.x - 2, topY + pos * csC, cw + 4, csC);
-      r.label(`decode pos ${pos}: GEMV reads ${filled} rows`, cacheRect.x + cw + 8, topY + pos * csC + csC / 2, { color: GREEN, font: '10px ui-monospace, monospace' });
-      ctx.strokeStyle = 'rgba(44,160,44,0.5)'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5; ctx.strokeRect(cacheRect.x - 1, topY - 1, cw + 2, filled * csC + 2); ctx.setLineDash([]);
+      ctx.strokeStyle = T.ok; ctx.lineWidth = 2.5; ctx.strokeRect(cacheRect.x - 2, topY + pos * csC, cw + 4, csC);
+      r.label(`decode pos ${pos}: GEMV reads ${filled} rows`, cacheRect.x + cw + 8, topY + pos * csC + csC / 2, { color: T.ok, font: '10px ui-monospace, monospace' });
+      ctx.strokeStyle = alphaOf(T.ok, 0.5); ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5; ctx.strokeRect(cacheRect.x - 1, topY - 1, cw + 2, filled * csC + 2); ctx.setLineDash([]);
     }
     ctx.restore();
 
@@ -118,47 +128,47 @@ mount({
     prefRect = { x: rx, y: topY, w: N * csP, h: N * csP };
     const Ap = prefillAttn(Q, K, N, D);
     ctx.save(); ctx.globalAlpha = pHi ? 1 : 0.4;
-    r.label('PREFILL — N×N attention, computed in parallel', rx, topY - 14, { color: pHi ? BLUE : GREY, font: '12px ui-monospace, monospace' });
+    r.label('PREFILL — N×N attention, computed in parallel', rx, topY - 14, { color: pHi ? T.accent : T.n10, font: '12px ui-monospace, monospace' });
     r.heatmap(Ap, { rows: N, cols: N, rect: prefRect, ramp: ramps.sequential, domain: [0, 1] });
-    r.grid({ stroke: 'rgba(0,0,0,0.12)' });
+    r.grid({ stroke: alphaOf('n14', 0.12) });
     ctx.restore();
-    r.label(`${N}×${N} scores · big GEMM · COMPUTE-BOUND (GPU math saturated)`, rx, topY + N * csP + 16, { color: pHi ? INK : GREY, font: '10px ui-monospace, monospace' });
+    r.label(`${N}×${N} scores · big GEMM · COMPUTE-BOUND (GPU math saturated)`, rx, topY + N * csP + 16, { color: pHi ? T.n14 : T.n10, font: '10px ui-monospace, monospace' });
 
     // DECODE: 1×(pos+1) scores bar
     const dy = topY + N * csP + 44;
     barRect = { x: rx, y: dy, w: Math.min(rw, filled * 22), h: 22 };
     const sc = isPrefill ? decodeScores(Q, K, N - 1, D) : decodeScores(Q, K, pos, D);
     ctx.save(); ctx.globalAlpha = dHi ? 1 : 0.4;
-    r.label('DECODE — 1×(N+t) attention, one growing row per step', rx, dy - 14, { color: dHi ? GREEN : GREY, font: '12px ui-monospace, monospace' });
+    r.label('DECODE — 1×(N+t) attention, one growing row per step', rx, dy - 14, { color: dHi ? T.ok : T.n10, font: '12px ui-monospace, monospace' });
     const bw = barRect.w / sc.length;
     for (let j = 0; j < sc.length; j++) {
-      ctx.fillStyle = `rgba(44,160,44,${0.25 + 0.7 * sc[j]})`;
+      ctx.fillStyle = alphaOf(T.ok, 0.25 + 0.7 * sc[j]);
       ctx.fillRect(barRect.x + j * bw, dy, bw - 1, 22);
-      ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.strokeRect(barRect.x + j * bw, dy, bw - 1, 22);
+      ctx.strokeStyle = alphaOf('n14', 0.12); ctx.strokeRect(barRect.x + j * bw, dy, bw - 1, 22);
     }
     ctx.restore();
-    r.label(`1×${sc.length} scores · skinny GEMV + reads ${filled} cache rows · MEMORY-BOUND · ×${G} steps`, rx, dy + 38, { color: dHi ? INK : GREY, font: '10px ui-monospace, monospace' });
+    r.label(`1×${sc.length} scores · skinny GEMV + reads ${filled} cache rows · MEMORY-BOUND · ×${G} steps`, rx, dy + 38, { color: dHi ? T.n14 : T.n10, font: '10px ui-monospace, monospace' });
 
     // ---- bottom: timeline of positions (draggable) ----
-    const tly = page.H - pad - 26, tbw = Math.min(28, (page.W - 2 * pad) / T);
-    tlRect = { x: pad + 4, y: tly, w: T * tbw, h: 20 };
-    r.label('timeline:', pad + 4, tly - 8, { color: '#586069', font: '10px ui-monospace, monospace' });
+    const tly = page.H - pad - 26, tbw = Math.min(28, (page.W - 2 * pad) / NT);
+    tlRect = { x: pad + 4, y: tly, w: NT * tbw, h: 20 };
+    r.label('timeline:', pad + 4, tly - 8, { color: T.n11, font: '10px ui-monospace, monospace' });
     ctx.save(); ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    for (let p = 0; p < T; p++) {
+    for (let p = 0; p < NT; p++) {
       const bx = tlRect.x + p * tbw;
       const done = p <= pos, isPrompt = p < N;
-      ctx.fillStyle = !done ? '#eef0f2' : isPrompt ? 'rgba(31,111,235,0.55)' : 'rgba(44,160,44,0.55)';
+      ctx.fillStyle = !done ? T.n3 : isPrompt ? alphaOf(T.accent, 0.55) : alphaOf(T.ok, 0.55);
       ctx.fillRect(bx, tly, tbw - 2, 20);
-      if (p === pos) { ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.strokeRect(bx - 1, tly - 1, tbw, 22); }
-      ctx.fillStyle = done ? '#fff' : '#9aa4ad'; ctx.fillText(String(p), bx + (tbw - 2) / 2, tly + 10);
+      if (p === pos) { ctx.strokeStyle = T.n14; ctx.lineWidth = 2; ctx.strokeRect(bx - 1, tly - 1, tbw, 22); }
+      ctx.fillStyle = done ? inkLight() : T.n9; ctx.fillText(String(p), bx + (tbw - 2) / 2, tly + 10);
     }
-    ctx.fillStyle = GREY; ctx.textAlign = 'left'; ctx.fillText('◀ prompt (prefill) ▏ generated (decode) ▶  — drag to scrub', tlRect.x, tly + 32);
+    ctx.fillStyle = T.n10; ctx.textAlign = 'left'; ctx.fillText('◀ prompt (prefill) ▏ generated (decode) ▶  — drag to scrub', tlRect.x, tly + 32);
     ctx.restore();
 
     // hover-to-inspect
     if (page.pointer.over && !dragTL) {
       const p = page.pointer;
-      const hc = cacheRect && cellAt(cacheRect, T, D, p.x, p.y);
+      const hc = cacheRect && cellAt(cacheRect, NT, D, p.x, p.y);
       const hp = prefRect && cellAt(prefRect, N, N, p.x, p.y);
       if (hc) { const fill = hc.r < N ? 'prefill (parallel)' : `decode step ${hc.r - N + 1}`; page.setTip(`cache[pos ${hc.r}, d${hc.c}] = ${K.data[hc.r * D + hc.c].toFixed(3)}\n${hc.r <= pos ? 'filled in ' + fill : 'not yet generated'}`); }
       else if (hp && hp.c <= hp.r) { page.setTip(`attn[q${hp.r}, k${hp.c}] = ${Ap.data[hp.r * N + hp.c].toFixed(3)}\nprefill: all queries at once`); }

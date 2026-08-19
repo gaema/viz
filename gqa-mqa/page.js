@@ -1,7 +1,7 @@
 // gqa-mqa concept page -- KV-head sharing (MHA / GQA / MQA).
 // Uses the verified framework: layout.mount() + controls + a per-scheme Transport.
 //
-// Interactive per the framework contract (plan/framework.md):
+// Interactive per the shared render framework's contract:
 //  - HOVER a Q head -> which KV group it reads + its sibling Q heads in that
 //    group; hover a KV head -> the set of Q heads that read it; either surfaces
 //    the KV-cache saving (cache size ∝ #KV heads).
@@ -13,16 +13,27 @@
 //  - AUTOPLAY + LOOP: the scheme transport auto-plays MHA→GQA→…→MQA and loops.
 import { mount } from '../framework/layout.js';
 import { categorical, cellAt } from '../framework/render.js';
+import { T, alphaOf, inkOn } from '../framework/theme.js';
 
-const INK = '#111';
-const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+
+
+// Thin alias over the shared helper, kept only because the call sites read
+// better as rgb(categoricalColour): alphaOf() now takes an [r,g,b] triple.
+const rgb = (c, a = 1) => alphaOf(c, a);
+// Label ink for a filled categorical box. `categorical()` is a fixed light-mode
+// palette (framework), so a hard `T.n0` label goes DARK-on-mid-blue in dark mode.
+// Pick whichever end of the neutral ramp actually contrasts with the fill --
+// n0/n14 swap places between themes, so a fixed choice is weak in one of them.
+// In light this still resolves to `T.n0`, so the light page is unchanged.
+// Adds over theme.js `inkOn(hex)`: takes an [r,g,b] ARRAY (what `categorical()`
+// returns) and answers with the LIVE ramp ends rather than fixed black/white.
 function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 function box(ctx, x, y, w, h, label, col, filled) {
   ctx.save();
   roundRect(ctx, x, y, w, h, 6);
   ctx.fillStyle = rgb(col, filled ? 0.88 : 0.18); ctx.fill();
   ctx.strokeStyle = rgb(col); ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.fillStyle = filled ? '#fff' : rgb(col); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = filled ? inkOn(col) : rgb(col); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(label, x + w / 2, y + h / 2);
   ctx.restore();
 }
@@ -93,7 +104,7 @@ mount({
   },
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state, nq = st.nq;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const s = page.step();
     const nkv = s ? s.nkv : nq, g = nq / nkv, scheme = s ? s.scheme : 'MHA';
     page.probe = { nkv, nq };
@@ -103,9 +114,9 @@ mount({
     const qx = (i) => pad + i * slot + slot / 2;
     const kvx = (h) => { let s2 = 0; for (let i = h * g; i < (h + 1) * g; i++) s2 += qx(i); return s2 / g; };
 
-    r.label(`scheme: ${scheme}    n_q = ${nq}    n_kv = ${nkv}    group = ${g} query head${g > 1 ? 's' : ''} per KV head`, pad, 40, { color: INK, font: '14px ui-monospace, monospace' });
-    r.label('query heads', pad, qY - 12, { color: '#586069', font: '11px ui-monospace, monospace' });
-    r.label('K/V heads', pad, kvY - 12, { color: '#586069', font: '11px ui-monospace, monospace' });
+    r.label(`scheme: ${scheme}    n_q = ${nq}    n_kv = ${nkv}    group = ${g} query head${g > 1 ? 's' : ''} per KV head`, pad, 40, { color: T.n14, font: '14px ui-monospace, monospace' });
+    r.label('query heads', pad, qY - 12, { color: T.n11, font: '11px ui-monospace, monospace' });
+    r.label('K/V heads', pad, kvY - 12, { color: T.n11, font: '11px ui-monospace, monospace' });
 
     // connections (behind boxes): each query head -> its KV head
     for (let i = 0; i < nq; i++) { const h = Math.floor(i / g); r.arrow({ x: qx(i), y: qY + boxH }, { x: kvx(h), y: kvY }, { color: rgb(categorical(h), 0.55), width: 1.5, head: 6, alpha: 0.8 }); }
@@ -116,18 +127,18 @@ mount({
 
     // KV-cache memory bar (∝ n_kv / n_q) -- also the drag handle for n_kv.
     const frac = nkv / nq, barY = kvY + 86, barX = pad + 96, barW = Math.min(380, W - barX - pad - 110);
-    r.label('KV cache', pad, barY + 12, { color: '#586069', font: '12px ui-monospace, monospace' });
+    r.label('KV cache', pad, barY + 12, { color: T.n11, font: '12px ui-monospace, monospace' });
     ctx.save();
-    ctx.strokeStyle = '#d0d7de'; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barW, 16);
-    ctx.fillStyle = 'rgba(31,111,235,0.55)'; ctx.fillRect(barX, barY, barW * frac, 16);
+    ctx.strokeStyle = T.n6; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barW, 16);
+    ctx.fillStyle = alphaOf(T.accent, 0.55); ctx.fillRect(barX, barY, barW * frac, 16);
     // draggable handle: a grip at the bar's fill edge (position encodes n_kv).
     const hx = barX + barW * ((nkv - 1) / Math.max(1, nq - 1));
-    ctx.fillStyle = dragging ? '#1f6feb' : '#3a4047';
+    ctx.fillStyle = dragging ? T.accent : T.n12;
     roundRect(ctx, hx - 5, barY - 6, 10, 28, 3); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillRect(hx - 2, barY - 2, 1, 20); ctx.fillRect(hx + 1, barY - 2, 1, 20);
+    ctx.fillStyle = T.n0; ctx.fillRect(hx - 2, barY - 2, 1, 20); ctx.fillRect(hx + 1, barY - 2, 1, 20);
     ctx.restore();
-    r.label(`${Math.round(frac * 100)}% of MHA  (${nkv}/${nq} KV heads)`, barX + barW + 8, barY + 12, { color: INK, font: '12px ui-monospace, monospace' });
-    r.label('↔ drag to set #KV heads (MHA → GQA → MQA)', barX, barY + 38, { color: '#1f6feb', font: '10px ui-monospace, monospace' });
+    r.label(`${Math.round(frac * 100)}% of MHA  (${nkv}/${nq} KV heads)`, barX + barW + 8, barY + 12, { color: T.n14, font: '12px ui-monospace, monospace' });
+    r.label('↔ drag to set #KV heads (MHA → GQA → MQA)', barX, barY + 38, { color: T.accent, font: '10px ui-monospace, monospace' });
 
     // record hit-test geometry for onPointer + hover.
     geom = { nq, g, nkv, qY, boxH, kvY, boxW, slot, pad, qx, kvx, barX, barY, barW };

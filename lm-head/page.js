@@ -2,7 +2,7 @@
 // vocab token, plus tied weights, logit soft-cap, and decode-time slicing.
 // Uses the verified framework: layout.mount() + controls + a per-vocab Transport.
 //
-// Interactive per the framework contract (plan/framework.md): drag any h-strip
+// Interactive per the shared render framework's contract: drag any h-strip
 // cell ↕ to steer the hidden state and watch every logit (= h · W_lm[v]) and the
 // argmax (predicted token) recompute live; hover a logit bar for its full
 // derivation (h · W_lm[v] = Σ_d h[d]·W[v,d]), an h cell or a W_lm cell for its
@@ -10,8 +10,10 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', GREEN = '#2ca02c', RED = '#d1242f', GREY = '#8a939b';
+
+
 const VOCAB = ['the', 'cat', 'sat', 'on', 'mat', 'dog', 'ran', 'fast'];
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 
@@ -86,7 +88,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { H, E, Wsep, h, N, D, V } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const Wlm = st.tie ? E : Wsep;
     const cap = st.cap, soft = st.softcap, slice = st.slice;
     const s = page.step(), upto = s ? s.v : V - 1;   // transport: fill logits up to current vocab row
@@ -102,30 +104,30 @@ mount({
     Hrect = { x: Hx, y: topY, w: D * cell, h: N * cell };
 
     // H [N x D] — hidden states, last row = the slice source
-    r.label('H [N×D] hidden states', Hx, topY - 14, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label('H [N×D] hidden states', Hx, topY - 14, { color: T.n14, font: '12px ui-monospace, monospace' });
     r.heatmap(H, { rows: N, cols: D, rect: Hrect, ramp: ramps.diverging, domain: [-maxAbs(H.data), maxAbs(H.data)] });
-    r.grid({ stroke: 'rgba(0,0,0,0.10)' });
+    r.grid({ stroke: alphaOf('n14', 0.10) });
     ctx.save();
-    if (slice) { ctx.fillStyle = 'rgba(255,255,255,0.62)'; ctx.fillRect(Hx, topY, D * cell, last * cell); }  // grey out non-sliced rows
-    ctx.strokeStyle = GREEN; ctx.lineWidth = 2.5; ctx.strokeRect(Hx, topY + last * cell, D * cell, cell);    // box the last row
-    ctx.fillStyle = GREEN; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    if (slice) { ctx.fillStyle = alphaOf('n0', 0.62); ctx.fillRect(Hx, topY, D * cell, last * cell); }  // grey out non-sliced rows
+    ctx.strokeStyle = T.ok; ctx.lineWidth = 2.5; ctx.strokeRect(Hx, topY + last * cell, D * cell, cell);    // box the last row
+    ctx.fillStyle = T.ok; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     ctx.fillText(slice ? 'slice → h' : 'h = last row', Hx, topY + N * cell + 14);
     ctx.restore();
 
     // W_lm [V x D] — unembedding table (= E when tied), aligned with h above it
     const Wx = Hx + D * cell + 120, hY = topY - cell - 10;
     hStripRect = { x: Wx, y: hY, w: D * cell, h: cell };   // the editable h strip (drag target)
-    r.label(`h [1×D]`, Wx, hY - 6, { color: GREEN, font: '11px ui-monospace, monospace' });
+    r.label(`h [1×D]`, Wx, hY - 6, { color: T.ok, font: '11px ui-monospace, monospace' });
     r.heatmap({ data: h, rows: 1, cols: D }, { rows: 1, cols: D, rect: hStripRect, ramp: ramps.diverging, domain: [-maxAbs(H.data), maxAbs(H.data)] });
     Wrect = { x: Wx, y: topY, w: D * cell, h: V * cell };
-    r.label(st.tie ? 'W_lm [V×D] = E' : 'W_lm [V×D]', Wx, topY - 14, { color: st.tie ? BLUE : INK, font: '12px ui-monospace, monospace' });
+    r.label(st.tie ? 'W_lm [V×D] = E' : 'W_lm [V×D]', Wx, topY - 14, { color: st.tie ? T.accent : T.n14, font: '12px ui-monospace, monospace' });
     r.heatmap(Wlm, { rows: V, cols: D, rect: Wrect, ramp: ramps.diverging, domain: [-maxAbs(Wlm.data), maxAbs(Wlm.data)] });
-    r.grid({ stroke: 'rgba(0,0,0,0.10)' });
+    r.grid({ stroke: alphaOf('n14', 0.10) });
     ctx.save();
     for (let v = 0; v < V; v++) {
       const y = topY + v * cell;
-      r.label(`"${VOCAB[v]}"`, Wx - 8, y + cell / 2 + 3, { color: v === argmax ? RED : '#586069', font: '10px ui-monospace, monospace', align: 'right' });
-      if (s && v === upto) { ctx.strokeStyle = BLUE; ctx.lineWidth = 2; ctx.strokeRect(Wx, y, D * cell, cell); }  // current dot-product row
+      r.label(`"${VOCAB[v]}"`, Wx - 8, y + cell / 2 + 3, { color: v === argmax ? T.bad : T.n11, font: '10px ui-monospace, monospace', align: 'right' });
+      if (s && v === upto) { ctx.strokeStyle = T.accent; ctx.lineWidth = 2; ctx.strokeRect(Wx, y, D * cell, cell); }  // current dot-product row
     }
     ctx.restore();
 
@@ -134,16 +136,16 @@ mount({
     barsRect = { x: Bx, y: topY, w: Bw, h: V * cell };   // bar area (one vocab row per cell of height, for hover hit-test)
     const zx = Bx + Bw * 0.5;                       // zero line (logits are signed)
     const scale = (Bw * 0.5 - 6) / Math.max(maxAbs(raw), soft ? cap : 1e-9);
-    r.label('logit  (h · W_lm[v])', Bx, topY - 14, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label('logit  (h · W_lm[v])', Bx, topY - 14, { color: T.n14, font: '12px ui-monospace, monospace' });
     ctx.save();
     ctx.font = '9px ui-monospace, monospace';
     // ±cap guide lines when soft-capping
     if (soft) {
-      ctx.strokeStyle = 'rgba(209,36,47,0.45)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = alphaOf(T.bad, 0.45); ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
       for (const sgn of [-1, 1]) { const x = zx + sgn * cap * scale; ctx.beginPath(); ctx.moveTo(x, topY - 2); ctx.lineTo(x, topY + V * cell + 2); ctx.stroke(); }
-      ctx.setLineDash([]); ctx.fillStyle = RED; ctx.textAlign = 'center'; ctx.fillText(`±cap=${cap}`, zx + cap * scale, topY - 4);
+      ctx.setLineDash([]); ctx.fillStyle = T.bad; ctx.textAlign = 'center'; ctx.fillText(`±cap=${cap}`, zx + cap * scale, topY - 4);
     }
-    ctx.strokeStyle = '#c4ccd3'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(zx, topY - 2); ctx.lineTo(zx, topY + V * cell + 2); ctx.stroke();  // zero line
+    ctx.strokeStyle = T.n7; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(zx, topY - 2); ctx.lineTo(zx, topY + V * cell + 2); ctx.stroke();  // zero line
     for (let v = 0; v < V; v++) {
       const y = topY + v * cell + 3, bh = cell - 6;
       const filled = !s || v <= upto;               // transport reveal
@@ -152,14 +154,14 @@ mount({
       const isMax = v === argmax;
       // raw extent (faint) when capped differs
       if (soft && Math.abs(raw[v]) > Math.abs(val) + 1e-3) {
-        ctx.fillStyle = 'rgba(31,111,235,0.14)';
+        ctx.fillStyle = alphaOf(T.accent, 0.14);
         const rx = Math.min(zx, zx + raw[v] * scale), rw = Math.abs(raw[v] * scale);
         ctx.fillRect(rx, y, rw, bh);
       }
-      ctx.fillStyle = isMax ? RED : 'rgba(31,111,235,0.62)';
+      ctx.fillStyle = isMax ? T.bad : alphaOf(T.accent, 0.62);
       const bx = Math.min(zx, zx + val * scale), bw2 = Math.abs(val * scale);
       ctx.fillRect(bx, y, bw2, bh);
-      ctx.fillStyle = isMax ? RED : '#3a4047'; ctx.textAlign = val >= 0 ? 'left' : 'right'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = isMax ? T.bad : T.n12; ctx.textAlign = val >= 0 ? 'left' : 'right'; ctx.textBaseline = 'middle';
       ctx.fillText(val.toFixed(2), zx + val * scale + (val >= 0 ? 4 : -4), y + bh / 2);
     }
     ctx.restore();
@@ -188,9 +190,9 @@ mount({
     }
 
     // arrow: slice -> h (from H last row to the h strip)
-    ctx.save(); ctx.strokeStyle = GREEN; ctx.lineWidth = 1.5; ctx.beginPath();
+    ctx.save(); ctx.strokeStyle = T.ok; ctx.lineWidth = 1.5; ctx.beginPath();
     ctx.moveTo(Hx + D * cell, topY + last * cell + cell / 2); ctx.lineTo(Wx - 6, hY + cell / 2); ctx.stroke();
-    ctx.fillStyle = GREEN; ctx.beginPath(); ctx.moveTo(Wx - 6, hY + cell / 2); ctx.lineTo(Wx - 13, hY + cell / 2 - 4); ctx.lineTo(Wx - 13, hY + cell / 2 + 4); ctx.fill(); ctx.restore();
+    ctx.fillStyle = T.ok; ctx.beginPath(); ctx.moveTo(Wx - 6, hY + cell / 2); ctx.lineTo(Wx - 13, hY + cell / 2 - 4); ctx.lineTo(Wx - 13, hY + cell / 2 + 4); ctx.fill(); ctx.restore();
 
     // readout
     const savedToy = V * D;

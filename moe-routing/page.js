@@ -6,11 +6,12 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { softmax, seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', GREEN = '#2ca02c', RED = '#d1242f', ORANGE = '#d2691e', GREY = '#8a939b';
+
+
 const M = (r, c) => ({ data: new Float32Array(r * c), rows: r, cols: c });
-const CAT = ['#1f6feb', '#2ca02c', '#d2691e', '#8957e5', '#d1242f', '#0a9396', '#bc6c25', '#5e548e'];
-
+const CAT = () => [T.accent, T.ok, T.warn, T.violet, T.bad, T.tealDeep, T.warn, T.violetDeep];
 let cur = null;
 let gateRect = null, barRects = null;   // captured in draw
 let grab = null;                         // {i,e} while dragging a gate cell
@@ -64,7 +65,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { N, E } = cur, k = st.k | 0;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const cap = Math.max(1, Math.ceil(st.cap * N * k / E));
     const s = page.step(), tok = s ? s.t : N - 1;        // route cumulatively up to this token
     const R = route(cur.logits, N, E, k, cap, tok);
@@ -74,20 +75,20 @@ mount({
     gateRect = { x: pad + 28, y: topY, w: E * cell, h: N * cell };
 
     // ---- router gate heatmap [N×E] ----
-    r.label('gate = softmax(logits) [N×E]', gateRect.x, topY - 14, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label('gate = softmax(logits) [N×E]', gateRect.x, topY - 14, { color: T.n14, font: '12px ui-monospace, monospace' });
     r.heatmap(R.g, { rows: N, cols: E, rect: gateRect, ramp: ramps.sequential, domain: [0, 1] });
-    r.grid({ stroke: 'rgba(0,0,0,0.12)' });
+    r.grid({ stroke: alphaOf('n14', 0.12) });
     ctx.save();
     ctx.font = '10px ui-monospace, monospace'; ctx.textBaseline = 'middle';
     for (let i = 0; i < N; i++) {
-      ctx.fillStyle = i === tok ? INK : '#586069'; ctx.textAlign = 'right';
+      ctx.fillStyle = i === tok ? T.n14 : T.n11; ctx.textAlign = 'right';
       ctx.fillText(`t${i}`, gateRect.x - 5, topY + i * cell + cell / 2);
       // outline the token's top-k experts
-      for (const e of R.sel[i]) { ctx.strokeStyle = i <= tok ? CAT[e % CAT.length] : '#c4ccd3'; ctx.lineWidth = i === tok ? 2.6 : 1.6; ctx.strokeRect(gateRect.x + e * cell + 1.5, topY + i * cell + 1.5, cell - 3, cell - 3); }
+      for (const e of R.sel[i]) { ctx.strokeStyle = i <= tok ? CAT()[e % CAT().length] : T.n7; ctx.lineWidth = i === tok ? 2.6 : 1.6; ctx.strokeRect(gateRect.x + e * cell + 1.5, topY + i * cell + 1.5, cell - 3, cell - 3); }
     }
-    for (let e = 0; e < E; e++) { ctx.fillStyle = CAT[e % CAT.length]; ctx.textAlign = 'center'; ctx.fillText(`e${e}`, gateRect.x + e * cell + cell / 2, topY + N * cell + 12); }
+    for (let e = 0; e < E; e++) { ctx.fillStyle = CAT()[e % CAT().length]; ctx.textAlign = 'center'; ctx.fillText(`e${e}`, gateRect.x + e * cell + cell / 2, topY + N * cell + 12); }
     // highlight current token row
-    ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.setLineDash([3, 2]); ctx.strokeRect(gateRect.x - 1, topY + tok * cell - 1, E * cell + 2, cell + 2); ctx.setLineDash([]);
+    ctx.strokeStyle = T.n14; ctx.lineWidth = 1.5; ctx.setLineDash([3, 2]); ctx.strokeRect(gateRect.x - 1, topY + tok * cell - 1, E * cell + 2, cell + 2); ctx.setLineDash([]);
     ctx.restore();
 
     // ---- per-expert load bars ----
@@ -96,30 +97,30 @@ mount({
     let axisMax = cap; for (let e = 0; e < E; e++) axisMax = Math.max(axisMax, R.load[e] + R.drop[e]);
     const sc = maxH / Math.max(1, axisMax);
     barRects = [];
-    r.label('per-expert load (tokens routed)', barsX, topY - 14, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label('per-expert load (tokens routed)', barsX, topY - 14, { color: T.n14, font: '12px ui-monospace, monospace' });
     ctx.save();
     // capacity line
     const capY = baseY - cap * sc;
-    ctx.strokeStyle = RED; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(barsX - 6, capY); ctx.lineTo(barsX + E * slot, capY); ctx.stroke(); ctx.setLineDash([]);
-    r.label(`capacity ${cap}`, barsX + E * slot + 2, capY, { color: RED, font: '10px ui-monospace, monospace' });
-    ctx.strokeStyle = '#e3e6ea'; ctx.beginPath(); ctx.moveTo(barsX - 6, baseY); ctx.lineTo(barsX + E * slot, baseY); ctx.stroke();
+    ctx.strokeStyle = T.bad; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(barsX - 6, capY); ctx.lineTo(barsX + E * slot, capY); ctx.stroke(); ctx.setLineDash([]);
+    r.label(`capacity ${cap}`, barsX + E * slot + 2, capY, { color: T.bad, font: '10px ui-monospace, monospace' });
+    ctx.strokeStyle = T.n4; ctx.beginPath(); ctx.moveTo(barsX - 6, baseY); ctx.lineTo(barsX + E * slot, baseY); ctx.stroke();
     ctx.font = '10px ui-monospace, monospace';
     for (let e = 0; e < E; e++) {
       const x = barsX + e * slot, lh = R.load[e] * sc, dh = R.drop[e] * sc;
       const rect = { x, y: baseY - lh - dh, w: bw, h: lh + dh, e };
       barRects.push(rect);
-      ctx.fillStyle = CAT[e % CAT.length]; ctx.globalAlpha = 0.8; ctx.fillRect(x, baseY - lh, bw, lh); ctx.globalAlpha = 1;       // load
-      if (dh > 0) { ctx.fillStyle = RED; ctx.fillRect(x, baseY - lh - dh, bw, dh); }                                              // dropped (over capacity)
-      ctx.fillStyle = '#1a1d21'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(String(R.load[e]), x + bw / 2, baseY - lh - dh - 3);
-      ctx.fillStyle = CAT[e % CAT.length]; ctx.textBaseline = 'top'; ctx.fillText(`e${e}`, x + bw / 2, baseY + 4);
-      ctx.fillStyle = '#586069'; ctx.fillText(`P${R.P[e].toFixed(2)}`, x + bw / 2, baseY + 16);
+      ctx.fillStyle = CAT()[e % CAT().length]; ctx.globalAlpha = 0.8; ctx.fillRect(x, baseY - lh, bw, lh); ctx.globalAlpha = 1;       // load
+      if (dh > 0) { ctx.fillStyle = T.bad; ctx.fillRect(x, baseY - lh - dh, bw, dh); }                                              // dropped (over capacity)
+      ctx.fillStyle = T.n14; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(String(R.load[e]), x + bw / 2, baseY - lh - dh - 3);
+      ctx.fillStyle = CAT()[e % CAT().length]; ctx.textBaseline = 'top'; ctx.fillText(`e${e}`, x + bw / 2, baseY + 4);
+      ctx.fillStyle = T.n11; ctx.fillText(`P${R.P[e].toFixed(2)}`, x + bw / 2, baseY + 16);
     }
     ctx.restore();
 
     // ---- routing arrows: current token -> its experts' bars ----
     if (tok >= 0 && tok < N) {
       const fromY = topY + tok * cell + cell / 2, fromX = gateRect.x + E * cell + 2;
-      for (const e of R.sel[tok]) { const br = barRects[e]; ctx.save(); ctx.strokeStyle = CAT[e % CAT.length]; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(fromX, fromY); ctx.lineTo(br.x + bw / 2, baseY - R.load[e] * sc + 2); ctx.stroke(); ctx.restore(); }
+      for (const e of R.sel[tok]) { const br = barRects[e]; ctx.save(); ctx.strokeStyle = CAT()[e % CAT().length]; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(fromX, fromY); ctx.lineTo(br.x + bw / 2, baseY - R.load[e] * sc + 2); ctx.stroke(); ctx.restore(); }
     }
 
     // ---- hover ----

@@ -1,5 +1,5 @@
 // controls.js -- interaction widgets + the step-mode transport for
-// viz concept pages. Design: plan/framework.md.
+// ai/models/viz concept pages. Design: the shared render framework's contract.
 //
 // Two roles:
 //   1. Widgets (slider / select / toggle / stepper / dimKnobs / button) that

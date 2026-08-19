@@ -5,7 +5,7 @@
 Interactive page: **backpropagation / autograd** -- the *backward* pass, the
 training counterpart to the [forward-pass](../forward-pass/README.md) capstone (and
 the only page about how a model *learns*, not just runs). **Anchor**: H (end to end
-/ training). Family H ().
+/ training). Family H (see `../plan/curriculum.md`).
 
 ## What it shows
 

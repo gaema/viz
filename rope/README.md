@@ -4,7 +4,7 @@
 
 Interactive page: how RoPE encodes position by rotating each dimension-pair of a
 query/key vector by an angle proportional to position. **Anchor**: A1 RoPE
-shape (Family B8).
+shape (Family B8; see `../plan/curriculum.md`).
 
 ## What it shows
 

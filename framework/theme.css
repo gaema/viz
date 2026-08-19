@@ -1,0 +1,161 @@
+/* GENERATED from framework/theme.js by tools/theme_migrate.py --emit-css.
+   Do not hand-edit: edit the token table in theme.js and regenerate.
+   Three states, in this order: the light default, the OS preference when
+   the user has not chosen (auto), and an explicit choice, which wins. */
+:root {
+  color-scheme: light;
+  --vz-n0: #ffffff;
+  --vz-n1: #f7f8f9;
+  --vz-n2: #f3f4f6;
+  --vz-n3: #eceef0;
+  --vz-n4: #e3e6ea;
+  --vz-n5: #dfe3e6;
+  --vz-n6: #d0d7de;
+  --vz-n7: #c4ccd3;
+  --vz-n8: #b8bec4;
+  --vz-n9: #9aa4ad;
+  --vz-n10: #8a939b;
+  --vz-n11: #586069;
+  --vz-n12: #3a4047;
+  --vz-n13: #24292e;
+  --vz-n14: #1a1d21;
+  --vz-accent: #1f6feb;
+  --vz-accentBg: #eef3ff;
+  --vz-accentLine: #9ec1ef;
+  --vz-ok: #2ca02c;
+  --vz-okDeep: #0a7227;
+  --vz-okBg: #e6ffec;
+  --vz-okLine: #b7f5c2;
+  --vz-warn: #d2691e;
+  --vz-warnBg: #fff3e9;
+  --vz-warnLine: #f0ddc9;
+  --vz-warnDeep: #9a5b1a;
+  --vz-bad: #d1242f;
+  --vz-violet: #8250df;
+  --vz-violetDeep: #5a189a;
+  --vz-teal: #17a2b8;
+  --vz-tealDeep: #0a9396;
+  --vz-gold: #9a8b73;
+  --vz-goldDeep: #9a6700;
+  --vz-goldBg: #fff7ed;
+  --vz-goldLine: #e9ddcb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-vz-theme="light"]) {
+    color-scheme: dark;
+    --vz-n0: #16191d;
+    --vz-n1: #1a1e22;
+    --vz-n2: #1f242a;
+    --vz-n3: #242a31;
+    --vz-n4: #2b323a;
+    --vz-n5: #333b44;
+    --vz-n6: #3d4650;
+    --vz-n7: #4a545f;
+    --vz-n8: #5b6672;
+    --vz-n9: #7f8b96;
+    --vz-n10: #98a3ae;
+    --vz-n11: #b3bcc5;
+    --vz-n12: #ccd4dc;
+    --vz-n13: #e2e7ec;
+    --vz-n14: #f0f3f6;
+    --vz-accent: #58a6ff;
+    --vz-accentBg: #122437;
+    --vz-accentLine: #2f5d96;
+    --vz-ok: #4ec94e;
+    --vz-okDeep: #2ea043;
+    --vz-okBg: #0f2417;
+    --vz-okLine: #2b5c39;
+    --vz-warn: #f0883e;
+    --vz-warnBg: #2b1c10;
+    --vz-warnLine: #5f4426;
+    --vz-warnDeep: #d1893f;
+    --vz-bad: #f85149;
+    --vz-violet: #bc8cff;
+    --vz-violetDeep: #a371f7;
+    --vz-teal: #3fc9dd;
+    --vz-tealDeep: #2eb3b6;
+    --vz-gold: #b5a68d;
+    --vz-goldDeep: #d4a72c;
+    --vz-goldBg: #271f12;
+    --vz-goldLine: #4b3d25;
+  }
+}
+
+:root[data-vz-theme="dark"] {
+  color-scheme: dark;
+  --vz-n0: #16191d;
+  --vz-n1: #1a1e22;
+  --vz-n2: #1f242a;
+  --vz-n3: #242a31;
+  --vz-n4: #2b323a;
+  --vz-n5: #333b44;
+  --vz-n6: #3d4650;
+  --vz-n7: #4a545f;
+  --vz-n8: #5b6672;
+  --vz-n9: #7f8b96;
+  --vz-n10: #98a3ae;
+  --vz-n11: #b3bcc5;
+  --vz-n12: #ccd4dc;
+  --vz-n13: #e2e7ec;
+  --vz-n14: #f0f3f6;
+  --vz-accent: #58a6ff;
+  --vz-accentBg: #122437;
+  --vz-accentLine: #2f5d96;
+  --vz-ok: #4ec94e;
+  --vz-okDeep: #2ea043;
+  --vz-okBg: #0f2417;
+  --vz-okLine: #2b5c39;
+  --vz-warn: #f0883e;
+  --vz-warnBg: #2b1c10;
+  --vz-warnLine: #5f4426;
+  --vz-warnDeep: #d1893f;
+  --vz-bad: #f85149;
+  --vz-violet: #bc8cff;
+  --vz-violetDeep: #a371f7;
+  --vz-teal: #3fc9dd;
+  --vz-tealDeep: #2eb3b6;
+  --vz-gold: #b5a68d;
+  --vz-goldDeep: #d4a72c;
+  --vz-goldBg: #271f12;
+  --vz-goldLine: #4b3d25;
+}
+
+:root[data-vz-theme="light"] {
+  color-scheme: light;
+  --vz-n0: #ffffff;
+  --vz-n1: #f7f8f9;
+  --vz-n2: #f3f4f6;
+  --vz-n3: #eceef0;
+  --vz-n4: #e3e6ea;
+  --vz-n5: #dfe3e6;
+  --vz-n6: #d0d7de;
+  --vz-n7: #c4ccd3;
+  --vz-n8: #b8bec4;
+  --vz-n9: #9aa4ad;
+  --vz-n10: #8a939b;
+  --vz-n11: #586069;
+  --vz-n12: #3a4047;
+  --vz-n13: #24292e;
+  --vz-n14: #1a1d21;
+  --vz-accent: #1f6feb;
+  --vz-accentBg: #eef3ff;
+  --vz-accentLine: #9ec1ef;
+  --vz-ok: #2ca02c;
+  --vz-okDeep: #0a7227;
+  --vz-okBg: #e6ffec;
+  --vz-okLine: #b7f5c2;
+  --vz-warn: #d2691e;
+  --vz-warnBg: #fff3e9;
+  --vz-warnLine: #f0ddc9;
+  --vz-warnDeep: #9a5b1a;
+  --vz-bad: #d1242f;
+  --vz-violet: #8250df;
+  --vz-violetDeep: #5a189a;
+  --vz-teal: #17a2b8;
+  --vz-tealDeep: #0a9396;
+  --vz-gold: #9a8b73;
+  --vz-goldDeep: #9a6700;
+  --vz-goldBg: #fff7ed;
+  --vz-goldLine: #e9ddcb;
+}

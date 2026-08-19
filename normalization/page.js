@@ -1,7 +1,7 @@
 // normalization concept page -- RMSNorm vs LayerNorm (per-row) + pre/post-norm.
 // Uses the verified framework: layout.mount() + controls + a per-row Transport.
 //
-// Interactive per the framework contract (plan/framework.md): drag any input
+// Interactive per the shared render framework's contract: drag any input
 // cell vertically to change x[i] and watch that row's μ / σ (or RMS) and every
 // normalized output recompute live (the row visibly re-centers + re-scales);
 // hover an input cell for x[i], or a normalized cell for its full derivation
@@ -9,8 +9,10 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', GREEN = '#2ca02c';
+
+
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 
 // Shared between compute() (builds the per-row step list), draw() (renders +
@@ -62,28 +64,28 @@ function computeNorm(X, N, D, isLN) {
 function tableHeat(r, M, rect, hiRow, label, dom) {
   const ctx = r.ctx, cell = rect.h / M.rows;
   r.heatmap(M, { rows: M.rows, cols: M.cols, rect, ramp: ramps.diverging, domain: [-dom, dom] });
-  r.grid({ stroke: 'rgba(0,0,0,0.10)' });
-  r.label(label, rect.x, rect.y - 7, { color: '#586069', font: '11px ui-monospace, monospace' });
-  for (let i = 0; i < M.rows; i++) r.label('t' + i, rect.x - 22, rect.y + i * cell + cell / 2 + 3, { color: i === hiRow ? BLUE : '#9aa4ad', font: '10px ui-monospace, monospace' });
-  if (hiRow >= 0) { ctx.save(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.strokeRect(rect.x - 1, rect.y + hiRow * cell - 1, M.cols * cell + 2, cell + 2); ctx.restore(); }
+  r.grid({ stroke: alphaOf('n14', 0.10) });
+  r.label(label, rect.x, rect.y - 7, { color: T.n11, font: '11px ui-monospace, monospace' });
+  for (let i = 0; i < M.rows; i++) r.label('t' + i, rect.x - 22, rect.y + i * cell + cell / 2 + 3, { color: i === hiRow ? T.accent : T.n9, font: '10px ui-monospace, monospace' });
+  if (hiRow >= 0) { ctx.save(); ctx.strokeStyle = T.n14; ctx.lineWidth = 2.5; ctx.strokeRect(rect.x - 1, rect.y + hiRow * cell - 1, M.cols * cell + 2, cell + 2); ctx.restore(); }
 }
 
 function statCol(r, vals, x, y, cell, label, hiRow, dom, ramp) {
   const ctx = r.ctx, N = vals.length;
   r.heatmap(vals, { rows: N, cols: 1, rect: { x, y, w: cell, h: N * cell }, ramp, domain: dom });
-  r.grid({ stroke: 'rgba(0,0,0,0.10)' });
-  r.label(label, x, y - 7, { color: '#586069', font: '10px ui-monospace, monospace' });
+  r.grid({ stroke: alphaOf('n14', 0.10) });
+  r.label(label, x, y - 7, { color: T.n11, font: '10px ui-monospace, monospace' });
   ctx.save(); ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  for (let i = 0; i < N; i++) { ctx.fillStyle = '#1a1d21'; ctx.fillText(vals[i].toFixed(2), x + cell / 2, y + i * cell + cell / 2); }
-  if (hiRow >= 0) { ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.strokeRect(x - 1, y + hiRow * cell - 1, cell + 2, cell + 2); }
+  for (let i = 0; i < N; i++) { ctx.fillStyle = T.n14; ctx.fillText(vals[i].toFixed(2), x + cell / 2, y + i * cell + cell / 2); }
+  if (hiRow >= 0) { ctx.strokeStyle = T.n14; ctx.lineWidth = 2; ctx.strokeRect(x - 1, y + hiRow * cell - 1, cell + 2, cell + 2); }
   ctx.restore();
 }
 
 function flowBox(ctx, x, y, w, h, label, col, hi) {
   ctx.save();
-  ctx.fillStyle = hi ? 'rgba(31,111,235,0.16)' : '#f3f4f7'; ctx.strokeStyle = hi ? BLUE : (col || '#c4ccd3'); ctx.lineWidth = hi ? 2.5 : 1.5;
+  ctx.fillStyle = hi ? alphaOf(T.accent, 0.16) : T.n2; ctx.strokeStyle = hi ? T.accent : (col || T.n7); ctx.lineWidth = hi ? 2.5 : 1.5;
   ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-  ctx.fillStyle = hi ? BLUE : '#3a4047'; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = hi ? T.accent : T.n12; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(label, x + w / 2, y + h / 2);
   ctx.restore();
 }
@@ -124,7 +126,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { X, N, D } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const isLN = st.norm === 'layernorm';
     const { mu, sd, rms, Y, eps } = computeNorm(X, N, D, isLN);
     const s = page.step(), ri = s ? s.i : N - 1;
@@ -140,27 +142,27 @@ mount({
     if (isLN) { statCol(r, mu, sx, topY, cell, 'μ', ri, [-maxAbs(mu), maxAbs(mu)], ramps.diverging); sx += cell + 12; statCol(r, sd, sx, topY, cell, 'σ', ri, [0, maxAbs(sd)], ramps.sequential); sx += cell + 12; }
     else { statCol(r, rms, sx, topY, cell, 'RMS', ri, [0, maxAbs(rms)], ramps.sequential); sx += cell + 12; }
 
-    r.label('→', sx + 2, topY + N * cell / 2 + 4, { color: '#9aa4ad', font: '16px ui-monospace, monospace' });
+    r.label('→', sx + 2, topY + N * cell / 2 + 4, { color: T.n9, font: '16px ui-monospace, monospace' });
     Orect = { x: sx + 26, y: topY, w: D * cell, h: N * cell };
     tableHeat(r, Y, Orect, ri, isLN ? 'output (centered + scaled)' : 'output (unit RMS)', dY);
 
     // pre / post-norm placement diagram
     const dy = topY + N * cell + 52, bh = 30, bw = 78, gap = 16;
-    r.label(st.prenorm ? 'pre-norm:  out = x + sublayer(norm(x))' : 'post-norm:  out = norm(x + sublayer(x))', pad, dy - 10, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label(st.prenorm ? 'pre-norm:  out = x + sublayer(norm(x))' : 'post-norm:  out = norm(x + sublayer(x))', pad, dy - 10, { color: T.n14, font: '12px ui-monospace, monospace' });
     const seq = st.prenorm ? ['x', 'Norm', 'Sublayer', '⊕ (+x)', 'out'] : ['x', 'Sublayer', '⊕ (+x)', 'Norm', 'out'];
     let bx = pad + 6;
     const centers = [];
     for (let k = 0; k < seq.length; k++) {
       const hi = seq[k] === 'Norm';
-      flowBox(ctx, bx, dy, bw, bh, seq[k], hi ? BLUE : '#c4ccd3', hi);
+      flowBox(ctx, bx, dy, bw, bh, seq[k], hi ? T.accent : T.n7, hi);
       centers.push(bx + bw / 2);
-      if (k < seq.length - 1) { ctx.save(); ctx.strokeStyle = '#9aa4ad'; ctx.beginPath(); ctx.moveTo(bx + bw, dy + bh / 2); ctx.lineTo(bx + bw + gap, dy + bh / 2); ctx.stroke(); ctx.restore(); }
+      if (k < seq.length - 1) { ctx.save(); ctx.strokeStyle = T.n9; ctx.beginPath(); ctx.moveTo(bx + bw, dy + bh / 2); ctx.lineTo(bx + bw + gap, dy + bh / 2); ctx.stroke(); ctx.restore(); }
       bx += bw + gap;
     }
     // residual arc: x -> the ⊕ box
     const addIdx = seq.findIndex((b) => b.startsWith('⊕'));
-    ctx.save(); ctx.strokeStyle = GREEN; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(centers[0], dy); ctx.bezierCurveTo(centers[0], dy - 24, centers[addIdx], dy - 24, centers[addIdx], dy); ctx.stroke();
-    ctx.fillStyle = GREEN; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('residual', (centers[0] + centers[addIdx]) / 2, dy - 27); ctx.restore();
+    ctx.save(); ctx.strokeStyle = T.ok; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(centers[0], dy); ctx.bezierCurveTo(centers[0], dy - 24, centers[addIdx], dy - 24, centers[addIdx], dy); ctx.stroke();
+    ctx.fillStyle = T.ok; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('residual', (centers[0] + centers[addIdx]) / 2, dy - 27); ctx.restore();
 
     // Hover-to-inspect: input cell -> x[i]; normalized cell -> full derivation.
     // γ=1, β=0 in this synthetic view (no learned affine), so the affine terms

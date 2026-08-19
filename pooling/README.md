@@ -5,7 +5,8 @@
 Interactive page: spatial **pooling** -- a window slides over the input and
 reduces each window to one number (its **max** or its **average**), shrinking the
 feature map. The cheap, parameter-free downsampler in a CNN. **Anchor**: F (CNN /
-vision); Family F, companion to [convolution](../convolution/README.md) ().
+vision); Family F, companion to [convolution](../convolution/README.md) (see
+`../plan/curriculum.md`).
 
 ## What it shows
 

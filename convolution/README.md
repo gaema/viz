@@ -5,7 +5,8 @@
 Interactive page: 2-D convolution as a small kernel sliding across an input
 feature map, each output pixel a **sum of products** over the receptive field --
 with the geometry knobs that set the output size: **stride**, **padding**, and
-**dilation**. **Anchor**: F (CNN / vision); Family F ().
+**dilation**. **Anchor**: F (CNN / vision); Family F (see
+`../plan/curriculum.md`).
 
 ## What it shows
 

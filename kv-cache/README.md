@@ -4,7 +4,8 @@
 
 Interactive page: why autoregressive decode keeps a per-layer cache of past
 keys and values, how it fills, and how its memory grows with context.
-**Anchor**: A4 KV cache layout (Family B7, the headline attention page).
+**Anchor**: A4 KV cache layout (Family B7, the headline attention page; see
+`../plan/curriculum.md`).
 
 ## What it shows
 

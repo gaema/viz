@@ -1,17 +1,19 @@
 // embedding concept page -- token-id row lookup + tied/untied lm_head.
 // Uses the verified framework: layout.mount() + controls + a per-token Transport.
 //
-// Interactive per the framework contract (plan/framework.md): hover any E (or
+// Interactive per the shared render framework's contract: hover any E (or
 // untied lm_head) cell for E[token,dim] = value (+ the token label); hover the
 // fetched-row cell for its value. Direct manipulation: click/drag a row of the
-// embedding table (or drag along the token axis) to PIN which token id is looked
+// embedding table (or drag along the token axis) to T.okDeep which token id is looked
 // up -- the highlighted row + the pulled embedding vector update live. The
 // per-token sweep auto-plays + loops.
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', PIN = '#0a7227';
+
+
 const VOCAB = ['the', 'cat', 'sat', 'on', 'mat', 'dog'];   // V = 6
 const SENT = ['the', 'cat', 'sat', 'on', 'the', 'mat'];    // input sequence
 const V = VOCAB.length, N = SENT.length;
@@ -47,14 +49,14 @@ function lookupId(page) {
 function table(r, M, rect, dom, hiRow, label) {
   const ctx = r.ctx, cell = rect.h / V;
   r.heatmap(M, { rows: V, cols: M.cols, rect, ramp: ramps.diverging, domain: [-dom, dom] });
-  r.grid({ stroke: 'rgba(0,0,0,0.10)' });
-  r.label(label, rect.x, rect.y - 7, { color: '#586069', font: '11px ui-monospace, monospace' });
+  r.grid({ stroke: alphaOf('n14', 0.10) });
+  r.label(label, rect.x, rect.y - 7, { color: T.n11, font: '11px ui-monospace, monospace' });
   ctx.save(); ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-  for (let i = 0; i < V; i++) { ctx.fillStyle = i === hiRow ? BLUE : '#9aa4ad'; ctx.fillText(VOCAB[i], rect.x - 5, rect.y + i * cell + cell / 2); }
+  for (let i = 0; i < V; i++) { ctx.fillStyle = i === hiRow ? T.accent : T.n9; ctx.fillText(VOCAB[i], rect.x - 5, rect.y + i * cell + cell / 2); }
   ctx.restore();
   if (hiRow >= 0) {
     ctx.save();
-    ctx.strokeStyle = manualId != null ? PIN : INK; ctx.lineWidth = 2.5;
+    ctx.strokeStyle = manualId != null ? T.okDeep : T.n14; ctx.lineWidth = 2.5;
     ctx.strokeRect(rect.x - 1, rect.y + hiRow * cell - 1, M.cols * cell + 2, cell + 2);
     ctx.restore();
   }
@@ -102,7 +104,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { E, L, D } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const s = page.step();
     const t = s ? s.t : N - 1, tied = st.tied;
     const id = lookupId(page);          // pinned id, else IDS[t]
@@ -117,7 +119,7 @@ mount({
     const dE = maxAbs(E.data), dL = tied ? dE : maxAbs(L.data);
 
     // input token sequence (top), arrow from the looked-up token to its row
-    r.label('input tokens (ids)', pad, inputY - 14, { color: '#586069', font: '11px ui-monospace, monospace' });
+    r.label('input tokens (ids)', pad, inputY - 14, { color: T.n11, font: '11px ui-monospace, monospace' });
     const bw = Math.min(64, (Erect.w + 60) / N - 6);
     inputRects = [];
     for (let i = 0; i < N; i++) {
@@ -127,11 +129,11 @@ mount({
       // matching ids when pinned to a token that appears more than once).
       const cur2 = pinned ? IDS[i] === id : i === t;
       ctx.save();
-      ctx.fillStyle = cur2 ? 'rgba(31,111,235,0.16)' : '#f2f4f7'; ctx.strokeStyle = cur2 ? BLUE : '#d0d7de'; ctx.lineWidth = cur2 ? 2 : 1;
+      ctx.fillStyle = cur2 ? alphaOf(T.accent, 0.16) : T.n2; ctx.strokeStyle = cur2 ? T.accent : T.n6; ctx.lineWidth = cur2 ? 2 : 1;
       ctx.fillRect(bx, inputY, bw, 26); ctx.strokeRect(bx, inputY, bw, 26);
-      ctx.fillStyle = cur2 ? BLUE : '#3a4047'; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = cur2 ? T.accent : T.n12; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(`${SENT[i]}·${IDS[i]}`, bx + bw / 2, inputY + 13);
-      if (cur2 && IDS[i] === id) { ctx.strokeStyle = pinned ? PIN : BLUE; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(bx + bw / 2, inputY + 26); ctx.lineTo(Erect.x - 2, Erect.y + id * cell + cell / 2); ctx.stroke(); }
+      if (cur2 && IDS[i] === id) { ctx.strokeStyle = pinned ? T.okDeep : T.accent; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(bx + bw / 2, inputY + 26); ctx.lineTo(Erect.x - 2, Erect.y + id * cell + cell / 2); ctx.stroke(); }
       ctx.restore();
     }
 
@@ -142,13 +144,13 @@ mount({
     const stripY = tableY + V * cell + 30;
     const row = E.data.subarray(id * D, id * D + D);
     rowRect = { x: Ex, y: stripY, w: D * cell, h: cell };
-    r.label(`embedding["${VOCAB[id]}"] = E[${id}]  (one row)${pinned ? '   ⟵ pinned' : ''}`, Ex, stripY - 7, { color: pinned ? PIN : INK, font: '11px ui-monospace, monospace' });
+    r.label(`embedding["${VOCAB[id]}"] = E[${id}]  (one row)${pinned ? '   ⟵ pinned' : ''}`, Ex, stripY - 7, { color: pinned ? T.okDeep : T.n14, font: '11px ui-monospace, monospace' });
     r.heatmap(row, { rows: 1, cols: D, rect: rowRect, ramp: ramps.diverging, domain: [-dE, dE] });
-    r.grid({ stroke: 'rgba(0,0,0,0.12)' });
+    r.grid({ stroke: alphaOf('n14', 0.12) });
 
     // lm_head (right): tied = E, untied = separate L
     table(r, tied ? E : L, Lrect, dL, -1, tied ? `lm_head = Eᵀ  (tied → reuses E)` : `lm_head (untied, separate) [${V}×${D}]`);
-    ctx.save(); ctx.fillStyle = tied ? '#0a7227' : '#b3261e'; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center';
+    ctx.save(); ctx.fillStyle = tied ? T.okDeep : T.bad; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center';
     const VD = V * D;
     ctx.fillText(tied ? `params = V·D = ${VD}` : `params = 2·V·D = ${2 * VD}`, Lrect.x + Lrect.w / 2, Lrect.y + Lrect.h + 20);
     ctx.restore();

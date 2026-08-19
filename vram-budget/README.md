@@ -4,7 +4,8 @@
 
 Interactive page: **live VRAM math for LLM inference** -- the four things that
 consume GPU memory, to scale against a chosen GPU, and *why* a long prompt runs
-out of memory. **Anchor**: G (quantization / deployment); Family G ().
+out of memory. **Anchor**: G (quantization / deployment); Family G (see
+`../plan/curriculum.md`).
 
 ## What it shows
 

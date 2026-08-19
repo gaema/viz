@@ -6,8 +6,9 @@
 // more; hover a unit to focus its cone. No transport -- the focus sweeps the
 // top layer (animate); hover overrides.
 import { mount } from '../framework/layout.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', RED = '#d1242f', GREY = '#9aa4ad';
+
 
 mount({
   mount: 'body',
@@ -25,7 +26,7 @@ mount({
   },
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const N = st.N | 0, L = st.L | 0, k = st.k | 0, half = (k - 1) / 2;
     const dilAt = (l) => st.mode === 'double' ? Math.pow(2, l - 1) : (st.dil | 0);
     let rf = 1; for (let l = 1; l <= L; l++) rf += (k - 1) * dilAt(l);
@@ -48,13 +49,13 @@ mount({
 
     // all units (faint) + layer labels
     ctx.save();
-    for (let l = 0; l <= L; l++) for (let pos = 0; pos < N; pos++) { const c = nx(pos, l); ctx.fillStyle = '#dfe3e6'; ctx.beginPath(); ctx.arc(c.x, c.y, 2.5, 0, 7); ctx.fill(); }
-    ctx.fillStyle = '#586069'; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (let l = 0; l <= L; l++) for (let pos = 0; pos < N; pos++) { const c = nx(pos, l); ctx.fillStyle = T.n5; ctx.beginPath(); ctx.arc(c.x, c.y, 2.5, 0, 7); ctx.fill(); }
+    ctx.fillStyle = T.n11; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     for (let l = 0; l <= L; l++) ctx.fillText(l === 0 ? 'input' : `conv ${l}`, leftX - 8, nx(0, l).y);
     ctx.restore();
 
     // dependency cone (translucent) from focus down to the input RF interval
-    ctx.save(); ctx.fillStyle = 'rgba(31,111,235,0.12)'; ctx.strokeStyle = 'rgba(31,111,235,0.55)'; ctx.lineWidth = 1.2; ctx.beginPath();
+    ctx.save(); ctx.fillStyle = alphaOf(T.accent, 0.12); ctx.strokeStyle = alphaOf(T.accent, 0.55); ctx.lineWidth = 1.2; ctx.beginPath();
     const f = nx(fp, fl); ctx.moveTo(f.x, f.y);
     for (let l = fl - 1; l >= 0; l--) { const c = nx(clamp(hi[l]), l); ctx.lineTo(c.x, c.y); }
     for (let l = 0; l <= fl; l++) { const c = nx(clamp(lo[l]), l); ctx.lineTo(c.x, c.y); }
@@ -62,19 +63,19 @@ mount({
 
     // highlight RF units per layer + the focus
     ctx.save();
-    for (let l = 0; l <= fl; l++) for (let pos = clamp(lo[l]); pos <= clamp(hi[l]); pos++) { const c = nx(pos, l); ctx.fillStyle = l === 0 ? BLUE : 'rgba(31,111,235,0.72)'; ctx.beginPath(); ctx.arc(c.x, c.y, l === 0 ? 3.6 : 3, 0, 7); ctx.fill(); }
-    ctx.fillStyle = RED; ctx.beginPath(); ctx.arc(f.x, f.y, 4.6, 0, 7); ctx.fill();
+    for (let l = 0; l <= fl; l++) for (let pos = clamp(lo[l]); pos <= clamp(hi[l]); pos++) { const c = nx(pos, l); ctx.fillStyle = l === 0 ? T.accent : alphaOf(T.accent, 0.72); ctx.beginPath(); ctx.arc(c.x, c.y, l === 0 ? 3.6 : 3, 0, 7); ctx.fill(); }
+    ctx.fillStyle = T.bad; ctx.beginPath(); ctx.arc(f.x, f.y, 4.6, 0, 7); ctx.fill();
     ctx.restore();
 
     // input RF bracket
     const a = nx(clamp(lo[0]), 0), b = nx(clamp(hi[0]), 0), by = baseY + 16;
-    ctx.save(); ctx.strokeStyle = BLUE; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a.x - 3, by); ctx.lineTo(a.x - 3, by + 6); ctx.lineTo(b.x + 3, by + 6); ctx.lineTo(b.x + 3, by); ctx.stroke();
-    ctx.fillStyle = BLUE; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(`receptive field = ${rf} input unit${rf === 1 ? '' : 's'}${rf > N ? ' (wider than shown)' : ''}`, (a.x + b.x) / 2, by + 9); ctx.restore();
+    ctx.save(); ctx.strokeStyle = T.accent; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a.x - 3, by); ctx.lineTo(a.x - 3, by + 6); ctx.lineTo(b.x + 3, by + 6); ctx.lineTo(b.x + 3, by); ctx.stroke();
+    ctx.fillStyle = T.accent; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(`receptive field = ${rf} input unit${rf === 1 ? '' : 's'}${rf > N ? ' (wider than shown)' : ''}`, (a.x + b.x) / 2, by + 9); ctx.restore();
 
-    r.label(`each "conv ${L}" unit sees ${rf} inputs    ·    RF = 1 + Σₗ (k−1)·dₗ`, leftX, topY - 48, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label(`each "conv ${L}" unit sees ${rf} inputs    ·    RF = 1 + Σₗ (k−1)·dₗ`, leftX, topY - 48, { color: T.n14, font: '12px ui-monospace, monospace' });
     r.label(st.mode === 'double'
       ? `doubling dilation dₗ = 2^(l−1) → RF grows EXPONENTIALLY:  1 + (k−1)(2^L − 1) = ${rf}`
-      : `fixed dilation d=${st.dil} → RF grows LINEARLY with depth:  1 + L·(k−1)·d = ${rf}`, leftX, topY - 32, { color: '#586069', font: '10px ui-monospace, monospace' });
+      : `fixed dilation d=${st.dil} → RF grows LINEARLY with depth:  1 + L·(k−1)·d = ${rf}`, leftX, topY - 32, { color: T.n11, font: '10px ui-monospace, monospace' });
 
     if (hov) page.setTip(`unit (conv ${hov.l}, pos ${hov.pos})\nreceptive field on input = ${rf} unit${rf === 1 ? '' : 's'}\n(cone widens k−1=${k - 1} per layer × dilation)`);
 

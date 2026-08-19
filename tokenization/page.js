@@ -6,8 +6,10 @@
 // adds a merge rule, and rewrites every word. This is how GPT/LLaMA tokenizers
 // are trained; at inference the learned merges are replayed on new text.
 import { mount } from '../framework/layout.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', GREY = '#9aa4ad', BLUE = '#1f6feb', ORANGE = '#d2691e', GREEN = '#2ca02c', PURPLE = '#8250df', RED = '#d1242f';
+
+
 const PRESETS = {
   'low / new / wide': [['low', 6], ['lower', 3], ['lowest', 2], ['newer', 4], ['newest', 6], ['wide', 3], ['wider', 3], ['widest', 2], ['new', 5]],
   'banana / panama': [['banana', 6], ['panama', 3], ['bandana', 3], ['ananas', 2], ['canada', 2]],
@@ -73,44 +75,44 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state, W = page.W, Hh = page.H;
     if (page.controls._transport) page.controls._transport.rebuildIfDirty();
     if (!cur) return;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const cs = page.step(), k = cs ? cs.stage : 0, S = cur.steps[k], nw = k > 0 ? S.rules[k - 1].nw : null;
 
     // ===== corpus words + segmentation (left) =====
     const lx = 20, ly = 64; let y = ly;
-    r.label('corpus — each word as symbols (drag ×freq ↕)', lx, ly - 10, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label('corpus — each word as symbols (drag ×freq ↕)', lx, ly - 10, { color: T.n14, font: '11px ui-monospace, monospace' });
     wordRects = [];
     ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'left';
     for (let wi = 0; wi < S.words.length; wi++) {
       const w = S.words[wi];
-      ctx.fillStyle = wi === dragW ? 'rgba(210,105,30,0.15)' : '#f4f5f7'; ctx.fillRect(lx, y, 32, 20); ctx.strokeStyle = '#d0d7de'; ctx.strokeRect(lx, y, 32, 20); ctx.fillStyle = '#586069'; ctx.font = '10px ui-monospace, monospace'; ctx.fillText('×' + w.freq, lx + 5, y + 14);
+      ctx.fillStyle = wi === dragW ? alphaOf(T.warn, 0.15) : T.n2; ctx.fillRect(lx, y, 32, 20); ctx.strokeStyle = T.n6; ctx.strokeRect(lx, y, 32, 20); ctx.fillStyle = T.n11; ctx.font = '10px ui-monospace, monospace'; ctx.fillText('×' + w.freq, lx + 5, y + 14);
       wordRects.push({ x: lx, y, h: 20 });
       let sx = lx + 40;
-      for (const s of w.sym) { ctx.font = '12px ui-monospace, monospace'; const tw = ctx.measureText(s).width + 8, isNew = s === nw && s.length > 1; ctx.fillStyle = isNew ? 'rgba(210,105,30,0.22)' : '#eef2f6'; ctx.fillRect(sx, y, tw, 20); ctx.strokeStyle = isNew ? ORANGE : '#cdd5dd'; ctx.lineWidth = isNew ? 1.4 : 0.8; ctx.strokeRect(sx, y, tw, 20); ctx.fillStyle = isNew ? ORANGE : INK; ctx.fillText(s, sx + 4, y + 14); sx += tw + 3; }
+      for (const s of w.sym) { ctx.font = '12px ui-monospace, monospace'; const tw = ctx.measureText(s).width + 8, isNew = s === nw && s.length > 1; ctx.fillStyle = isNew ? alphaOf(T.warn, 0.22) : T.n2; ctx.fillRect(sx, y, tw, 20); ctx.strokeStyle = isNew ? T.warn : T.n6; ctx.lineWidth = isNew ? 1.4 : 0.8; ctx.strokeRect(sx, y, tw, 20); ctx.fillStyle = isNew ? T.warn : T.n14; ctx.fillText(s, sx + 4, y + 14); sx += tw + 3; }
       y += 24;
     }
     const botY = y + 10;
     // counts
     const comp = (1 - S.tokens / cur.charCount) * 100;
-    r.label(`vocab ${S.vocab} symbols  ·  ${S.tokens} tokens (was ${cur.charCount}, −${comp.toFixed(0)}%)`, lx, botY, { color: GREEN, font: '11px ui-monospace, monospace' });
-    r.label(`merges ${k} / ${cur.steps.length - 1}  ·  "_" = word boundary`, lx, botY + 16, { color: '#586069', font: '10px ui-monospace, monospace' });
+    r.label(`vocab ${S.vocab} symbols  ·  ${S.tokens} tokens (was ${cur.charCount}, −${comp.toFixed(0)}%)`, lx, botY, { color: T.ok, font: '11px ui-monospace, monospace' });
+    r.label(`merges ${k} / ${cur.steps.length - 1}  ·  "_" = word boundary`, lx, botY + 16, { color: T.n11, font: '10px ui-monospace, monospace' });
 
     // ===== pair frequency table (right top) =====
     const px = 430, py = 64, pw = W - px - 16;
-    r.label(k === 0 ? 'most frequent adjacent pairs (next to merge →)' : 'pair frequencies at this step (winner merged)', px, py - 10, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label(k === 0 ? 'most frequent adjacent pairs (next to merge →)' : 'pair frequencies at this step (winner merged)', px, py - 10, { color: T.n14, font: '11px ui-monospace, monospace' });
     const mx = S.top.length ? S.top[0].v : 1;
     S.top.forEach((p, i) => {
       const yy = py + i * 20, isWin = i === 0 && (k > 0 || true);
-      ctx.fillStyle = (k > 0 && i === 0) ? ORANGE : 'rgba(31,111,235,0.5)'; ctx.fillRect(px + 86, yy, (pw - 110) * p.v / mx, 14);
-      ctx.fillStyle = INK; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.fillText(`"${p.a}"+"${p.b}"`, px, yy + 12);
-      ctx.fillStyle = '#586069'; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'right'; ctx.fillText('' + p.v, px + pw, yy + 12); ctx.textAlign = 'left';
+      ctx.fillStyle = (k > 0 && i === 0) ? T.warn : alphaOf(T.accent, 0.5); ctx.fillRect(px + 86, yy, (pw - 110) * p.v / mx, 14);
+      ctx.fillStyle = T.n14; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.fillText(`"${p.a}"+"${p.b}"`, px, yy + 12);
+      ctx.fillStyle = T.n11; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'right'; ctx.fillText('' + p.v, px + pw, yy + 12); ctx.textAlign = 'left';
     });
 
     // ===== merge rules learned (right bottom) =====
     const ry = py + Math.max(S.top.length, 4) * 20 + 24;
-    r.label('merge rules learned (in order)', px, ry - 4, { color: INK, font: '11px ui-monospace, monospace' });
-    if (!S.rules.length) r.label('(none yet — start stepping)', px, ry + 14, { color: '#8a939b', font: '10px ui-monospace, monospace' });
-    S.rules.forEach((ru, i) => { const yy = ry + 12 + i * 16, isLast = i === S.rules.length - 1; r.label(`${i + 1}.  "${ru.a}" + "${ru.b}"  →  "${ru.nw}"`, px, yy, { color: isLast ? ORANGE : '#3a4047', font: (isLast ? 'bold ' : '') + '10px ui-monospace, monospace' }); });
+    r.label('merge rules learned (in order)', px, ry - 4, { color: T.n14, font: '11px ui-monospace, monospace' });
+    if (!S.rules.length) r.label('(none yet — start stepping)', px, ry + 14, { color: T.n10, font: '10px ui-monospace, monospace' });
+    S.rules.forEach((ru, i) => { const yy = ry + 12 + i * 16, isLast = i === S.rules.length - 1; r.label(`${i + 1}.  "${ru.a}" + "${ru.b}"  →  "${ru.nw}"`, px, yy, { color: isLast ? T.warn : T.n12, font: (isLast ? 'bold ' : '') + '10px ui-monospace, monospace' }); });
 
     // hover
     if (page.pointer.over && dragW < 0) {

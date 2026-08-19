@@ -1,4 +1,4 @@
-// real-embeddings concept page.
+// real-embeddings concept page — Phase 9 (real-model grounding).
 //
 // The synthetic `embedding/` page shows the *mechanism* (a token id is a row
 // lookup in E[V×D]); the numbers there come from a seed. This page shows the
@@ -15,7 +15,7 @@
 // is classical MDS / PCoA: top-2 eigenvectors of the double-centered Gram of
 // the centered vectors (PCA scores), so nearby points = similar meaning.
 //
-// Breadcrumbs to ../design/architectures.md A1 (token embedding) — same
+// Breadcrumbs to the shape taxonomy, attribute A1 (token embedding) — the same
 // attribute as the synthetic `embedding` sibling.
 //
 // Offline / no-network (file:// with no fetch, CDN blocked): the page never
@@ -24,10 +24,10 @@
 // moment the model finishes downloading.
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
+import { T, rgbaToken } from '../framework/theme.js';
 
 const TFJS = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2';
 const MODEL = 'Xenova/all-MiniLM-L6-v2';
-const INK = '#111', BLUE = '#1f6feb', GREEN = '#0a7227', AMBER = '#9a6700';
 
 // Default word list: four clear semantic clusters of three. The real model
 // pulls each cluster together; the synthetic stand-in is hand-seeded to do the
@@ -36,8 +36,7 @@ const DEFAULT = 'king, queen, prince, cat, dog, horse, paris, tokyo, berlin, bre
 // Cluster index per default word (synthetic stand-in only — the real model
 // needs no hints). Words not in this map get a per-word hashed pseudo-vector.
 const CLUSTER = { king: 0, queen: 0, prince: 0, cat: 1, dog: 1, horse: 1, paris: 2, tokyo: 2, berlin: 2, bread: 3, apple: 3, cheese: 3 };
-const CLUSTER_COL = ['#1f6feb', '#cf222e', '#0a7227', '#8250df', '#9a6700', '#1b7c83'];
-
+const CLUSTER_COL = () => [T.accent, T.bad, T.okDeep, T.violet, T.goldDeep, T.tealDeep];
 // Shared module state. compute() (synthetic or real) fills `M`; draw() reads it.
 let M = { status: 'init', progress: 0, source: 'synthetic', model: MODEL, words: [], vecs: [], sim: null, coords: null, span: 1 };
 let extractor = null, loadStarted = false, runSeq = 0;
@@ -176,7 +175,7 @@ mount({
   mount: 'body',
   slug: 'real-embeddings',
   title: 'real embeddings — a trained model’s semantic geometry',
-  blurb: 'The synthetic embedding page shows the row-lookup mechanism on seeded numbers; this one runs a REAL trained model (all-MiniLM-L6-v2) in your browser — fetched at runtime via transformers.js, no build — and embeds the words you type. The cosine-similarity heatmap and the 2D map below are real semantic geometry: words that mean similar things (king·queen, paris·tokyo) sit close, with no demo trickery. Type your own words. Offline, it renders a clearly-labelled synthetic stand-in and swaps in the real vectors once the model downloads.',
+  blurb: 'Phase 9 (real-model grounding). The synthetic embedding page shows the row-lookup mechanism on seeded numbers; this one runs a REAL trained model (all-MiniLM-L6-v2) in your browser — fetched at runtime via transformers.js, no build — and embeds the words you type. The cosine-similarity heatmap and the 2D map below are real semantic geometry: words that mean similar things (king·queen, paris·tokyo) sit close, with no demo trickery. Type your own words. Offline, it renders a clearly-labelled synthetic stand-in and swaps in the real vectors once the model downloads.',
   prefer: 'canvas2d',
   aspect: '2 / 1',
   controls: (c, page) => {
@@ -187,7 +186,7 @@ mount({
   onPointer: () => {},
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const n = M.words.length;
     // expose probe for challenges
     const ext = M.sim ? simExtremes(M.sim, n) : { minSim: 1, maxSim: 1 };
@@ -195,16 +194,16 @@ mount({
 
     // ---- load-state banner ----
     const banner = (() => {
-      if (M.status === 'loading') return { t: `↓ downloading model… ${(M.progress * 100 | 0)}%`, c: AMBER };
-      if (M.status === 'running') return { t: '⟳ running model…', c: AMBER };
-      if (M.source === 'real') return { t: '● real model — ' + MODEL, c: GREEN };
-      if (M.status === 'offline') return { t: '○ offline — synthetic stand-in (click “load real model” when online)', c: AMBER };
-      return { t: '○ synthetic stand-in — click “load real model” for real vectors', c: '#586069' };
+      if (M.status === 'loading') return { t: `↓ downloading model… ${(M.progress * 100 | 0)}%`, c: T.goldDeep };
+      if (M.status === 'running') return { t: '⟳ running model…', c: T.goldDeep };
+      if (M.source === 'real') return { t: '● real model — ' + MODEL, c: T.okDeep };
+      if (M.status === 'offline') return { t: '○ offline — synthetic stand-in (click “load real model” when online)', c: T.goldDeep };
+      return { t: '○ synthetic stand-in — click “load real model” for real vectors', c: T.n11 };
     })();
     ctx.save(); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     ctx.fillStyle = banner.c; ctx.fillText(banner.t, 14, 10); ctx.restore();
 
-    if (!n || !M.sim) { ctx.save(); ctx.fillStyle = '#586069'; ctx.font = '13px ui-monospace, monospace'; ctx.fillText('type some words above', 14, 40); ctx.restore(); page.setReadout('no words'); return; }
+    if (!n || !M.sim) { ctx.save(); ctx.fillStyle = T.n11; ctx.font = '13px ui-monospace, monospace'; ctx.fillText('type some words above', 14, 40); ctx.restore(); page.setReadout('no words'); return; }
 
     const pad = 14, topY = 36;
     const heatW = Math.min(page.H - topY - 70, (page.W - 3 * pad) * 0.48);
@@ -212,27 +211,27 @@ mount({
     simRect = { x: pad + 56, y: topY + 8, w: cell * n, h: cell * n };
 
     // ---- cosine-similarity heatmap (diverging, domain [-1,1]) ----
-    r.label('cosine similarity  vᵢ·vⱼ  (unit vectors)', simRect.x, simRect.y - 8, { color: '#586069', font: '11px ui-monospace, monospace' });
+    r.label('cosine similarity  vᵢ·vⱼ  (unit vectors)', simRect.x, simRect.y - 8, { color: T.n11, font: '11px ui-monospace, monospace' });
     r.heatmap(M.sim, { rows: n, cols: n, rect: simRect, ramp: ramps.diverging, domain: [-1, 1] });
-    r.grid({ stroke: 'rgba(0,0,0,0.06)' });
+    r.grid({ stroke: rgbaToken('n14', 0.10) });
     ctx.save(); ctx.font = '10px ui-monospace, monospace';
     ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-    for (let i = 0; i < n; i++) { ctx.fillStyle = CLUSTER_COL[(CLUSTER[M.words[i]] ?? 5) % CLUSTER_COL.length] || '#444'; ctx.fillText(M.words[i].slice(0, 8), simRect.x - 4, simRect.y + i * cell + cell / 2); }
+    for (let i = 0; i < n; i++) { ctx.fillStyle = CLUSTER_COL()[(CLUSTER[M.words[i]] ?? 5) % CLUSTER_COL().length] || T.n12; ctx.fillText(M.words[i].slice(0, 8), simRect.x - 4, simRect.y + i * cell + cell / 2); }
     ctx.restore();
 
     // ---- 2D MDS scatter (PCA scores) ----
     const scX = simRect.x + simRect.w + 60;
     scRect = { x: scX, y: topY + 8, w: Math.max(120, page.W - pad - scX), h: simRect.h };
-    ctx.save(); ctx.strokeStyle = '#e1e4e8'; ctx.lineWidth = 1; ctx.strokeRect(scRect.x, scRect.y, scRect.w, scRect.h);
-    ctx.fillStyle = '#586069'; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.save(); ctx.strokeStyle = T.n4; ctx.lineWidth = 1; ctx.strokeRect(scRect.x, scRect.y, scRect.w, scRect.h);
+    ctx.fillStyle = T.n11; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
     ctx.fillText('2D map (MDS — close = similar meaning)', scRect.x, scRect.y - 2);
     const sp = M.span * 1.15, cx = scRect.x + scRect.w / 2, cy = scRect.y + scRect.h / 2;
     const sx = (scRect.w * 0.46) / sp, sy = (scRect.h * 0.46) / sp;
     for (let i = 0; i < n; i++) {
       const [x, y] = M.coords[i], px = cx + x * sx, py = cy - y * sy;
-      const col = CLUSTER_COL[(CLUSTER[M.words[i]] ?? 5) % CLUSTER_COL.length] || '#444';
+      const col = CLUSTER_COL()[(CLUSTER[M.words[i]] ?? 5) % CLUSTER_COL().length] || T.n12;
       ctx.beginPath(); ctx.arc(px, py, 4.5, 0, 2 * Math.PI); ctx.fillStyle = col; ctx.fill();
-      ctx.fillStyle = INK; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = T.n14; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
       ctx.fillText(' ' + M.words[i].slice(0, 9), px + 4, py);
     }
     ctx.restore();
@@ -268,5 +267,5 @@ mount({
   page.redraw();
   // Kick off the real model unless explicitly suppressed (?real=0 keeps the
   // synthetic stand-in — used for fast, deterministic headless capture).
-  if (q.get('real') !== '0') ensureModel(page);
+  if (q.get('real') === '1' || q.get('autoload') === '1') ensureModel(page);   // large download: opt-in only
 });

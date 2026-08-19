@@ -4,7 +4,8 @@
 
 Interactive page: the two normalizations used in transformers, applied per
 token (per row), and where the norm sits relative to the residual.
-**Anchor**: A8 normalization (Family C4).
+**Anchor**: A8 normalization (Family C4, Phase 3; see
+`../plan/curriculum.md`).
 
 ## What it shows
 

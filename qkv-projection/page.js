@@ -2,7 +2,7 @@
 // matrices. Uses the verified framework: layout.mount() + controls + a
 // per-output-dim Transport.
 //
-// Interactive per the framework contract (plan/framework.md): drag an
+// Interactive per the shared render framework's contract: drag an
 // embedding cell vertically and watch ALL THREE projections (q, k, v)
 // recompute live -- the one input fanning out to three roles is the qkv
 // "aha". Hover an embedding cell for its value, a weight cell for its value,
@@ -11,8 +11,10 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', ORANGE = '#d2691e';
+
+
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) { const x = Math.abs(a[i]); if (x > m) m = x; } return m; };
 const fx = (v) => (v >= 0 ? ' ' : '') + v.toFixed(2);
 
@@ -81,7 +83,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { x, Wq, Wk, Wv, q, k, v, D } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const s = page.step();
     const o = s ? s.o : D - 1;
 
@@ -94,31 +96,31 @@ mount({
 
     // input embedding x (vertical [D x 1]) -- capture rect for hit-testing.
     rX = { x: xX, y: projY, w: cell, h: D * cell };
-    r.label('x', xX + cell / 2 - 4, projY - 8, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label('x', xX + cell / 2 - 4, projY - 8, { color: T.n14, font: '12px ui-monospace, monospace' });
     r.heatmap(x, { rows: D, cols: 1, rect: rX, ramp: ramps.diverging, domain: [-maxAbs(x), maxAbs(x)] });
-    r.grid({ stroke: 'rgba(0,0,0,0.12)' });
-    ctx.save(); ctx.strokeStyle = BLUE; ctx.lineWidth = 2; ctx.strokeRect(xX - 1, projY - 1, cell, D * cell + 2); ctx.restore();
+    r.grid({ stroke: alphaOf(T.n14, 0.12) });
+    ctx.save(); ctx.strokeStyle = T.accent; ctx.lineWidth = 2; ctx.strokeRect(xX - 1, projY - 1, cell, D * cell + 2); ctx.restore();
     // active input element on the current output dim's dot product
-    if (o >= 0 && o < D) { ctx.save(); ctx.strokeStyle = ORANGE; ctx.lineWidth = 2; ctx.strokeRect(xX + 1, projY + o * cell + 1, cell - 2, cell - 2); ctx.restore(); }
+    if (o >= 0 && o < D) { ctx.save(); ctx.strokeStyle = T.warn; ctx.lineWidth = 2; ctx.strokeRect(xX + 1, projY + o * cell + 1, cell - 2, cell - 2); ctx.restore(); }
 
     const names = ['W_Q', 'W_K', 'W_V'], outNames = ['q', 'k', 'v'], roles = ['query — what I look for', 'key — what I offer', 'value — what I carry'];
     const mats = [Wq, Wk, Wv], outs = [q, k, v];
     for (let p = 0; p < 3; p++) {
       const X = wx[p], M = mats[p], out = outs[p];
       rW[p] = { x: X, y: projY, w: D * cell, h: D * cell };
-      r.label(`${names[p]} [${D}×${D}]`, X, projY - 8, { color: '#586069', font: '11px ui-monospace, monospace' });
+      r.label(`${names[p]} [${D}×${D}]`, X, projY - 8, { color: T.n11, font: '11px ui-monospace, monospace' });
       r.heatmap(M, { rows: D, cols: D, rect: rW[p], ramp: ramps.diverging, domain: [-maxAbs(M.data), maxAbs(M.data)] });
-      r.grid({ stroke: 'rgba(0,0,0,0.10)' });
+      r.grid({ stroke: alphaOf(T.n14, 0.10) });
       // highlight column o
-      ctx.save(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.strokeRect(X + o * cell + 1, projY + 1, cell - 2, D * cell - 2); ctx.restore();
+      ctx.save(); ctx.strokeStyle = T.n14; ctx.lineWidth = 2; ctx.strokeRect(X + o * cell + 1, projY + 1, cell - 2, D * cell - 2); ctx.restore();
 
       // output vector (horizontal [1 x D]), filled up to o -- capture rect.
       rOut[p] = { x: X, y: outY, w: D * cell, h: cell };
       r.heatmap(out, { rows: 1, cols: D, rect: rOut[p], ramp: ramps.diverging, domain: [-dOut, dOut] });
-      ctx.save(); ctx.fillStyle = 'rgba(244,246,248,0.9)'; ctx.fillRect(X + (o + 1) * cell, outY, (D - o - 1) * cell, cell); ctx.restore();
-      ctx.save(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.strokeRect(X + o * cell + 1, outY + 1, cell - 2, cell - 2); ctx.restore();
-      r.label(`${outNames[p]} = x·${names[p]}`, X, outY + cell + 14, { color: INK, font: '11px ui-monospace, monospace' });
-      r.label(roles[p], X, outY + cell + 28, { color: '#586069', font: '10px ui-monospace, monospace' });
+      ctx.save(); ctx.fillStyle = alphaOf(T.n2, 0.9); ctx.fillRect(X + (o + 1) * cell, outY, (D - o - 1) * cell, cell); ctx.restore();
+      ctx.save(); ctx.strokeStyle = T.n14; ctx.lineWidth = 2; ctx.strokeRect(X + o * cell + 1, outY + 1, cell - 2, cell - 2); ctx.restore();
+      r.label(`${outNames[p]} = x·${names[p]}`, X, outY + cell + 14, { color: T.n14, font: '11px ui-monospace, monospace' });
+      r.label(roles[p], X, outY + cell + 28, { color: T.n11, font: '10px ui-monospace, monospace' });
     }
 
     // Hover-to-inspect: embedding cell -> value (drag hint); weight cell ->

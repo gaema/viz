@@ -4,7 +4,8 @@
 
 Interactive page: how multi-head attention slices the model dimension into H
 independent heads, each running its own scaled-dot-attention, then concatenates
-the results. **Anchor**: A2 head_dim layout (Family B3).
+the results. **Anchor**: A2 head_dim layout (Family B3; see
+`../plan/curriculum.md`).
 
 ## What it shows
 

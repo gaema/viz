@@ -1,11 +1,12 @@
-# real-quant -- int4 on actual GPT-2 weights
+# real-quant -- int4 on actual GPT-2 weights (Phase 9)
 
 > **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + network (range-fetches ~9 MB): `python3 -m http.server 8099`
 
 Interactive page: the **real** counterpart to the synthetic
 [`quantization`](../quantization/README.md) page. It runs group-wise integer
 quantization on **actual GPT-2 weights** and shows the real error. **Anchor**:
-quantization. Part of **real-model grounding**.
+quantization. Part of **Phase 9 — real-model grounding**
+(`../plan/phase9.md`).
 
 ## What it shows
 
@@ -27,7 +28,7 @@ exactly why int4/int8 quantization works. This grounds the abstract
 
 The quant math ([`quant.js`](quant.js)) and the range-fetch
 ([`fetchTensor()`](../real-attention/gpt2.js)) are checked against numpy by
-[`quant.test.mjs`](quant.test.mjs) on the real `h.0.mlp.c_fc.weight` tensor: the
+`quant.test.mjs` on the real `h.0.mlp.c_fc.weight` tensor: the
 Range-read values, the stats (σ=0.141, range [−2.31, 4.59]), and the group-quant
 RMSE (int4/int8 × group 64/128) all match the reference (fixture
 [`quant-groundtruth.fixture.json`](quant-groundtruth.fixture.json)). Run it:

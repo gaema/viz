@@ -1,7 +1,7 @@
 // scaled-dot-attention concept page -- the single-head pipeline
 // QKᵀ/√d -> mask -> softmax -> ·V, stage by stage. Uses the verified framework.
 //
-// Interactive per the framework contract (plan/framework.md): the QKᵀ → scale →
+// Interactive per the shared render framework's contract: the QKᵀ → scale →
 // softmax → ·V pipeline auto-plays + loops; hover a score / weight / output cell
 // for its derivation; drag a Q-row cell vertically to change a query component
 // and watch that row of scores, the softmax weights, and the output recompute
@@ -9,8 +9,10 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { dot, softmax, seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', ORANGE = '#d2691e';
+
+
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) { const x = Math.abs(a[i]); if (x > m) m = x; } return m; };
 const row = (M, i) => M.data.subarray(i * M.cols, i * M.cols + M.cols);
 
@@ -79,8 +81,8 @@ function resync(page) {
 // small input strip [rows x cols] heatmap with a label
 function strip(r, M, rect, label, col) {
   r.heatmap(M, { rows: M.rows, cols: M.cols, rect, ramp: ramps.diverging, domain: [-maxAbs(M.data), maxAbs(M.data)] });
-  r.grid({ stroke: 'rgba(0,0,0,0.10)' });
-  r.label(label, rect.x, rect.y - 5, { color: col || '#586069', font: '11px ui-monospace, monospace' });
+  r.grid({ stroke: alphaOf(T.n14, 0.10) });
+  r.label(label, rect.x, rect.y - 5, { color: col || T.n11, font: '11px ui-monospace, monospace' });
 }
 
 mount({
@@ -117,7 +119,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { Q, K, V, raw, scaled, weights, output, N, d } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const s = page.step();
     const stage = s ? s.key : 'output';
     const si = STAGES.findIndex((x) => x.key === stage);
@@ -127,14 +129,14 @@ mount({
     const cellS = Math.max(8, Math.min(16, (page.W * 0.32) / (3 * d + 4)));
     let sx = pad + 14;
     qRect = null;
-    for (const [M, nm, cl] of [[Q, 'Q', BLUE], [K, 'K', INK], [V, 'V', ORANGE]]) {
+    for (const [M, nm, cl] of [[Q, 'Q', T.accent], [K, 'K', T.n14], [V, 'V', T.warn]]) {
       const rect = { x: sx, y: topY, w: d * cellS, h: N * cellS };
       strip(r, M, rect, `${nm} [${N}×${d}]`, cl);
       if (nm === 'Q') qRect = rect;   // the draggable operand strip
       sx += d * cellS + 26;
     }
     // mark Q as draggable
-    if (qRect) r.label('↕ drag Q', qRect.x, qRect.y + N * cellS + 12, { color: BLUE, font: '9px ui-monospace, monospace' });
+    if (qRect) r.label('↕ drag Q', qRect.x, qRect.y + N * cellS + 12, { color: T.accent, font: '9px ui-monospace, monospace' });
 
     // --- the N×N matrix (hero), content per stage ---
     let mat = raw, ramp = ramps.diverging, dom = maxAbs(raw.data), softstage = false;
@@ -145,27 +147,27 @@ mount({
     const cellC = Math.max(14, Math.min(40, Math.min((page.W * 0.42) / N, (page.H - mTop - 40) / N)));
     const mX = pad + 34, mRect = { x: mX, y: mTop, w: N * cellC, h: N * cellC };
     matRect = mRect; matSoft = softstage;   // capture for hit-testing
-    r.label(`stage ${si + 1}/5 — ${s ? s.label : STAGES[4].label}`, pad, mTop - 12, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label(`stage ${si + 1}/5 — ${s ? s.label : STAGES[4].label}`, pad, mTop - 12, { color: T.n14, font: '12px ui-monospace, monospace' });
 
     r.heatmap(mat, { rows: N, cols: N, rect: mRect, ramp, domain: softstage ? [0, dom] : [-dom, dom] });
-    r.grid({ stroke: 'rgba(0,0,0,0.12)' });
+    r.grid({ stroke: alphaOf(T.n14, 0.12) });
     // row/col index labels
     for (let i = 0; i < N; i++) {
-      r.label('q' + i, mX - 22, mTop + i * cellC + cellC * 0.62, { color: '#9aa4ad', font: '10px ui-monospace, monospace' });
-      r.label('k' + i, mX + i * cellC + cellC * 0.28, mTop - 1, { color: '#9aa4ad', font: '10px ui-monospace, monospace' });
+      r.label('q' + i, mX - 22, mTop + i * cellC + cellC * 0.62, { color: T.n9, font: '10px ui-monospace, monospace' });
+      r.label('k' + i, mX + i * cellC + cellC * 0.28, mTop - 1, { color: T.n9, font: '10px ui-monospace, monospace' });
     }
     // per-cell values (small N)
     if (cellC >= 26) for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
       if ((stage === 'mask' || softstage) && j > i) continue;     // masked cells unlabeled
       const v = mat.data[i * N + j];
       r.layout = { x: mRect.x, y: mRect.y, w: mRect.w, h: mRect.h, rows: N, cols: N, cellW: cellC, cellH: cellC };
-      r.cell(i, j, { stroke: false, label: softstage ? v.toFixed(2) : v.toFixed(1), labelColor: (softstage ? v > dom * 0.6 : Math.abs(v) > dom * 0.6) ? '#fff' : '#333', font: '9px ui-monospace, monospace' });
+      r.cell(i, j, { stroke: false, label: softstage ? v.toFixed(2) : v.toFixed(1), labelColor: (softstage ? v > dom * 0.6 : Math.abs(v) > dom * 0.6) ? T.n0 : T.n12, font: '9px ui-monospace, monospace' });
     }
     // causal mask treatment on the upper triangle (j>i)
     if (si >= 2) {
       ctx.save();
       for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
-        ctx.fillStyle = softstage ? 'rgba(40,44,52,0.16)' : 'rgba(40,44,52,0.55)';
+        ctx.fillStyle = softstage ? alphaOf(T.n13, 0.16) : alphaOf(T.n13, 0.55);
         ctx.fillRect(mRect.x + j * cellC, mRect.y + i * cellC, cellC, cellC);
       }
       ctx.restore();
@@ -176,11 +178,11 @@ mount({
     outRect = null;
     if (stage === 'output') {
       const orect = { x: oX, y: mTop, w: d * cellC, h: N * cellC };
-      strip(r, output, orect, `output [${N}×${d}]`, ORANGE);
+      strip(r, output, orect, `output [${N}×${d}]`, T.warn);
       outRect = orect;
     } else {
-      r.label('output', oX, mTop - 12, { color: '#c4ccd3', font: '11px ui-monospace, monospace' });
-      ctx.save(); ctx.strokeStyle = '#e3e6ea'; ctx.setLineDash([4, 4]); ctx.strokeRect(oX, mTop, d * cellC, N * cellC); ctx.restore();
+      r.label('output', oX, mTop - 12, { color: T.n7, font: '11px ui-monospace, monospace' });
+      ctx.save(); ctx.strokeStyle = T.n4; ctx.setLineDash([4, 4]); ctx.strokeRect(oX, mTop, d * cellC, N * cellC); ctx.restore();
     }
 
     // --- hover-to-inspect: score / weight / output cell -> its derivation ---

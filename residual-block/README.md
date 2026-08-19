@@ -5,7 +5,7 @@
 Interactive page: the **ResNet residual block** -- a small learned function `F`
 runs in parallel with an **identity shortcut** that copies the input straight to
 the output, so `y = F(x) + x`. **Anchor**: F (CNN / vision); Family F, builds on
-[convolution](../convolution/README.md) ().
+[convolution](../convolution/README.md) (see `../plan/curriculum.md`).
 
 ## What it shows
 

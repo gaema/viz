@@ -9,9 +9,10 @@
 // group's scale blow up, coarsening every other weight in that group.
 import { mount } from '../framework/layout.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T } from '../framework/theme.js';
 
-const INK = '#111', GREY = '#9aa4ad', BLUE = '#1f6feb', ORANGE = '#d2691e', GREEN = '#2ca02c', PURPLE = '#8250df', RED = '#d1242f';
-const GCOL = ['#1f6feb', '#d2691e', '#2ca02c', '#8250df', '#0a9396', '#bc6c25', '#d1242f', '#5a189a'];
+
+const GCOL = () => [T.accent, T.warn, T.ok, T.violet, T.tealDeep, T.warn, T.bad, T.violetDeep];
 const VMAX = 2.5;
 
 let cur = null, bsig = '', barRects = null, dragI = -1;
@@ -69,18 +70,18 @@ mount({
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state, W = page.W, H = page.H, N = 64;
     if (`${st.preset}|${st.seed}` !== bsig) { cur = build(st.preset, st.seed | 0, N); bsig = `${st.preset}|${st.seed}`; }
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const bits = st.bits | 0, G = st.G | 0, levels = (1 << bits) - 1, nG = N / G, x = cur.x;
 
     // ===== weights panel: original tick + dequant bar, per group =====
     const bx = 20, by = 52, bw = W - 40, bh = 132, barW = bw / N, zy = by + bh / 2, Y = (v) => zy - v / VMAX * (bh / 2);
     barRects = { x: bx, y: by, w: bw, h: bh };
-    r.label('weights — bar = dequantized x′,  black tick = original fp16 x,  gap = error   (drag a weight ↕)', bx, by - 8, { color: INK, font: '11px ui-monospace, monospace' });
-    ctx.save(); ctx.strokeStyle = '#e6e8ea'; ctx.strokeRect(bx, by, bw, bh); ctx.strokeStyle = '#cfd4d9'; ctx.beginPath(); ctx.moveTo(bx, zy); ctx.lineTo(bx + bw, zy); ctx.stroke(); ctx.restore();
+    r.label('weights — bar = dequantized x′,  black tick = original fp16 x,  gap = error   (drag a weight ↕)', bx, by - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
+    ctx.save(); ctx.strokeStyle = T.n4; ctx.strokeRect(bx, by, bw, bh); ctx.strokeStyle = T.n6; ctx.beginPath(); ctx.moveTo(bx, zy); ctx.lineTo(bx + bw, zy); ctx.stroke(); ctx.restore();
     const swG = Math.floor((page.t || 0) / 0.6) % nG;  // animated group scan
     let totSE = 0, maxE = 0;
     for (let g = 0; g < nG; g++) {
-      const g0 = g * G, grp = Array.from(x.slice(g0, g0 + G)), Q = qGroup(grp, bits), col = GCOL[g % GCOL.length];
+      const g0 = g * G, grp = Array.from(x.slice(g0, g0 + G)), Q = qGroup(grp, bits), col = GCOL()[g % GCOL().length];
       // group bg + scan highlight
       const gx0 = bx + g0 * barW, gxw = G * barW;
       if (g === swG) { ctx.save(); ctx.fillStyle = 'rgba(255,193,7,0.10)'; ctx.fillRect(gx0, by, gxw, bh); ctx.restore(); }
@@ -88,37 +89,37 @@ mount({
       if (levels <= 31) { ctx.save(); ctx.strokeStyle = 'rgba(130,80,223,0.18)'; ctx.lineWidth = 0.5; for (let k = 0; k <= levels; k++) { const yv = Y(Q.lo + Q.s * k); ctx.beginPath(); ctx.moveTo(gx0, yv); ctx.lineTo(gx0 + gxw, yv); ctx.stroke(); } ctx.restore(); }
       for (let i = 0; i < grp.length; i++) {
         const xi = bx + (g0 + i) * barW, e = Math.abs(grp[i] - Q.deq[i]); totSE += (grp[i] - Q.deq[i]) ** 2; if (e > maxE) maxE = e;
-        ctx.fillStyle = (g0 + i) === dragI ? RED : col; ctx.globalAlpha = 0.85;
+        ctx.fillStyle = (g0 + i) === dragI ? T.bad : col; ctx.globalAlpha = 0.85;
         const dq = Q.deq[i]; ctx.fillRect(xi + 1, dq >= 0 ? Y(dq) : zy, Math.max(1, barW - 1.5), Math.abs(Y(dq) - zy)); ctx.globalAlpha = 1;
-        ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(xi + 1, Y(grp[i])); ctx.lineTo(xi + barW - 0.5, Y(grp[i])); ctx.stroke();  // original tick
+        ctx.strokeStyle = T.n14; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(xi + 1, Y(grp[i])); ctx.lineTo(xi + barW - 0.5, Y(grp[i])); ctx.stroke();  // original tick
       }
       // group divider + s/z label
-      ctx.save(); ctx.strokeStyle = '#b8bec4'; ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.moveTo(gx0, by); ctx.lineTo(gx0, by + bh); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+      ctx.save(); ctx.strokeStyle = T.n8; ctx.setLineDash([2, 2]); ctx.beginPath(); ctx.moveTo(gx0, by); ctx.lineTo(gx0, by + bh); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
       r.label(`s=${Q.s.toFixed(3)} z=${Q.z}`, gx0 + 2, by + bh + 12, { color: col, font: '9px ui-monospace, monospace' });
     }
     const rmse = Math.sqrt(totSE / N);
-    r.label(`${nG} groups of ${G}  ·  ${bits}-bit → ${levels + 1} levels per group  ·  codes q ∈ [0, ${levels}]`, bx, by + bh + 28, { color: '#586069', font: '10px ui-monospace, monospace' });
+    r.label(`${nG} groups of ${G}  ·  ${bits}-bit → ${levels + 1} levels per group  ·  codes q ∈ [0, ${levels}]`, bx, by + bh + 28, { color: T.n11, font: '10px ui-monospace, monospace' });
 
     // ===== metrics (bottom-left) =====
     const my = by + bh + 48;
     const effBits = bits + (16 + 8) / G, ratio = 16 / effBits;
     page.probe = { rmse, ratio };
-    r.label(`reconstruction error   RMSE = ${rmse.toFixed(4)}   max|err| = ${maxE.toFixed(4)}`, bx, my, { color: INK, font: '11px ui-monospace, monospace' });
-    r.label(`storage: ${bits} bits/weight + (16-bit scale + 8-bit zp)/${G} = ${effBits.toFixed(2)} eff. bits/weight`, bx, my + 16, { color: '#586069', font: '10px ui-monospace, monospace' });
-    r.label(`compression vs fp16:  16 / ${effBits.toFixed(2)} = ${ratio.toFixed(2)}×   ${st.preset === 'outlier' ? '(note: outliers stretch s → coarser neighbours; smaller G limits the damage)' : ''}`, bx, my + 32, { color: GREEN, font: '10px ui-monospace, monospace' });
+    r.label(`reconstruction error   RMSE = ${rmse.toFixed(4)}   max|err| = ${maxE.toFixed(4)}`, bx, my, { color: T.n14, font: '11px ui-monospace, monospace' });
+    r.label(`storage: ${bits} bits/weight + (16-bit scale + 8-bit zp)/${G} = ${effBits.toFixed(2)} eff. bits/weight`, bx, my + 16, { color: T.n11, font: '10px ui-monospace, monospace' });
+    r.label(`compression vs fp16:  16 / ${effBits.toFixed(2)} = ${ratio.toFixed(2)}×   ${st.preset === 'outlier' ? '(note: outliers stretch s → coarser neighbours; smaller G limits the damage)' : ''}`, bx, my + 32, { color: T.ok, font: '10px ui-monospace, monospace' });
 
     // ===== error-vs-bits curve (bottom-right) =====
     const cwW = 250, chx = W - cwW - 24, chy = my - 10, chh = 84;
-    r.label('RMSE vs bits (this G)', chx, chy - 6, { color: INK, font: '10px ui-monospace, monospace' });
+    r.label('RMSE vs bits (this G)', chx, chy - 6, { color: T.n14, font: '10px ui-monospace, monospace' });
     const eLo = -3, eHi = 0, EX = (b) => chx + (b - 2) / 6 * cwW, EY = (e) => chy + chh - (Math.max(eLo, Math.min(eHi, Math.log10(e + 1e-9)) ) - eLo) / (eHi - eLo) * chh;
-    ctx.save(); ctx.strokeStyle = '#eceef0'; ctx.strokeRect(chx, chy, cwW, chh);
-    ctx.strokeStyle = ORANGE; ctx.lineWidth = 2; ctx.beginPath();
+    ctx.save(); ctx.strokeStyle = T.n3; ctx.strokeRect(chx, chy, cwW, chh);
+    ctx.strokeStyle = T.warn; ctx.lineWidth = 2; ctx.beginPath();
     for (let b = 2; b <= 8; b++) { const e = rmseAt(x, N, G, b), px = EX(b), py = EY(e); if (b === 2) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
     ctx.stroke();
-    for (let b = 2; b <= 8; b++) { const e = rmseAt(x, N, G, b); ctx.fillStyle = b === bits ? RED : ORANGE; ctx.beginPath(); ctx.arc(EX(b), EY(e), b === bits ? 4 : 2.2, 0, 7); ctx.fill(); }
+    for (let b = 2; b <= 8; b++) { const e = rmseAt(x, N, G, b); ctx.fillStyle = b === bits ? T.bad : T.warn; ctx.beginPath(); ctx.arc(EX(b), EY(e), b === bits ? 4 : 2.2, 0, 7); ctx.fill(); }
     ctx.restore();
-    r.label('2', chx - 2, chy + chh + 11, { color: '#8a939b', font: '8px ui-monospace, monospace' }); r.label('8 bits', chx + cwW - 26, chy + chh + 11, { color: '#8a939b', font: '8px ui-monospace, monospace' });
-    r.label(`now: ${bits}-bit → ${rmse.toFixed(4)}`, chx, chy + chh + 24, { color: RED, font: '10px ui-monospace, monospace' });
+    r.label('2', chx - 2, chy + chh + 11, { color: T.n10, font: '8px ui-monospace, monospace' }); r.label('8 bits', chx + cwW - 26, chy + chh + 11, { color: T.n10, font: '8px ui-monospace, monospace' });
+    r.label(`now: ${bits}-bit → ${rmse.toFixed(4)}`, chx, chy + chh + 24, { color: T.bad, font: '10px ui-monospace, monospace' });
 
     // hover
     if (page.pointer.over && dragI < 0) {

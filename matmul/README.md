@@ -4,7 +4,7 @@
 
 Interactive page: visualizes matrix multiply as the operation every other
 mechanism in the zoo reduces to. **Anchor**: foundational primitive (used by
-every A1-A12 shape
+every A1-A12 shape; see `../plan/curriculum.md`
 Family A1).
 
 ## What it shows

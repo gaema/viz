@@ -2,7 +2,7 @@
 // per token. Uses the verified framework: layout.mount() + controls + a
 // per-token Transport.
 //
-// Interactive per the framework contract (plan/framework.md): hover a depth×D
+// Interactive per the shared render framework's contract: hover a depth×D
 // cell for `depth "<block>" dim d = value`, an rms-column cell for the running
 // magnitude (and how it grew from the previous depth), or a read+add flow box
 // for what that step does. DIRECT MANIPULATION: drag a cell of the depth×D
@@ -13,8 +13,10 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', GREEN = '#2ca02c';
+
+
 const DEPTHS = ['embed', '+ attn 0', '+ mlp 0', '+ attn 1', '+ mlp 1', 'final norm'];
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 const rmsOf = (v) => { let s = 0; for (let i = 0; i < v.length; i++) s += v[i] * v[i]; return Math.sqrt(s / v.length); };
@@ -83,9 +85,9 @@ function operandAt(d) {
 
 function flowBox(ctx, x, y, w, h, label, hi) {
   ctx.save();
-  ctx.fillStyle = hi ? 'rgba(31,111,235,0.16)' : '#f3f4f7'; ctx.strokeStyle = hi ? BLUE : '#c4ccd3'; ctx.lineWidth = hi ? 2.5 : 1.5;
+  ctx.fillStyle = hi ? alphaOf(T.accent, 0.16) : T.n2; ctx.strokeStyle = hi ? T.accent : T.n7; ctx.lineWidth = hi ? 2.5 : 1.5;
   ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-  ctx.fillStyle = hi ? BLUE : '#3a4047'; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = hi ? T.accent : T.n12; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(label, x + w / 2, y + h / 2);
   ctx.restore();
 }
@@ -129,7 +131,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { embed, deltas, N, D } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const s = page.step(), t = s ? s.t : 0, pre = st.prenorm, ND = DEPTHS.length;
 
     const { trace, mag } = traceStream(embed, deltas, N, D, t, pre);
@@ -138,41 +140,41 @@ mount({
     const cell = Math.max(13, Math.min(30, Math.min((page.W * 0.46) / D, (page.H - topY - 150) / ND)));
     const Tx = pad + 84;
     Trect = { x: Tx, y: topY, w: D * cell, h: ND * cell };
-    r.label(`token ${t} — residual stream through depth`, pad, topY - 14, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label(`token ${t} — residual stream through depth`, pad, topY - 14, { color: T.n14, font: '12px ui-monospace, monospace' });
     r.heatmap(trace, { rows: ND, cols: D, rect: Trect, ramp: ramps.diverging, domain: [-maxAbs(trace.data), maxAbs(trace.data)] });
-    r.grid({ stroke: 'rgba(0,0,0,0.10)' });
-    for (let d = 0; d < ND; d++) r.label(DEPTHS[d], Tx - 6, topY + d * cell + cell / 2 + 3, { color: d === ND - 1 ? BLUE : '#586069', font: '10px ui-monospace, monospace', align: 'right' });
+    r.grid({ stroke: alphaOf('n14', 0.10) });
+    for (let d = 0; d < ND; d++) r.label(DEPTHS[d], Tx - 6, topY + d * cell + cell / 2 + 3, { color: d === ND - 1 ? T.accent : T.n11, font: '10px ui-monospace, monospace', align: 'right' });
     // outline the depth row being dragged
-    if (grab) { ctx.save(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5; ctx.strokeRect(Trect.x - 1, topY + grab.d * cell - 1, D * cell + 2, cell + 2); ctx.restore(); }
+    if (grab) { ctx.save(); ctx.strokeStyle = T.n14; ctx.lineWidth = 2.5; ctx.strokeRect(Trect.x - 1, topY + grab.d * cell - 1, D * cell + 2, cell + 2); ctx.restore(); }
 
     // magnitude column (grows with depth for pre-norm; ~1 for post-norm)
     const mx = Tx + D * cell + 16, mw = 46, magMax = Math.max(...mag);
-    r.label('‖rms‖', mx, topY - 6, { color: '#586069', font: '10px ui-monospace, monospace' });
+    r.label('‖rms‖', mx, topY - 6, { color: T.n11, font: '10px ui-monospace, monospace' });
     magRects = [];
     ctx.save();
     for (let d = 0; d < ND; d++) {
       const y = topY + d * cell;
       magRects.push({ x: mx, y: y + 2, w: mw, h: cell - 4 });
-      ctx.strokeStyle = '#e3e6ea'; ctx.strokeRect(mx, y + 2, mw, cell - 4);
-      ctx.fillStyle = 'rgba(31,111,235,0.5)'; ctx.fillRect(mx, y + 2, mw * (mag[d] / magMax), cell - 4);
-      ctx.fillStyle = '#1a1d21'; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(mag[d].toFixed(2), mx + mw + 4, y + cell / 2);
+      ctx.strokeStyle = T.n4; ctx.strokeRect(mx, y + 2, mw, cell - 4);
+      ctx.fillStyle = alphaOf(T.accent, 0.5); ctx.fillRect(mx, y + 2, mw * (mag[d] / magMax), cell - 4);
+      ctx.fillStyle = T.n14; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(mag[d].toFixed(2), mx + mw + 4, y + cell / 2);
     }
     ctx.restore();
 
     // read-and-add unit diagram (pre vs post norm placement)
     const dy = topY + ND * cell + 44, bh = 28, bw = 76, gap = 14;
-    r.label(pre ? 'each block (×n layers):  stream ← stream + sublayer(norm(stream))' : 'each block (×n layers):  stream ← norm(stream + sublayer(stream))', pad, dy - 10, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label(pre ? 'each block (×n layers):  stream ← stream + sublayer(norm(stream))' : 'each block (×n layers):  stream ← norm(stream + sublayer(stream))', pad, dy - 10, { color: T.n14, font: '12px ui-monospace, monospace' });
     const seq = pre ? ['stream', 'norm', 'sublayer', '⊕', 'stream'] : ['stream', 'sublayer', '⊕', 'norm', 'stream'];
     let bx = pad + 6; const cx = [];
     flowRects = [];
     for (let k = 0; k < seq.length; k++) {
       flowBox(ctx, bx, dy, bw, bh, seq[k], seq[k] === 'norm'); cx.push(bx + bw / 2);
       flowRects.push({ x: bx, y: dy, w: bw, h: bh, label: seq[k] });
-      if (k < seq.length - 1) { ctx.save(); ctx.strokeStyle = '#9aa4ad'; ctx.beginPath(); ctx.moveTo(bx + bw, dy + bh / 2); ctx.lineTo(bx + bw + gap, dy + bh / 2); ctx.stroke(); ctx.restore(); }
+      if (k < seq.length - 1) { ctx.save(); ctx.strokeStyle = T.n9; ctx.beginPath(); ctx.moveTo(bx + bw, dy + bh / 2); ctx.lineTo(bx + bw + gap, dy + bh / 2); ctx.stroke(); ctx.restore(); }
       bx += bw + gap;
     }
     const addIdx = seq.indexOf('⊕');
-    ctx.save(); ctx.strokeStyle = GREEN; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx[0], dy); ctx.bezierCurveTo(cx[0], dy - 22, cx[addIdx], dy - 22, cx[addIdx], dy); ctx.stroke(); ctx.fillStyle = GREEN; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('residual (identity)', (cx[0] + cx[addIdx]) / 2, dy - 25); ctx.restore();
+    ctx.save(); ctx.strokeStyle = T.ok; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx[0], dy); ctx.bezierCurveTo(cx[0], dy - 22, cx[addIdx], dy - 22, cx[addIdx], dy); ctx.stroke(); ctx.fillStyle = T.ok; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('residual (identity)', (cx[0] + cx[addIdx]) / 2, dy - 25); ctx.restore();
 
     // Hover-to-inspect: depth×D cell -> value; rms cell -> magnitude + growth;
     // flow box -> what that step does. Suppressed while dragging.

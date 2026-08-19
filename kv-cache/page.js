@@ -3,7 +3,7 @@
 // attention Transport (built here from tensor.dot/softmax/seededRandn),
 // drawn with render.heatmap/cell + ctx overlays.
 //
-// Interactive per the framework contract (plan/framework.md): the decode
+// Interactive per the shared render framework's contract: the decode
 // AUTO-PLAYS + LOOPS so the cache visibly fills column-by-column on load
 // (the headline -- this page IS the live animation); hover any K / V / attn
 // cell for which (pos, layer, dim) it is + its value, or an unfilled cell for
@@ -13,8 +13,10 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { dot, softmax, seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111', BLUE = '#1f6feb', ORANGE = '#d2691e';
+
+
 const colVec = (M, c) => { const v = new Float32Array(M.rows); for (let r = 0; r < M.rows; r++) v[r] = M.data[r * M.cols + c]; return v; };
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) { const x = Math.abs(a[i]); if (x > m) m = x; } return m; };
 const fmtMB = (b) => (b >= 1073741824 ? (b / 1073741824).toFixed(2) + ' GB' : (b / 1048576).toFixed(1) + ' MB');
@@ -56,14 +58,14 @@ function buildData(st) {
 function band(r, M, rect, dom, activeCol, fromVeil, ramp) {
   r.heatmap(M, { rows: M.rows, cols: M.cols, rect, ramp: ramp || ramps.diverging, domain: [-dom, dom] });
   const ctx = r.ctx, cw = rect.w / M.cols;
-  if (fromVeil < M.cols) { ctx.save(); ctx.fillStyle = 'rgba(244,246,248,0.88)'; ctx.fillRect(rect.x + fromVeil * cw, rect.y, rect.w - fromVeil * cw, rect.h); ctx.restore(); }
-  if (activeCol >= 0 && activeCol < M.cols) { ctx.save(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.strokeRect(rect.x + activeCol * cw + 1, rect.y + 1, cw - 2, rect.h - 2); ctx.restore(); }
+  if (fromVeil < M.cols) { ctx.save(); ctx.fillStyle = alphaOf(T.n2, 0.88); ctx.fillRect(rect.x + fromVeil * cw, rect.y, rect.w - fromVeil * cw, rect.h); ctx.restore(); }
+  if (activeCol >= 0 && activeCol < M.cols) { ctx.save(); ctx.strokeStyle = T.n14; ctx.lineWidth = 2; ctx.strokeRect(rect.x + activeCol * cw + 1, rect.y + 1, cw - 2, rect.h - 2); ctx.restore(); }
 }
 
 function vec(r, v, rect, dom, ramp) {   // single-column vector heatmap
   const M = { data: v, rows: v.length, cols: 1 };
   r.heatmap(M, { rows: v.length, cols: 1, rect, ramp: ramp || ramps.diverging, domain: [-dom, dom] });
-  r.grid({ stroke: 'rgba(0,0,0,0.12)' });
+  r.grid({ stroke: alphaOf(T.n14, 0.12) });
 }
 
 // Map a pointer x within a band's column span to a decode position 0..N-1.
@@ -121,7 +123,7 @@ mount({
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state, { Q, K, V, d, N, layer } = cur;
     if (!K) return;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const s = page.step();
     const t = s ? s.t : N - 1;
     const w = s ? s.weights : (() => { const a = new Float32Array(N); a[N - 1] = 1; return a; })();
@@ -140,12 +142,12 @@ mount({
     const domK = maxAbs(K.data), domV = maxAbs(V.data);
 
     // labels
-    const lab = (txt, y, col) => r.label(txt, pad, y, { color: col || '#586069', font: '11px ui-monospace, monospace' });
-    lab(`K cache ℓ${layer}`, yK + d * cell / 2, BLUE);
+    const lab = (txt, y, col) => r.label(txt, pad, y, { color: col || T.n11, font: '11px ui-monospace, monospace' });
+    lab(`K cache ℓ${layer}`, yK + d * cell / 2, T.accent);
     lab('attn w', yW + cell * 0.7);
-    lab(`V cache ℓ${layer}`, yV + d * cell / 2, ORANGE);
-    r.label(cur.words ? 'your tokens →' : 'position →', x0, topY - 10, { color: '#9aa4ad', font: '11px ui-monospace, monospace' });
-    if (cur.words) { ctx.save(); ctx.font = '8px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#3a4047'; for (let j = 0; j < N; j++) { const wd = cur.words[j] || ''; ctx.fillText(wd.length > 7 ? wd.slice(0, 6) + '…' : wd, x0 + j * cell + cell / 2, topY - 22); } ctx.restore(); }
+    lab(`V cache ℓ${layer}`, yV + d * cell / 2, T.warn);
+    r.label(cur.words ? 'your tokens →' : 'position →', x0, topY - 10, { color: T.n9, font: '11px ui-monospace, monospace' });
+    if (cur.words) { ctx.save(); ctx.font = '8px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = T.n12; for (let j = 0; j < N; j++) { const wd = cur.words[j] || ''; ctx.fillText(wd.length > 7 ? wd.slice(0, 6) + '…' : wd, x0 + j * cell + cell / 2, topY - 22); } ctx.restore(); }
 
     // K / V bands (heatmap full, veil future cols, outline current col t)
     band(r, K, rK, domK, t, seq, ramps.diverging);
@@ -155,10 +157,10 @@ mount({
     const wRow = new Float32Array(N); for (let i = 0; i <= t; i++) wRow[i] = w[i];
     const wMax = Math.max(1e-6, ...Array.from(w));
     r.heatmap(wRow, { rows: 1, cols: N, rect: rW, ramp: ramps.sequential, domain: [0, wMax] });
-    ctx.save(); ctx.fillStyle = 'rgba(244,246,248,0.88)'; ctx.fillRect(rW.x + seq * cell, rW.y, rW.w - seq * cell, rW.h); ctx.restore();
-    if (cell >= 18) for (let i = 0; i <= t; i++) { r.layout = { x: rW.x, y: rW.y, w: rW.w, h: rW.h, rows: 1, cols: N, cellW: cell, cellH: cell }; r.cell(0, i, { stroke: false, label: w[i].toFixed(2), labelColor: w[i] > wMax * 0.6 ? '#fff' : '#333', font: '9px ui-monospace, monospace' }); }
+    ctx.save(); ctx.fillStyle = alphaOf(T.n2, 0.88); ctx.fillRect(rW.x + seq * cell, rW.y, rW.w - seq * cell, rW.h); ctx.restore();
+    if (cell >= 18) for (let i = 0; i <= t; i++) { r.layout = { x: rW.x, y: rW.y, w: rW.w, h: rW.h, rows: 1, cols: N, cellW: cell, cellH: cell }; r.cell(0, i, { stroke: false, label: w[i].toFixed(2), labelColor: w[i] > wMax * 0.6 ? T.n0 : T.n12, font: '9px ui-monospace, monospace' }); }
     // column-t outline across weights
-    ctx.save(); ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.strokeRect(rW.x + t * cell + 1, rW.y + 1, cell - 2, rW.h - 2); ctx.restore();
+    ctx.save(); ctx.strokeStyle = T.n14; ctx.lineWidth = 2; ctx.strokeRect(rW.x + t * cell + 1, rW.y + 1, cell - 2, rW.h - 2); ctx.restore();
 
     // Drag handle: a grabbable bar at the right edge of the filled region,
     // spanning the K..V band stack. Drag it (or the bands) to scrub the
@@ -166,7 +168,7 @@ mount({
     const handleX = rK.x + seq * cell;
     rHandle = { x: handleX - 5, y: rK.y, w: 10, h: rV.y + rV.h - rK.y };
     ctx.save();
-    ctx.strokeStyle = dragging ? ORANGE : 'rgba(31,111,235,0.85)';
+    ctx.strokeStyle = dragging ? T.warn : alphaOf(T.accent, 0.85);
     ctx.lineWidth = dragging ? 3 : 2;
     ctx.beginPath(); ctx.moveTo(handleX, rK.y - 4); ctx.lineTo(handleX, rV.y + rV.h + 4); ctx.stroke();
     ctx.fillStyle = ctx.strokeStyle;
@@ -176,10 +178,10 @@ mount({
 
     // query q_t (left of K) and output (right of V)
     const qx = x0 - sideW - 12;
-    r.label('q(t)', qx, yK - 8, { color: BLUE, font: '11px ui-monospace, monospace' });
+    r.label('q(t)', qx, yK - 8, { color: T.accent, font: '11px ui-monospace, monospace' });
     vec(r, colVec(Q, t), { x: qx, y: yK, w: cell, h: d * cell }, maxAbs(Q.data));
     const ox = x0 + gw + 12;
-    r.label('out', ox, yV - 8, { color: ORANGE, font: '11px ui-monospace, monospace' });
+    r.label('out', ox, yV - 8, { color: T.warn, font: '11px ui-monospace, monospace' });
     vec(r, out, { x: ox, y: yV, w: cell, h: d * cell }, maxAbs(out));
 
     // memory bar (grows with context) at the bottom
@@ -187,12 +189,12 @@ mount({
     const bytesNow = 2 * L * Hkv * dr * db * seq, bytesFull = 2 * L * Hkv * dr * db * N;
     page.probe = { t, N, mb: bytesFull / 1048576 };
     const barY = yV + d * cell + 22, barW = Math.min(360, page.W - 2 * pad - 120), barX = pad + 110;
-    r.label('KV memory', pad, barY + 10, { color: '#586069', font: '11px ui-monospace, monospace' });
+    r.label('KV memory', pad, barY + 10, { color: T.n11, font: '11px ui-monospace, monospace' });
     ctx.save();
-    ctx.strokeStyle = '#d0d7de'; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barW, 14);
-    ctx.fillStyle = 'rgba(31,111,235,0.6)'; ctx.fillRect(barX, barY, barW * (seq / N), 14);
+    ctx.strokeStyle = T.n6; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barW, 14);
+    ctx.fillStyle = alphaOf(T.accent, 0.6); ctx.fillRect(barX, barY, barW * (seq / N), 14);
     ctx.restore();
-    r.label(`${fmtMB(bytesNow)}  (seq ${seq}/${N})`, barX + barW + 8, barY + 11, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label(`${fmtMB(bytesNow)}  (seq ${seq}/${N})`, barX + barW + 8, barY + 11, { color: T.n14, font: '11px ui-monospace, monospace' });
 
     // Hover-to-inspect: which (pos, layer, dim) a K/V/attn cell is + its value;
     // an unfilled cell reports the decode step that writes it.

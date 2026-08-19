@@ -1,4 +1,4 @@
-// real-quant concept page.
+// real-quant concept page — Phase 9 (real-model grounding).
 //
 // The synthetic `quantization` page shows int4 group-quant on seeded weights;
 // this one shows it on REAL GPT-2 weights. It range-fetches a single weight
@@ -13,11 +13,12 @@
 // Offline: a synthetic Gaussian+outliers tensor (labelled), so the bits/group
 // controls still teach. ?real=0 forces it.
 import { mount } from '../framework/layout.js';
+import { T } from '../framework/theme.js';
 import { fetchTensor } from '../real-attention/gpt2.js';
 import { groupQuant, stats, histogram } from './quant.js';
 
 const WEIGHTS_URL = 'https://huggingface.co/gpt2/resolve/main/model.safetensors';
-const GREEN = '#0a7227', AMBER = '#9a6700', BLUE = '#1f6feb', INK = '#24292e';
+
 const TENSORS = ['h.0.mlp.c_fc.weight', 'h.0.attn.c_attn.weight', 'h.6.mlp.c_fc.weight', 'h.11.mlp.c_fc.weight'];
 const GROUPS = { '32': 32, '64': 64, '128': 128, 'whole row (3072)': 3072 };
 
@@ -50,7 +51,7 @@ mount({
   mount: 'body',
   slug: 'real-quant',
   title: 'real quant — int4 on actual GPT-2 weights',
-  blurb: 'The synthetic quantization page shows int4 group-quant on seeded weights; this one runs it on REAL GPT-2 weights — it range-fetches a single weight tensor (~9 MB, not the whole 548 MB) and shows its distribution + the real quantization error. Real weights are a tight Gaussian (σ≈0.14) with a few big outliers, so per-group scales and more bits drop the error fast — exactly why int4/int8 work. Pick a tensor, drag bits and group size.',
+  blurb: 'Phase 9 (real-model grounding). The synthetic quantization page shows int4 group-quant on seeded weights; this one runs it on REAL GPT-2 weights — it range-fetches a single weight tensor (~9 MB, not the whole 548 MB) and shows its distribution + the real quantization error. Real weights are a tight Gaussian (σ≈0.14) with a few big outliers, so per-group scales and more bits drop the error fast — exactly why int4/int8 work. Pick a tensor, drag bits and group size.',
   prefer: 'canvas2d',
   aspect: '16 / 9',
   controls: (c, page) => {
@@ -62,7 +63,7 @@ mount({
   onPointer: () => {},
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     // tensor switch → re-fetch (real mode only)
     if (M.source === 'real' && !M.fetching && st.tensor && st.tensor !== M.name) { fetchFor(page, st.tensor); }
     if (!M.w) {                                              // first paint: synthetic stand-in
@@ -73,10 +74,10 @@ mount({
     page.probe = { source: M.source, bits, group, rmse: q.rmse, std: S.std, name: M.name };
 
     const ban = (() => {
-      if (M.status === 'loading') return { t: `↓ range-fetching ${M.name}…`, c: AMBER };
-      if (M.source === 'real') return { t: `● real GPT-2 weight — ${M.name} ${JSON.stringify(M.shape)} (Range-fetched, ~${(n * 4 / 1e6).toFixed(1)} MB)`, c: GREEN };
-      if (M.status === 'offline') return { t: '○ offline — synthetic Gaussian+outliers stand-in (click “load real GPT-2 weights”)', c: AMBER };
-      return { t: '○ synthetic stand-in — click “load real GPT-2 weights” for actual weights', c: '#586069' };
+      if (M.status === 'loading') return { t: `↓ range-fetching ${M.name}…`, c: T.goldDeep };
+      if (M.source === 'real') return { t: `● real GPT-2 weight — ${M.name} ${JSON.stringify(M.shape)} (Range-fetched, ~${(n * 4 / 1e6).toFixed(1)} MB)`, c: T.okDeep };
+      if (M.status === 'offline') return { t: '○ offline — synthetic Gaussian+outliers stand-in (click “load real GPT-2 weights”)', c: T.goldDeep };
+      return { t: '○ synthetic stand-in — click “load real GPT-2 weights” for actual weights', c: T.n11 };
     })();
     ctx.save(); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = ban.c; ctx.fillText(ban.t, 14, 9); ctx.restore();
 
@@ -86,28 +87,28 @@ mount({
     const h = histogram(w, n, BINS, lo, hi);
     let hmax = 1; for (let i = 0; i < BINS; i++) if (h[i] > hmax) hmax = h[i];
     const hw = page.W * 0.55, hx = pad + 8, hy = topY + 18, hH = page.H - hy - 46;
-    r.label(`weight distribution — ${n.toLocaleString()} values, σ=${S.std.toFixed(3)}, range [${S.min.toFixed(2)}, ${S.max.toFixed(2)}]`, hx, topY, { color: '#586069', font: '11px ui-monospace, monospace' });
+    r.label(`weight distribution — ${n.toLocaleString()} values, σ=${S.std.toFixed(3)}, range [${S.min.toFixed(2)}, ${S.max.toFixed(2)}]`, hx, topY, { color: T.n11, font: '11px ui-monospace, monospace' });
     ctx.save();
     const bw = (hw - 20) / BINS;
-    for (let i = 0; i < BINS; i++) { const bh = (h[i] / hmax) * hH; ctx.fillStyle = '#9ec1ef'; ctx.fillRect(hx + i * bw, hy + hH - bh, Math.max(1, bw - 0.5), bh); }
+    for (let i = 0; i < BINS; i++) { const bh = (h[i] / hmax) * hH; ctx.fillStyle = T.accentLine; ctx.fillRect(hx + i * bw, hy + hH - bh, Math.max(1, bw - 0.5), bh); }
     // quant levels for group 0 (representative): ticks at q·scale
     const qmax = (1 << (bits - 1)) - 1, scale0 = q.scales[0];
     ctx.strokeStyle = 'rgba(207,34,46,0.55)'; ctx.lineWidth = 1;
     for (let qi = -qmax; qi <= qmax; qi++) { const v = qi * scale0; if (v < lo || v > hi) continue; const x = hx + ((v - lo) / (hi - lo)) * (hw - 20); ctx.beginPath(); ctx.moveTo(x, hy); ctx.lineTo(x, hy + hH); ctx.stroke(); }
-    ctx.fillStyle = '#cf222e'; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = T.bad; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left';
     ctx.fillText(`${(2 ** bits)} levels (int${bits}, group 0 scale)`, hx + 4, hy + 11);
     ctx.restore();
 
     // ---- right: RMSE vs bits (current group), current highlighted ----
     const rx = hx + hw + 24, rw = page.W - rx - pad, ry = topY + 18, rH = hH;
-    r.label(`quantization error (RMSE) vs bits — group ${group}`, rx, topY, { color: '#586069', font: '11px ui-monospace, monospace' });
+    r.label(`quantization error (RMSE) vs bits — group ${group}`, rx, topY, { color: T.n11, font: '11px ui-monospace, monospace' });
     const bitsList = [2, 3, 4, 5, 6, 8], rmses = bitsList.map((b) => groupQuant(w, n, b, group).rmse);
     const rmax = Math.max(...rmses) || 1, cbw = (rw - 10) / bitsList.length;
     ctx.save(); ctx.textBaseline = 'alphabetic';
     for (let i = 0; i < bitsList.length; i++) {
       const b = bitsList[i], bh = (rmses[i] / rmax) * (rH - 24), x = rx + i * cbw, y = ry + rH - bh;
-      ctx.fillStyle = b === bits ? BLUE : '#cdd3da'; ctx.fillRect(x + 4, y, cbw - 10, bh);
-      ctx.fillStyle = b === bits ? INK : '#9aa4ad'; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center';
+      ctx.fillStyle = b === bits ? T.accent : T.n6; ctx.fillRect(x + 4, y, cbw - 10, bh);
+      ctx.fillStyle = b === bits ? T.n13 : T.n9; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center';
       ctx.fillText(`int${b}`, x + cbw / 2, ry + rH + 12);
       ctx.fillText(rmses[i] < 0.01 ? rmses[i].toExponential(1) : rmses[i].toFixed(3), x + cbw / 2, y - 3);
     }
@@ -133,5 +134,5 @@ mount({
   if (q.has('bits')) page.controls.set('bits', Math.max(2, Math.min(8, +q.get('bits'))));
   if (q.has('group') && GROUPS[q.get('group')]) page.controls.set('group', q.get('group'));
   page.redraw();
-  if (q.get('real') !== '0') ensureReal(page);
+  if (q.get('real') === '1' || q.get('autoload') === '1') ensureReal(page);   // large download: opt-in only
 });

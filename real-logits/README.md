@@ -1,4 +1,4 @@
-# real-logits -- what GPT-2 actually predicts next
+# real-logits -- what GPT-2 actually predicts next (Phase 9)
 
 > **▶ [Open this demo](index.html)**  ·  [all demos →](../index.html)  ·  needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
 
@@ -7,7 +7,7 @@ Interactive page: the **real** counterpart to the synthetic
 GPT-2 (124M)** in your browser to get the actual next-token distribution for a
 prefix you type, and lets you reshape it with temperature / top-k / top-p exactly
 as a sampler would. **Anchor**: A5 lm_head + the sampling concept. Third (final)
-increment of **real-model grounding**.
+increment of **Phase 9 — real-model grounding** (`../plan/phase9.md`).
 
 ## What it shows
 
@@ -26,7 +26,7 @@ highlighted. This ties the abstract sampling page to a real model's numbers.
 ## Verified against PyTorch
 
 `GPT2.logits()` is checked against `GPT2LMHeadModel` by
-[`../real-attention/gpt2.test.mjs`](../real-attention/gpt2.test.mjs) over the
+`../real-attention/gpt2.test.mjs` over the
 committed fixture: the **argmax next-token id matches** (510 = `" up"`) and the
 top-token logits match within **max|Δ| ≈ 1.1e-4**. The softmax/top-k/top-p display
 math is exercised by the page's challenge checks.

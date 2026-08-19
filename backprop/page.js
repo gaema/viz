@@ -9,8 +9,9 @@
 // training. Drag any leaf (inputs/weights/target) to change it; step the reveal.
 import { mount } from '../framework/layout.js';
 import { seededRandn } from '../framework/tensor.js';
+import { T } from '../framework/theme.js';
 
-const INK = '#111', GREY = '#9aa4ad', BLUE = '#1f6feb', ORANGE = '#d2691e', GREEN = '#2ca02c', PURPLE = '#8250df', RED = '#d1242f';
+
 const NODES = [
   { id: 'x1', label: 'x₁', x: 64, y: 86, leaf: 1, gl: 4 },
   { id: 'w1', label: 'w₁', x: 64, y: 132, leaf: 1, train: 1, gl: 4 },
@@ -65,12 +66,12 @@ mount({
     // gradient descent step (when training), gated by the animate clock
     if (st.train && (page.t || 0) - lastT > 0.22 && dragId === '') { lastT = page.t; g.w1 -= st.lr * gr.w1; g.w2 -= st.lr * gr.w2; g.b -= st.lr * gr.b; hist.push(v.L); if (hist.length > 120) hist.shift(); }
     else if (!st.train && hist.length === 0) hist.push(v.L);
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const cs = page.step(), k = cs ? cs.stage : 4;
 
     // ===== edges =====
     ctx.save(); ctx.lineWidth = 1.2;
-    for (const [s, t] of EDGES) { const A = NMAP[s], B = NMAP[t]; ctx.strokeStyle = '#cdd5dd'; ctx.beginPath(); ctx.moveTo(A.x + 28, A.y); ctx.lineTo(B.x - 28, B.y); ctx.stroke(); }
+    for (const [s, t] of EDGES) { const A = NMAP[s], B = NMAP[t]; ctx.strokeStyle = T.n6; ctx.beginPath(); ctx.moveTo(A.x + 28, A.y); ctx.lineTo(B.x - 28, B.y); ctx.stroke(); }
     // backward-gradient flow arrows (revealed)
     for (const [s, t] of EDGES) { const A = NMAP[s], B = NMAP[t]; if (k >= A.gl) { ctx.strokeStyle = 'rgba(209,36,47,0.5)'; ctx.lineWidth = 1.4; const mx = (A.x + 28 + B.x - 28) / 2, my = (A.y + B.y) / 2; ctx.beginPath(); ctx.moveTo(B.x - 28, B.y); ctx.lineTo(A.x + 28, A.y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(mx - 4, my - 4); ctx.lineTo(mx - 11, my); ctx.lineTo(mx - 4, my + 4); ctx.stroke(); } }
     ctx.restore();
@@ -79,35 +80,35 @@ mount({
     for (const n of NODES) {
       const val = v[n.id], grad = gr[n.id], showG = k >= n.gl, w = 56, h = 30;
       ctx.save();
-      ctx.fillStyle = n.id === dragId ? 'rgba(31,111,235,0.16)' : n.train ? 'rgba(44,160,44,0.10)' : n.leaf ? '#f4f6f8' : '#eef2f6';
-      ctx.fillRect(n.x - w / 2, n.y - h / 2, w, h); ctx.strokeStyle = n.id === dragId ? BLUE : n.train ? GREEN : n.id === 'L' ? RED : '#cdd5dd'; ctx.lineWidth = (n.train || n.id === 'L') ? 1.5 : 1; ctx.strokeRect(n.x - w / 2, n.y - h / 2, w, h);
-      ctx.fillStyle = INK; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(n.label, n.x, n.y - 9);
-      ctx.font = '11px ui-monospace, monospace'; ctx.fillStyle = '#1a1d21'; ctx.fillText((val >= 0 ? ' ' : '') + val.toFixed(2), n.x, n.y + 3);
-      if (showG) { ctx.fillStyle = RED; ctx.font = '9px ui-monospace, monospace'; ctx.fillText('g=' + grad.toFixed(2), n.x, n.y + 13); }
-      if (n.leaf) { ctx.fillStyle = GREY; ctx.font = '7px ui-monospace, monospace'; ctx.fillText('drag', n.x, n.y - h / 2 - 3); }
+      ctx.fillStyle = n.id === dragId ? 'rgba(31,111,235,0.16)' : n.train ? 'rgba(44,160,44,0.10)' : n.leaf ? T.n2 : T.n2;
+      ctx.fillRect(n.x - w / 2, n.y - h / 2, w, h); ctx.strokeStyle = n.id === dragId ? T.accent : n.train ? T.ok : n.id === 'L' ? T.bad : T.n6; ctx.lineWidth = (n.train || n.id === 'L') ? 1.5 : 1; ctx.strokeRect(n.x - w / 2, n.y - h / 2, w, h);
+      ctx.fillStyle = T.n14; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(n.label, n.x, n.y - 9);
+      ctx.font = '11px ui-monospace, monospace'; ctx.fillStyle = T.n14; ctx.fillText((val >= 0 ? ' ' : '') + val.toFixed(2), n.x, n.y + 3);
+      if (showG) { ctx.fillStyle = T.bad; ctx.font = '9px ui-monospace, monospace'; ctx.fillText('g=' + grad.toFixed(2), n.x, n.y + 13); }
+      if (n.leaf) { ctx.fillStyle = T.n9; ctx.font = '7px ui-monospace, monospace'; ctx.fillText('drag', n.x, n.y - h / 2 - 3); }
       ctx.restore();
     }
-    r.label('forward values flow →   ·   gradients (g=, red) flow ← by the chain rule   ·   green = trainable, red = loss', 20, 44, { color: INK, font: '11px ui-monospace, monospace' });
-    r.label('step ' + k + '/4: ' + STEPS[k], 20, 58, { color: k === 0 ? BLUE : RED, font: '10px ui-monospace, monospace' });
+    r.label('forward values flow →   ·   gradients (g=, red) flow ← by the chain rule   ·   green = trainable, red = loss', 20, 44, { color: T.n14, font: '11px ui-monospace, monospace' });
+    r.label('step ' + k + '/4: ' + STEPS[k], 20, 58, { color: k === 0 ? T.accent : T.bad, font: '10px ui-monospace, monospace' });
 
     // ===== loss curve + descent state (bottom) =====
     const cx = 64, cy = 400, cw = W - cx - 230, chh = Hh - cy - 28;
-    r.label('loss L over gradient steps' + (st.train ? '  (descending…)' : '  (toggle "descend" to train)'), cx, cy - 8, { color: INK, font: '11px ui-monospace, monospace' });
+    r.label('loss L over gradient steps' + (st.train ? '  (descending…)' : '  (toggle "descend" to train)'), cx, cy - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
     const hmax = Math.max(0.05, ...hist), X = (i) => cx + (hist.length <= 1 ? 0 : i / (hist.length - 1) * cw), Y = (l) => cy + chh - l / hmax * chh;
-    ctx.save(); ctx.strokeStyle = '#eceef0'; ctx.strokeRect(cx, cy, cw, chh);
-    ctx.strokeStyle = GREEN; ctx.lineWidth = 1.8; ctx.beginPath(); hist.forEach((l, i) => { const px = X(i), py = Y(l); if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); }); ctx.stroke();
-    ctx.fillStyle = RED; ctx.beginPath(); ctx.arc(X(hist.length - 1), Y(hist[hist.length - 1]), 3.5, 0, 7); ctx.fill(); ctx.restore();
-    r.label(`0`, cx - 8, cy + chh, { color: '#8a939b', font: '8px ui-monospace, monospace' });
+    ctx.save(); ctx.strokeStyle = T.n3; ctx.strokeRect(cx, cy, cw, chh);
+    ctx.strokeStyle = T.ok; ctx.lineWidth = 1.8; ctx.beginPath(); hist.forEach((l, i) => { const px = X(i), py = Y(l); if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); }); ctx.stroke();
+    ctx.fillStyle = T.bad; ctx.beginPath(); ctx.arc(X(hist.length - 1), Y(hist[hist.length - 1]), 3.5, 0, 7); ctx.fill(); ctx.restore();
+    r.label(`0`, cx - 8, cy + chh, { color: T.n10, font: '8px ui-monospace, monospace' });
 
     // right panel: live numbers + the update rule
     const rx = cx + cw + 24, ry = cy - 4;
-    r.label('current state', rx, ry, { color: INK, font: '11px ui-monospace, monospace' });
-    r.label(`L = (a − y)² = ${v.L.toFixed(4)}`, rx, ry + 18, { color: RED, font: '11px ui-monospace, monospace' });
-    r.label(`a = ${v.a.toFixed(3)}   target y = ${v.yt.toFixed(2)}`, rx, ry + 34, { color: '#3a4047', font: '10px ui-monospace, monospace' });
-    r.label('weight gradients:', rx, ry + 54, { color: INK, font: '10px ui-monospace, monospace' });
-    r.label(`dL/dw₁=${gr.w1.toFixed(2)}  dL/dw₂=${gr.w2.toFixed(2)}  dL/db=${gr.b.toFixed(2)}`, rx, ry + 70, { color: '#586069', font: '9px ui-monospace, monospace' });
-    r.label(`update:  w ← w − ${st.lr.toFixed(2)}·dL/dw`, rx, ry + 90, { color: GREEN, font: '10px ui-monospace, monospace' });
-    r.label(st.train ? `step ${hist.length}: descending` : 'paused — flip "descend" on', rx, ry + 106, { color: st.train ? GREEN : '#8a939b', font: '10px ui-monospace, monospace' });
+    r.label('current state', rx, ry, { color: T.n14, font: '11px ui-monospace, monospace' });
+    r.label(`L = (a − y)² = ${v.L.toFixed(4)}`, rx, ry + 18, { color: T.bad, font: '11px ui-monospace, monospace' });
+    r.label(`a = ${v.a.toFixed(3)}   target y = ${v.yt.toFixed(2)}`, rx, ry + 34, { color: T.n12, font: '10px ui-monospace, monospace' });
+    r.label('weight gradients:', rx, ry + 54, { color: T.n14, font: '10px ui-monospace, monospace' });
+    r.label(`dL/dw₁=${gr.w1.toFixed(2)}  dL/dw₂=${gr.w2.toFixed(2)}  dL/db=${gr.b.toFixed(2)}`, rx, ry + 70, { color: T.n11, font: '9px ui-monospace, monospace' });
+    r.label(`update:  w ← w − ${st.lr.toFixed(2)}·dL/dw`, rx, ry + 90, { color: T.ok, font: '10px ui-monospace, monospace' });
+    r.label(st.train ? `step ${hist.length}: descending` : 'paused — flip "descend" on', rx, ry + 106, { color: st.train ? T.ok : T.n10, font: '10px ui-monospace, monospace' });
 
     // hover
     if (page.pointer.over && !dragId) { const p = page.pointer; for (const n of NODES) if (Math.abs(p.x - n.x) < 28 && Math.abs(p.y - n.y) < 15) { page.setTip(`${n.id} = ${v[n.id].toFixed(3)}\ngradient dL/d${n.id} = ${gr[n.id].toFixed(3)}${n.train ? '\n← a weight: nudged by −lr·grad' : n.leaf ? '\n(drag ↕ to change)' : ''}`); break; } }

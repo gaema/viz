@@ -5,7 +5,7 @@
 Interactive page: **the capstone.** Every other page shows one mechanism in
 isolation; this one **chains them**, running a short prompt all the way through a
 tiny (but real) transformer to predict the next token. **Anchor**: synthesis of
-Families A–G; Family H ().
+Families A–G; Family H (see `../plan/curriculum.md`).
 
 ## What it shows
 

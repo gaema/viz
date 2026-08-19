@@ -1,7 +1,7 @@
 // multi-head concept page -- split D into H heads, attend in parallel, concat.
 // Uses the verified framework: layout.mount() + controls + a per-head Transport.
 //
-// Interactive per the framework contract (plan/framework.md): the per-head
+// Interactive per the shared render framework's contract: the per-head
 // attention matrices auto-play + loop (scrub walks head by head); hover any
 // per-head attention cell for its derivation (head h: score[i,j] = qᵢ·kⱼ/√d_head),
 // or hover a concat-output cell to see which head + dim it came from; drag a Q
@@ -10,9 +10,13 @@
 import { mount } from '../framework/layout.js';
 import { ramps, categorical, cellAt } from '../framework/render.js';
 import { dot, softmax, seededRandn } from '../framework/tensor.js';
+import { T, alphaOf } from '../framework/theme.js';
 
-const INK = '#111';
-const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+
+
+// Thin alias over the shared helper, kept only because the call sites read
+// better as rgb(categoricalColour): alphaOf() now takes an [r,g,b] triple.
+const rgb = (c, a = 1) => alphaOf(c, a);
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) { const x = Math.abs(a[i]); if (x > m) m = x; } return m; };
 
 // Shared between buildData(), draw(), and onPointer(). recompute() rebuilds the
@@ -73,15 +77,15 @@ function resync(page) {
 function dstrip(r, M, rect, hd, H, label, ah) {
   const ctx = r.ctx, N = M.rows, D = M.cols, cw = rect.w / D;
   r.heatmap(M, { rows: N, cols: D, rect, ramp: ramps.diverging, domain: [-maxAbs(M.data), maxAbs(M.data)] });
-  r.label(label, rect.x - 26, rect.y + rect.h / 2, { color: '#586069', font: '11px ui-monospace, monospace' });
+  r.label(label, rect.x - 26, rect.y + rect.h / 2, { color: T.n11, font: '11px ui-monospace, monospace' });
   ctx.save();
   for (let h = 0; h <= H; h++) {                      // slice dividers
     const x = rect.x + h * hd * cw;
-    ctx.strokeStyle = h === 0 || h === H ? '#c4ccd3' : 'rgba(40,44,52,0.5)'; ctx.lineWidth = h === 0 || h === H ? 1 : 1.5;
+    ctx.strokeStyle = h === 0 || h === H ? T.n7 : alphaOf(T.n13, 0.5); ctx.lineWidth = h === 0 || h === H ? 1 : 1.5;
     ctx.beginPath(); ctx.moveTo(x, rect.y); ctx.lineTo(x, rect.y + rect.h); ctx.stroke();
   }
   ctx.textAlign = 'center'; ctx.font = '9px ui-monospace, monospace';
-  for (let h = 0; h < H; h++) { ctx.fillStyle = h === ah ? rgb(categorical(h)) : '#9aa4ad'; ctx.fillText('h' + h, rect.x + (h + 0.5) * hd * cw, rect.y - 4); }
+  for (let h = 0; h < H; h++) { ctx.fillStyle = h === ah ? rgb(categorical(h)) : T.n9; ctx.fillText('h' + h, rect.x + (h + 0.5) * hd * cw, rect.y - 4); }
   if (ah >= 0) { ctx.strokeStyle = rgb(categorical(ah)); ctx.lineWidth = 2.5; ctx.strokeRect(rect.x + ah * hd * cw + 1, rect.y + 1, hd * cw - 2, rect.h - 2); }
   ctx.restore();
 }
@@ -122,7 +126,7 @@ mount({
     const r = page.renderer, ctx = page.ctx, st = page.state;
     if (!cur) return;
     const { Q, K, V, heads, output, N, H, hd, D } = cur;
-    r.clear('#ffffff');
+    r.clear(T.n0);
     const s = page.step();
     const ah = s ? s.h : -1;
     const sq = Math.sqrt(hd);
@@ -130,24 +134,24 @@ mount({
     const pad = 14, topY = 52;
     const cellS = Math.max(8, Math.min(18, (page.W - 2 * pad - 90) / D));
     qRect = { x: pad + 40, y: topY, w: D * cellS, h: N * cellS };
-    r.label('split D into H heads (head_dim slices)', pad, topY - 14, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label('split D into H heads (head_dim slices)', pad, topY - 14, { color: T.n14, font: '12px ui-monospace, monospace' });
     dstrip(r, Q, qRect, hd, H, 'Q', ah);
-    r.label('↕ drag Q', qRect.x + qRect.w + 8, qRect.y + qRect.h - 2, { color: '#1f6feb', font: '9px ui-monospace, monospace' });
+    r.label('↕ drag Q', qRect.x + qRect.w + 8, qRect.y + qRect.h - 2, { color: T.accent, font: '9px ui-monospace, monospace' });
 
     // per-head attention matrices [N×N] in a row
     const mTop = topY + N * cellS + 42, gapM = 14;
     const cellA = Math.max(10, Math.min(28, Math.min((page.W - 2 * pad - 36 - (H - 1) * gapM) / (H * N), (page.H - mTop - N * cellS - 80) / N)));
     const mw = N * cellA;
     const totW = H * mw + (H - 1) * gapM, mX0 = Math.max(pad + 30, (page.W - totW) / 2);
-    r.label('H attention matrices — one per head, each a different pattern (causal)', pad, mTop - 10, { color: '#586069', font: '11px ui-monospace, monospace' });
+    r.label('H attention matrices — one per head, each a different pattern (causal)', pad, mTop - 10, { color: T.n11, font: '11px ui-monospace, monospace' });
     headRects = [];
     for (let h = 0; h < H; h++) {
       const rect = { x: mX0 + h * (mw + gapM), y: mTop, w: mw, h: N * cellA };
       headRects.push(rect);
       r.heatmap(heads[h].W, { rows: N, cols: N, rect, ramp: ramps.sequential, domain: [0, maxAbs(heads[h].W.data)] });
       ctx.save();
-      for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) { ctx.fillStyle = 'rgba(40,44,52,0.14)'; ctx.fillRect(rect.x + j * cellA, rect.y + i * cellA, cellA, cellA); }
-      ctx.fillStyle = h === ah ? rgb(categorical(h)) : '#9aa4ad'; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center';
+      for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) { ctx.fillStyle = alphaOf(T.n13, 0.14); ctx.fillRect(rect.x + j * cellA, rect.y + i * cellA, cellA, cellA); }
+      ctx.fillStyle = h === ah ? rgb(categorical(h)) : T.n9; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center';
       ctx.fillText('head ' + h, rect.x + mw / 2, rect.y - 4);
       if (h === ah) { ctx.strokeStyle = rgb(categorical(h)); ctx.lineWidth = 2.5; ctx.strokeRect(rect.x - 1, rect.y - 1, mw + 2, N * cellA + 2); }
       ctx.restore();
@@ -155,7 +159,7 @@ mount({
 
     // concatenated output [N×D]
     const oTop = mTop + N * cellA + 40;
-    r.label('concat head outputs → [N×D]', pad, oTop - 12, { color: INK, font: '12px ui-monospace, monospace' });
+    r.label('concat head outputs → [N×D]', pad, oTop - 12, { color: T.n14, font: '12px ui-monospace, monospace' });
     outRect = { x: pad + 40, y: oTop, w: D * cellS, h: N * cellS };
     dstrip(r, output, outRect, hd, H, 'out', ah);
 
