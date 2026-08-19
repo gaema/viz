@@ -1,11 +1,11 @@
-# real-kv-cache -- what fills up as GPT-2 generates (Phase 9)
+# real-kv-cache -- what fills up as GPT-2 generates
 
 > **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
 
 Interactive page: the **real** counterpart to the synthetic
 [`kv-cache`](../kv-cache/README.md) page. It shows GPT-2's **actual** KV cache as
-it generates. **Anchor**: the KV-cache concept. Part of **Phase 9 — real-model
-grounding**.
+it generates. **Anchor**: the KV-cache concept. One of the **real-model
+grounding** pages, which run a real trained model instead of synthetic weights.
 
 ## What it shows
 

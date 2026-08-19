@@ -4,7 +4,7 @@
 
 Interactive page: the gated MLP used in modern transformers (Llama, etc.) —
 two parallel up-projections, an element-wise gate, and a down-projection.
-**Anchor**: A6 MLP shape / A7 activation (Family C2, Phase 3).
+**Anchor**: A6 MLP shape / A7 activation (Family C2).
 
 ## What it shows
 

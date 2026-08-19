@@ -1,4 +1,4 @@
-// real-vision concept page — Phase 9 (real-model grounding), the vision entry.
+// real-vision concept page — real-model grounding, the vision entry.
 //
 // Extends real grounding to the image family. Runs a real Vision Transformer
 // (Xenova/vit-base-patch16-224) in-browser via transformers.js on a real photo,
@@ -59,7 +59,7 @@ mount({
   mount: 'body',
   slug: 'real-vision',
   title: 'real vision — a ViT classifying a real image',
-  blurb: 'Phase 9 (real-model grounding), the vision entry. A real Vision Transformer (ViT-base) runs in your browser on a real photo: see the image cut into 16×16 patches — the ViT “tokens”, the image analog of BPE tokens — and the model’s real top-5 predictions. The vision counterpart of real-logits. transformers.js is the engine; the top class is verified against PyTorch ViT. Offline shows a labelled synthetic stand-in with the real patch grid.',
+  blurb: 'The vision entry to the real-model pages. A real Vision Transformer (ViT-base) runs in your browser on a real photo: see the image cut into 16×16 patches — the ViT “tokens”, the image analog of BPE tokens — and the model’s real top-5 predictions. The vision counterpart of real-logits. transformers.js is the engine; the top class is verified against PyTorch ViT. Offline shows a labelled synthetic stand-in with the real patch grid.',
   prefer: 'canvas2d',
   aspect: '16 / 9',
   controls: (c, page) => {

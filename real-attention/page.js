@@ -1,4 +1,4 @@
-// real-attention concept page — Phase 9 (real-model grounding).
+// real-attention concept page — real-model grounding.
 //
 // REAL GPT-2 attention. transformers.js can't emit attentions (the ONNX export
 // drops them — Optimum #325), so gpt2.js fetches the raw safetensors and runs a
@@ -162,7 +162,7 @@ mount({
   mount: 'body',
   slug: 'real-attention',
   title: 'real attention — finding GPT-2’s heads',
-  blurb: 'Phase 9 (real-model grounding). The synthetic attention pages show idealized head shapes on seeded numbers; this page runs a REAL GPT-2 in your browser — we fetch the raw weights and run a verified forward in vanilla JS (transformers.js can’t emit attentions), capturing softmax(QKᵀ/√d) at every layer/head. Type a sentence; the 12×12 head-map colours each head by what it does. Hunt for the previous-token head (sub-diagonal), the induction head (attends to what followed a repeated token last time — the in-context-learning trick), and the attention-sink head (dumps on token 0). Offline it shows a labelled idealized stand-in; the real model needs a ~548 MB one-time download.',
+  blurb: 'The synthetic attention pages show idealized head shapes on seeded numbers; this page runs a REAL GPT-2 in your browser — we fetch the raw weights and run a verified forward in vanilla JS (transformers.js can’t emit attentions), capturing softmax(QKᵀ/√d) at every layer/head. Type a sentence; the 12×12 head-map colours each head by what it does. Hunt for the previous-token head (sub-diagonal), the induction head (attends to what followed a repeated token last time — the in-context-learning trick), and the attention-sink head (dumps on token 0). Offline it shows a labelled idealized stand-in; the real model needs a ~548 MB one-time download.',
   prefer: 'canvas2d',
   aspect: '16 / 9',
   controls: (c, page) => {
@@ -270,7 +270,7 @@ mount({
   },
   challenges: [
     { goal: 'Ground it in the REAL model — download GPT-2 and compute attention in-browser (needs network; “load real GPT-2”).',
-      hint: 'The banner turns green “● real GPT-2” after the ~548 MB one-time download. Works on the mesh / online.',
+      hint: 'The banner turns green “● real GPT-2” after the ~548 MB one-time download. Works online.',
       check: (api) => ({ solved: api.probe.source === 'real', detail: `source = ${api.probe.source}` }) },
     { goal: 'Find an INDUCTION head — select a head whose induction score ≥ 0.30 (on the repeated text it attends to what followed the token last time).',
       hint: 'Use the head-map (green cells) or the “jump to induction head” button. In real gpt2-small it’s L5·H5.',

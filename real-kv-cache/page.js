@@ -1,4 +1,4 @@
-// real-kv-cache concept page — Phase 9 (real-model grounding).
+// real-kv-cache concept page — real-model grounding.
 //
 // The synthetic kv-cache page shows the mechanism; this one shows the REAL cache.
 // As GPT-2 generates, each layer caches K and V for every past position
@@ -89,7 +89,7 @@ mount({
   mount: 'body',
   slug: 'real-kv-cache',
   title: 'real KV cache — what fills up as GPT-2 generates',
-  blurb: 'Phase 9 (real-model grounding). As GPT-2 generates, every layer caches the Keys and Values for all past positions so each new token is cheap — the KV cache. This page shows the REAL cache (verified vs PyTorch past_key_values): the actual cached K values for a layer/head, and the real memory (GPT-2’s true 12×12×64 dims) growing one position per token. The prompt fills it in parallel (prefill); each generated token appends one column (decode). Watch the cache — and the megabytes — climb.',
+  blurb: 'As GPT-2 generates, every layer caches the Keys and Values for all past positions so each new token is cheap — the KV cache. This page shows the REAL cache (verified vs PyTorch past_key_values): the actual cached K values for a layer/head, and the real memory (GPT-2’s true 12×12×64 dims) growing one position per token. The prompt fills it in parallel (prefill); each generated token appends one column (decode). Watch the cache — and the megabytes — climb.',
   prefer: 'canvas2d',
   aspect: '16 / 9',
   controls: (c, page) => {

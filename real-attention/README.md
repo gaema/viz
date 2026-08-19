@@ -1,12 +1,13 @@
-# real-attention -- finding GPT-2's heads (real weights, Phase 9)
+# real-attention -- finding GPT-2's heads (real weights)
 
 > **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
 
 Interactive page: the **real** counterpart to the synthetic attention pages
 ([`attention-patterns`](../attention-patterns/), [`scaled-dot-attention`](../scaled-dot-attention/)).
 It runs a **real GPT-2 (124M)** in your browser and lets you hunt its attention
-heads on any sentence you type. **Anchor**: A2 attention. Second increment of
-**Phase 9 — real-model grounding**.
+heads on any sentence you type. **Anchor**: A2 attention. One of the
+**real-model grounding** pages: it runs a real trained model instead of
+synthetic weights.
 
 ## Why a hand-written forward pass
 

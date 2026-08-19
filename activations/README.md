@@ -3,7 +3,7 @@
 > **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: the smooth activation functions used in transformer MLPs,
-plotted side by side. **Anchor**: A7 activation in MLP (Family C3, Phase 3).
+plotted side by side. **Anchor**: A7 activation in MLP (Family C3).
 
 ## What it shows
 

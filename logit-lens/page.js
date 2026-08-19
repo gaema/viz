@@ -1,4 +1,4 @@
-// logit-lens concept page — Phase 9 (real-model grounding).
+// logit-lens concept page — real-model grounding.
 //
 // The "logit lens" (nostalgebraist): apply the model's FINAL ln_f + tied lm_head
 // to the residual stream at EVERY layer, not just the last, to watch the
@@ -86,7 +86,7 @@ mount({
   mount: 'body',
   slug: 'logit-lens',
   title: 'logit lens — watching a prediction form across layers',
-  blurb: 'Phase 9 (real-model grounding). The logit lens applies GPT-2’s final ln_f + tied lm_head to the residual stream at EVERY layer — not just the last — so you can watch the next-token prediction crystallize with depth. Early layers echo the input or guess generically; the answer locks in near the top. Runs a REAL GPT-2 in your browser. Type a prefix and read the trajectory bottom-up (embedding → layer 12). Offline it shows an idealized stand-in.',
+  blurb: 'The logit lens applies GPT-2’s final ln_f + tied lm_head to the residual stream at EVERY layer — not just the last — so you can watch the next-token prediction crystallize with depth. Early layers echo the input or guess generically; the answer locks in near the top. Runs a REAL GPT-2 in your browser. Type a prefix and read the trajectory bottom-up (embedding → layer 12). Offline it shows an idealized stand-in.',
   prefer: 'canvas2d',
   aspect: '4 / 3',
   controls: (c, page) => {

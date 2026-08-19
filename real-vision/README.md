@@ -1,11 +1,12 @@
-# real-vision -- a ViT classifying a real image (Phase 9)
+# real-vision -- a ViT classifying a real image
 
 > **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a one-time ~340 MB model download: `python3 -m http.server 8099`
 
 Interactive page: the **vision entry** to the real-* family. A real **Vision
 Transformer** (ViT-base) classifies a real photo in your browser. **Anchor**:
-[`patch-embedding`](../patch-embedding/README.md) (ViT image→patches). Part of
-**Phase 9 — real-model grounding**.
+[`patch-embedding`](../patch-embedding/README.md) (ViT image→patches). One of the
+**real-model grounding** pages, which run a real trained model instead of
+synthetic weights.
 
 ## What it shows
 

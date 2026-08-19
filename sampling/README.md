@@ -5,7 +5,7 @@
 Interactive page: how the next token is actually chosen from the lm-head's
 logits -- temperature, then a truncation strategy (greedy, top-k, top-p), then a
 draw. **Anchor**: the decode-time companion to [lm-head](../lm-head/README.md)
-(which produces the logits); Family C (Phase 3).
+(which produces the logits); Family C.
 
 ## What it shows
 

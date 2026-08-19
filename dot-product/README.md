@@ -4,7 +4,7 @@
 
 Interactive page: the dot product of two vectors, built term-by-term, with the
 geometric meaning shown alongside. **Anchor**: foundational primitive (Family
-A2; the inner loop of every matmul / attention score / projection). See.
+A2; the inner loop of every matmul / attention score / projection).
 
 ## What it shows
 

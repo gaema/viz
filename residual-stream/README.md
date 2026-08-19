@@ -4,7 +4,7 @@
 
 Interactive page: the residual stream — the tensor that runs straight through
 the transformer, that every block reads from and writes back to by **adding**
-(never overwriting). **Anchor**: A8 (Family C5, Phase 3).
+(never overwriting). **Anchor**: A8 (Family C5).
 
 ## What it shows
 

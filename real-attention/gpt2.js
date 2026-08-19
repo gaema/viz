@@ -1,5 +1,5 @@
 // Minimal GPT-2 forward pass in vanilla JS — enough to compute REAL attention
-// matrices for the real-attention viz page (Phase 9). We can't get attentions
+// matrices for the real-attention viz page. We can't get attentions
 // out of transformers.js (the ONNX export drops them — Optimum #325), so we
 // fetch the raw safetensors weights and run the forward ourselves, capturing the
 // softmaxed attention A[layer][head] = softmax(QKᵀ/√d + causal mask) at every

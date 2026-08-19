@@ -6,7 +6,7 @@ Interactive page: how a Mixture-of-Experts layer routes each token to a few
 experts -- router logits → softmax gate → top-k selection → per-expert load,
 capacity, and dropped tokens. **Anchor**: A6 MLP / MoE variant (the gated-MLP
 sublayer replaced by routed experts); Family D (
-MoE and).
+MoE).
 
 ## What it shows
 

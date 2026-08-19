@@ -5,7 +5,7 @@
 Interactive page: the two phases of autoregressive inference, side by side --
 **prefill** (process the whole prompt in one parallel pass) vs **decode**
 (generate one token at a time). **Anchor**: A4 KV cache / runtime shape (Family
-C, Phase 3). Companion to
+C). Companion to
 [kv-cache](../kv-cache/README.md), which shows the cache itself filling.
 
 ## What it shows

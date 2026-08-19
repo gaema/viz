@@ -1,4 +1,4 @@
-// real-neurons concept page — Phase 9 (real-model grounding).
+// real-neurons concept page — real-model grounding.
 //
 // Each GPT-2 block's MLP has 3072 "neurons" — the post-gelu units between the two
 // projections. This page runs a REAL GPT-2 in the browser (GPT2.mlp(), verified
@@ -73,7 +73,7 @@ mount({
   mount: 'body',
   slug: 'real-neurons',
   title: 'real neurons — which MLP units fire',
-  blurb: 'Phase 9 (real-model grounding). Each transformer block’s MLP has 3072 “neurons” — the post-gelu units that hold most of a model’s learned features. This page runs a REAL GPT-2 in your browser (verified vs PyTorch) and shows which neurons fire for which tokens: the most-active neurons across your sentence, with the strongest firing marked. Hover a cell for the activation; pick a layer. Different neurons light up for different tokens — the raw material of interpretability.',
+  blurb: 'Each transformer block’s MLP has 3072 “neurons” — the post-gelu units that hold most of a model’s learned features. This page runs a REAL GPT-2 in your browser (verified vs PyTorch) and shows which neurons fire for which tokens: the most-active neurons across your sentence, with the strongest firing marked. Hover a cell for the activation; pick a layer. Different neurons light up for different tokens — the raw material of interpretability.',
   prefer: 'canvas2d',
   aspect: '16 / 9',
   controls: (c, page) => {

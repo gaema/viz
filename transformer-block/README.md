@@ -6,7 +6,7 @@ Interactive page: a whole transformer block end to end --
 `x -> RMSNorm -> Attention -> + -> RMSNorm -> MLP -> + -> out` -- showing the
 **residual spine** and the two sublayer branches that read it (via norm) and add
 back. **Anchor**: the block is the unit the per-attribute A1-A12 pages assemble
-into; Family C capstone (Phase 3).
+into; Family C capstone.
 
 ## What it shows
 

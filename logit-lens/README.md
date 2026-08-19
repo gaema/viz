@@ -1,12 +1,13 @@
-# logit-lens -- watching a prediction form across layers (Phase 9)
+# logit-lens -- watching a prediction form across layers
 
 > **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
 
 Interactive page: the **logit lens** (nostalgebraist) on a **real GPT-2 (124M)**.
 It applies the model's final `ln_f` + tied lm_head to the residual stream at
 **every** layer — not just the last — so you can watch the next-token prediction
-crystallize with depth. **Anchor**: residual stream + A5 lm_head. Part of **Phase
-9 — real-model grounding**.
+crystallize with depth. **Anchor**: residual stream + A5 lm_head. One of the
+**real-model grounding** pages: it runs a real trained model instead of
+synthetic weights.
 
 ## What it shows
 

@@ -5,7 +5,7 @@
 Interactive page: the output projection that turns a hidden state into a logit
 per vocabulary token, plus the three tricks around it — tied weights, logit
 soft-capping, and decode-time logit slicing. **Anchor**: A9 lm_head structure /
-A10 vocab (Family C6, Phase 3).
+A10 vocab (Family C6).
 
 ## What it shows
 

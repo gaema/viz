@@ -1,4 +1,4 @@
-# real-logits -- what GPT-2 actually predicts next (Phase 9)
+# real-logits -- what GPT-2 actually predicts next
 
 > **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server + a one-time ~548 MB weight download: `python3 -m http.server 8099`
 
@@ -6,8 +6,9 @@ Interactive page: the **real** counterpart to the synthetic
 [`lm-head`](../lm-head/) + [`sampling`](../sampling/) pages. It runs a **real
 GPT-2 (124M)** in your browser to get the actual next-token distribution for a
 prefix you type, and lets you reshape it with temperature / top-k / top-p exactly
-as a sampler would. **Anchor**: A5 lm_head + the sampling concept. Third (final)
-increment of **Phase 9 — real-model grounding**.
+as a sampler would. **Anchor**: A5 lm_head + the sampling concept. One of the
+**real-model grounding** pages: it runs a real trained model instead of
+synthetic weights.
 
 ## What it shows
 
