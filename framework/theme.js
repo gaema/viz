@@ -156,12 +156,20 @@ if (mql) {
 
 /** '#rrggbb' -> [r,g,b]. */
 export function rgbOf(color) {
-  // Accepts a token name, a '#rrggbb', or an [r,g,b] triple -- the framework's
-  // ramps and categorical() hand back ARRAYS, so a hex-only signature made four
-  // pages keep their own array shim.
+  // Accepts a token name, '#rrggbb', an [r,g,b] triple, OR a CSS rgb()/rgba()
+  // string. That last one is not a nicety: signedColor(), mixColor() and
+  // alphaOf() all RETURN rgb()/rgba() strings, so without it the helpers in this
+  // file could not be composed with each other -- `inkOn(signedColor(t))` sliced
+  // non-hex characters, produced NaN luma, compared false in BOTH branches and
+  // silently returned the same ink for every value.
   if (Array.isArray(color)) return [color[0], color[1], color[2]];
-  const hex = T[color] || color || '#000000';
-  return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+  const c = T[color] || color || '#000000';
+  const m = /^rgba?\(([^)]+)\)/.exec(c);
+  if (m) {
+    const p = m[1].split(',').map((x) => parseFloat(x));
+    return [p[0] | 0, p[1] | 0, p[2] | 0];
+  }
+  return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
 }
 
 /** Rec. 601 luma of a token name / hex / [r,g,b]. */
