@@ -35,6 +35,28 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const perPosBytes = (dtB) => 2 * CFG.nLayer * CFG.nEmbd * dtB;   // K+V, all layers/heads
 const fmtBytes = (b) => b >= 1e6 ? (b / 1e6).toFixed(1) + ' MB' : (b / 1e3).toFixed(1) + ' KB';
 
+// ---- measured text (never place a string without measuring it) -------------
+// Canvas gives no metrics until draw time, so the right-hand memory panel sizes
+// every line from ctx.measureText against the panel's own width. Same idea as
+// dtype-bits' ellipsize().
+function ellipsize(ctx, txt, maxW) {
+  if (maxW <= 0) return '';
+  if (ctx.measureText(txt).width <= maxW) return txt;
+  let cut = txt;
+  for (;;) {                                        // word boundary first
+    const sp = cut.lastIndexOf(' ');
+    if (sp <= 0) break;
+    cut = cut.slice(0, sp).replace(/[—·(,:×]+$/, '').trimEnd();
+    if (!cut) break;
+    if (ctx.measureText(cut + '…').width <= maxW) return cut + '…';
+  }
+  let lo = 0, hi = txt.length;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (ctx.measureText(txt.slice(0, mid) + '…').width <= maxW) lo = mid; else hi = mid - 1; }
+  return lo > 0 ? txt.slice(0, lo) + '…' : '';
+}
+// First form of a shorter-and-shorter ladder that fits; null if none does.
+const pickFit = (ctx, forms, maxW) => forms.find((f) => ctx.measureText(f).width <= maxW) || null;
+
 // synthetic K cache (seeded) for the offline stand-in: per-layer [n×D]
 function synthCache(ids) {
   const n = ids.length, D = CFG.nEmbd, rng = mulberry32(0x5eed ^ n), layers = [];
@@ -141,14 +163,33 @@ mount({
     const rx = pad + page.W * 0.52, rw = page.W - rx - pad;
     ctx.save(); ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = T.n13; ctx.font = '13px ui-monospace, monospace';
-    ctx.fillText(`KV cache now: ${fmtBytes(bytes)}`, rx, topY + 14);
+    ctx.fillText(ellipsize(ctx, `KV cache now: ${fmtBytes(bytes)}`, rw), rx, topY + 14);
     ctx.fillStyle = T.n11; ctx.font = '11px ui-monospace, monospace';
-    ctx.fillText(`${n} positions × 2(K+V) × ${CFG.nLayer} layers × ${CFG.nEmbd} dim × ${dtB} B = ${fmtBytes(bytes)}`, rx, topY + 32);
-    ctx.fillText(`= ${fmtBytes(perPosBytes(dtB))} per token (${st.dtype})`, rx, topY + 48);
+    // The RESULT is what the reader came for, so it is never the part that gets
+    // cut. Try shorter PREFIXES against the measured panel width `rw`; if even
+    // the shortest overflows, wrap so "= <size>" lands on its own line. The old
+    // single unmeasured fillText ran past the panel edge and clipped exactly
+    // the figure ("… × 2 B = 368.6 |").
+    const res = `= ${fmtBytes(bytes)}`;
+    const prefixes = [
+      `${n} positions × 2(K+V) × ${CFG.nLayer} layers × ${CFG.nEmbd} dim × ${dtB} B`,
+      `${n} pos × 2(K+V) × ${CFG.nLayer} layers × ${CFG.nEmbd} dim × ${dtB} B`,
+      `${n} × 2(K+V) × ${CFG.nLayer} × ${CFG.nEmbd} × ${dtB} B`,
+      `${n} × 2·${CFG.nLayer}·${CFG.nEmbd} × ${dtB} B`,
+    ];
+    let my = topY + 32;
+    const oneLine = pickFit(ctx, prefixes.map((p) => `${p} ${res}`), rw);
+    if (oneLine) { ctx.fillText(oneLine, rx, my); my += 16; }
+    else {
+      ctx.fillText(ellipsize(ctx, prefixes[prefixes.length - 1], rw), rx, my); my += 14;
+      ctx.fillText(ellipsize(ctx, res, rw), rx, my); my += 16;
+    }
+    ctx.fillText(ellipsize(ctx, `= ${fmtBytes(perPosBytes(dtB))} per token (${st.dtype})`, rw), rx, my); my += 16;
     // memory-vs-context curve (why long context is expensive)
     const ctxs = [128, 512, 2048, 8192, 32768], by = ctxs.map((s) => perPosBytes(dtB) * s);
-    const cy = topY + 80, ch = page.H - cy - 40, cw = rw, bmax = by[by.length - 1];
-    ctx.fillStyle = T.n11; ctx.fillText('KV cache vs context length:', rx, cy - 6);
+    const cy = Math.max(topY + 80, my + 16), ch = page.H - cy - 40, cw = rw, bmax = by[by.length - 1];
+    ctx.fillStyle = T.n11;
+    ctx.fillText(pickFit(ctx, ['KV cache vs context length:', 'KV cache vs context:', 'vs context:'], rw) || ellipsize(ctx, 'KV cache vs context length:', rw), rx, cy - 6);
     const bw = cw / ctxs.length;
     for (let i = 0; i < ctxs.length; i++) { const h = (by[i] / bmax) * (ch - 18), x = rx + i * bw, y = cy + ch - h; ctx.fillStyle = T.accent; ctx.fillRect(x + 5, y, bw - 12, h); ctx.fillStyle = T.n9; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(ctxs[i] >= 1024 ? (ctxs[i] / 1024) + 'K' : ctxs[i], x + bw / 2, cy + ch + 11); ctx.fillText(fmtBytes(by[i]), x + bw / 2, y - 3); ctx.textAlign = 'left'; }
     ctx.restore();

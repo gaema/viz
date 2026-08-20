@@ -1515,11 +1515,11 @@
         },
         "int8": {
           "level": "unknown",
-          "note": "Qualcomm's own ML runtime says quantized models are incompatible with the GPU backend, and no vendor document was found stating an integer dot-product path for this GPU. The OpenCL integer-dot-product extensions are the place that would settle it."
+          "note": "Qualcomm DOES document an 8-bit integer dot product for Adreno OpenCL: the `cl_qcom_dot_product8` extension, whose built-ins `qcom_dot8_acc` / `qcom_udot8_acc` calculate \"dot products with a pair of four 8-bit components, followed by saturating the addition of the dot product result with a 32-bit accumulator\" (Qualcomm Snapdragon Mobile Platform OpenCL General Programming and Optimization, 80-NB295-11 Rev. C, section 9.5.1 \"Enhancement of 8-bit operations\"). On a GPU with no matrix engine that would be `vector`, never `native`. It is NOT recorded as `vector` here because that guide's only device list is \"extensions supported on Snapdragon 888 devices\" -- a 600-series Adreno, February 2023 -- and it warns that \"[v]endor extensions can be deprecated or de-featured by the vendor\", so it does not speak for the 800-series. The same guide also states \"Adreno GPUs do not have general 8-bit ALU support\", and Qualcomm's ML runtime says quantized models are incompatible with its GPU backend. Settled only by a Qualcomm-published extension list (or Adreno OpenCL SDK page) for an 800-series Adreno naming `cl_qcom_dot_product8` or `cl_khr_integer_dot_product`."
         },
         "uint8": {
           "level": "unknown",
-          "note": "Same as int8: Qualcomm's own ML runtime says quantized models are incompatible with the GPU backend, and no vendor document states an integer dot-product path for this GPU."
+          "note": "Same as int8: the unsigned built-in `qcom_udot8_acc` of `cl_qcom_dot_product8` is documented for Adreno GPUs, but the only device list Qualcomm publishes for that extension is Snapdragon 888 (a 600-series Adreno), so nothing states it for the 800-series either way."
         },
         "int4": {
           "level": "unknown"
@@ -1623,8 +1623,8 @@
           "note": "QNN's quantized tensor types are unsigned AND signed fixed-point 8-bit; unsigned asymmetric is the quantization the SDK documents first."
         },
         "int4": {
-          "level": "native",
-          "note": "The product brief enumerates INT4 among the NPU's precisions -- but the SDK notes int4's benefit comes SOLELY from moving fewer bytes into local memory, which reads like the weights are widened before the MACs. Vendor sources conflict; this is the more generous reading."
+          "level": "emulated",
+          "note": "The vendor's two documents disagree, and this cell records the mechanism one. The Snapdragon 8 Elite product brief lists \"Support for all precisions (INT4, INT8, INT16, FP16)\" for the NPU -- a support claim. The SDK describes a WEIGHT ENCODING, not a MAC operand: int4 applies only to static/const weights on a few op configurations, and \"latency benefits arise solely from the lower transfer of data to/fro VTCM due to smaller weights\" (QAIRT/QNN SDK, \"INT4 encodings for weights\"). Its quantization page adds that packing stores \"two 4-bit quantized tensors ... in a single 8-bit buffer\", while \"unpacked 4-bit tensors are stored with QNN_DATATYPE_SFIXED_POINT_8/QNN_DATATYPE_UFIXED_POINT_8 datatypes\". A format whose only documented latency benefit is moving fewer bytes, and which is carried in the 8-bit fixed-point type, is reaching the engine by widening to something it accepts -- `emulated`, not `native`."
         },
         "int2": {
           "level": "unknown",

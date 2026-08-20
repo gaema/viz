@@ -154,6 +154,34 @@ async function reanalyze(page, text) {
 }
 
 const td = (s) => (s || '').replace(/^ /, '·').replace(/\n/g, '⏎').slice(0, 7) || '∅';
+
+// ---- measured text (never place a string without measuring it) -------------
+// Canvas gives no metrics until draw time, so every caption + the rotated
+// column-label reserve below are sized from ctx.measureText rather than from a
+// guessed pixel offset. Same idea as dtype-bits' ellipsize()/the framework tip.
+const textW = (ctx, s, font) => { const f = ctx.font; ctx.font = font; const w = ctx.measureText(s).width; ctx.font = f; return w; };
+// Degrade at a WORD boundary first, so a caption that will not fit reads
+// "head-map — every head…" instead of a mid-word "click to s".
+function ellipsize(ctx, txt, maxW) {
+  if (maxW <= 0) return '';
+  if (ctx.measureText(txt).width <= maxW) return txt;
+  let cut = txt;
+  for (;;) {
+    const sp = cut.lastIndexOf(' ');
+    if (sp <= 0) break;
+    cut = cut.slice(0, sp).replace(/[—·(,:·]+$/, '').trimEnd();
+    if (!cut) break;
+    if (ctx.measureText(cut + '…').width <= maxW) return cut + '…';
+  }
+  let lo = 0, hi = txt.length;                       // no word boundary fits
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (ctx.measureText(txt.slice(0, mid) + '…').width <= maxW) lo = mid; else hi = mid - 1; }
+  return lo > 0 ? txt.slice(0, lo) + '…' : '';
+}
+// First form of a shorter-and-shorter ladder that fits; ellipsis is the floor.
+function pickFit(ctx, forms, maxW) {
+  for (const f of forms) if (ctx.measureText(f).width <= maxW) return f;
+  return ellipsize(ctx, forms[forms.length - 1], maxW);
+}
 // ground→accent, not white→blue: on a dark theme a white zero-weight cell is
 // the brightest thing on screen and the attention pattern disappears under it.
 const lerpCol = (a, t) => { const g0 = rgbOf(T.n0), c1 = rgbOf(T.accent); const c = g0.map((v, i) => Math.round(v + (c1[i] - v) * t)); return `rgb(${c[0]},${c[1]},${c[2]})`; };
@@ -211,15 +239,33 @@ mount({
     if (!M.att) { page.setReadout('loading…'); return; }
 
     const pad = 14, topY = 34;
+    const HDR_FONT = '12px ui-monospace, monospace', CAP_FONT = '11px ui-monospace, monospace';
     // ---- left: attention heatmap for the selected head ----
     const A = M.att[sl][sh];
-    const lblW = 52, gridTop = topY + 22;
+    const lblW = 52;
+    // The key tokens are drawn ROTATED above the grid, so each one needs its
+    // full text WIDTH of vertical room. Reserve the MEASURED widest label (at
+    // the largest font they can take, 11px) instead of the old fixed 22 px --
+    // that constant was ~24 px short of a 7-char token, which is exactly how
+    // the column labels climbed into the "layer L · head H" header line.
+    let colLblW = 0;
+    for (let j = 0; j < n; j++) colLblW = Math.max(colLblW, textW(ctx, td(M.tokens[j]), CAP_FONT));
+    const gridTop = Math.round(topY + 16 + colLblW);
     const avail = Math.min(page.W * 0.52 - pad - lblW, page.H - gridTop - 40);
     const cell = Math.max(8, avail / n);
     heatRect = { x: pad + lblW, y: gridTop, w: cell * n, h: cell * n };
+    const hx = heatRect.x + heatRect.w + 70;          // head-map column origin
     const catSel = sc ? sc.cat : 'none';
-    r.label(`layer ${sl} · head ${sh}`, heatRect.x, topY + 4, { color: T.n13, font: '12px ui-monospace, monospace' });
-    ctx.save(); ctx.font = '11px ui-monospace, monospace'; ctx.fillStyle = CAT()[catSel].c; ctx.fillText(catSel !== 'none' ? `  ← ${CAT()[catSel].label} head` : '', heatRect.x + 96, topY + 4); ctx.restore();
+    const hdr = `layer ${sl} · head ${sh}`;
+    r.label(hdr, heatRect.x, topY + 4, { color: T.n13, font: HDR_FONT });
+    if (catSel !== 'none') {
+      // Follow the MEASURED header, not a fixed +96 px, and ellipsize against
+      // the room this column actually owns before the head-map starts.
+      ctx.save(); ctx.font = CAP_FONT; ctx.fillStyle = CAT()[catSel].c;
+      const ax = heatRect.x + textW(ctx, hdr, HDR_FONT) + 12;
+      ctx.fillText(pickFit(ctx, [`← ${CAT()[catSel].label} head`, `← ${CAT()[catSel].label}`], hx - 14 - ax), ax, topY + 4);
+      ctx.restore();
+    }
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
       const x = heatRect.x + j * cell, y = heatRect.y + i * cell;
       if (j > i) { ctx.fillStyle = T.n2; ctx.fillRect(x, y, cell - 1, cell - 1); continue; }   // causal mask
@@ -235,10 +281,22 @@ mount({
 
     // ---- right: 12×12 head-map (rows=layer, cols=head), colored by category ----
     const L = CFG.nLayer, H = CFG.nHead;
-    const hx = heatRect.x + heatRect.w + 70;
     const hmCell = Math.max(10, Math.min(22, Math.min((page.W - pad - hx) / H, (page.H - gridTop - 70) / L)));
     hmRect = { x: hx, y: gridTop, w: hmCell * H, h: hmCell * L };
-    r.label('head-map — every head, colored by role (click to select)', hx, topY + 4, { color: T.n11, font: '11px ui-monospace, monospace' });
+    // Caption degrades through shorter FORMS against the measured column width
+    // before it is ever allowed to ellipsize -- it used to run off the canvas
+    // edge mid-word ("click to s") because nothing bounded it.
+    ctx.save(); ctx.font = CAP_FONT;
+    const hmCap = pickFit(ctx, [
+      'head-map — every head, colored by role (click to select)',
+      'head-map — every head, by role (click to select)',
+      'head-map — role of each head (click to select)',
+      'head-map — click a head to select it',
+      'head-map (click to select)',
+      'head-map',
+    ], page.W - pad - hx);
+    ctx.restore();
+    r.label(hmCap, hx, topY + 4, { color: T.n11, font: CAP_FONT });
     for (let l = 0; l < L; l++) for (let h = 0; h < H; h++) {
       const s = M.scores[l][h], x = hx + h * hmCell, y = gridTop + l * hmCell;
       const inten = s.cat === 'none' ? 0.12 : Math.min(1, s.cat === 'prev' ? s.prev : s.cat === 'sink' ? s.sink : s.induction);
@@ -250,7 +308,10 @@ mount({
     // axes
     ctx.save(); ctx.font = '9px ui-monospace, monospace'; ctx.fillStyle = T.n9; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     for (let l = 0; l < L; l++) ctx.fillText('L' + l, hx - 3, gridTop + l * hmCell + hmCell / 2);
-    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('heads 0→11 →', hx + hmRect.w / 2, gridTop - 16); ctx.restore();
+    // Sits between the caption row and the grid; clamped so a short-token
+    // sentence (small colLblW -> small gridTop) cannot push it into the header.
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText(ellipsize(ctx, `heads 0→${H - 1} →`, hmRect.w), hx + hmRect.w / 2, Math.max(gridTop - 6, topY + 22)); ctx.restore();
     // legend
     let lx = hx, ly = gridTop + hmRect.h + 12; ctx.save(); ctx.font = '10px ui-monospace, monospace'; ctx.textBaseline = 'middle';
     for (const k of ['prev', 'induction', 'sink']) { ctx.fillStyle = CAT()[k].c; ctx.fillRect(lx, ly - 5, 10, 10); ctx.fillStyle = T.n11; ctx.textAlign = 'left'; ctx.fillText(' ' + CAT()[k].label, lx + 10, ly); lx += 11 + CAT()[k].label.length * 6.2 + 14; }
