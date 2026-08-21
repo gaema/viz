@@ -37,6 +37,7 @@ export const ORDER = [
   { slug: 'ssm-scan', family: 'E' },
   { slug: 'mamba-block', family: 'E' },
   { slug: 'gated-deltanet', family: 'E' },
+  { slug: 'delta-rule-gates', family: 'E' },
   { slug: 'hybrid-by-layer', family: 'E' },
   // F -- CNN / vision
   { slug: 'convolution', family: 'F' },
@@ -70,6 +71,10 @@ export const ORDER = [
   { slug: 'continuous-batching', family: 'J' },
   { slug: 'chunked-prefill', family: 'J' },
   { slug: 'speculative-decoding', family: 'J' },
+  { slug: 'kv-eviction', family: 'J' },
+  { slug: 'disaggregation', family: 'J' },
+  { slug: 'kv-quant', family: 'J' },
+  { slug: 'mla', family: 'J' },
 ];
 
 // Resolve the current page's slug from an explicit override or the URL path

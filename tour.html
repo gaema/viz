@@ -121,6 +121,7 @@ const STOPS = [
   ['E','ssm-scan','State-space models: an alternative to attention that scans the sequence with a running state (Mamba\'s core).'],
   ['E','mamba-block','The full Mamba block — selective state + projections — a sub-quadratic rival to the transformer.'],
   ['E','gated-deltanet','Linear attention as a fast-updating memory matrix — the GatedDeltaNet update rule.'],
+  ['E','delta-rule-gates','Linear-attention models keep a fixed-size memory instead of a growing cache — and how fast that memory forgets is a knob. Watch the knob get finer: one rate for everything, then one per feature, then separate rates for forgetting and for writing.'],
   ['E','hybrid-by-layer','Interleave cheap SSM layers with occasional full attention — the modern hybrid recipe.'],
   ['F','convolution','The sliding kernel of CNNs: a small filter swept over an image, summing products at each spot.'],
   ['F','receptive-field','How stacking convolutions lets deep neurons "see" a larger and larger area of the input.'],
@@ -149,6 +150,10 @@ const STOPS = [
   ['J','continuous-batching','Why a busy server still feels responsive: instead of waiting for a whole group of requests to finish together, it slots each new one in the moment any earlier one is done.'],
   ['J','chunked-prefill','Why one person pasting a huge document does not freeze everyone else: the big prompt is processed in slices that take turns with everybody's next word, instead of hogging the machine in one go.'],
   ['J','speculative-decoding','How a model can emit several words for the price of about one: a small fast model guesses ahead, the big model checks all the guesses in a single pass, and whatever it agrees with is kept.'],
+  ['J','kv-eviction','How a chat can run far past the length the cache can hold. The naive fix — keep only the most recent tokens — fails badly, and the repair is startlingly small: keep the first couple of tokens too.'],
+  ['J','disaggregation','Reading your prompt and writing the answer stress a machine in completely different ways. Big services often split them across different machines and ship the intermediate state between — which helps, until the link between them becomes the problem.'],
+  ['J','kv-quant','Model weights are a fixed cost; the running memory of a conversation grows with every word. Squeezing THAT into fewer bits is what buys you a longer conversation in the same memory.'],
+  ['J','mla','Instead of storing a full set of keys and values for every attention head, store one small summary per word and rebuild the rest when needed — trading a bit of extra arithmetic for a much smaller memory.'],
 ];
 const N = STOPS.length;
 const seen = new Set(JSON.parse(localStorage.getItem('vz-tour-seen') || '[]'));
