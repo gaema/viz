@@ -20,15 +20,8 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
   .card{display:flex;flex-direction:column;border:1px solid var(--vz-n4);border-radius:10px;padding:12px 14px;text-decoration:none;color:inherit;background:var(--vz-n0);transition:.12s}
   a.card:hover{border-color:var(--vz-accent);box-shadow:0 1px 6px rgba(31,111,235,.12)}
-  .card.planned{background:var(--vz-n1);color:var(--vz-n9);border-style:dashed}
   .t{font-weight:650;font-size:14px;font-family:ui-monospace,monospace}
   .d{font-size:12.5px;color:var(--vz-n11);margin-top:3px;min-height:2.4em}
-  .card.planned .d{color:var(--vz-n8)}
-  .tags{margin-top:auto;padding-top:8px;display:flex;gap:6px;align-items:center}
-  .badge{font:11px ui-monospace,monospace;border-radius:5px;padding:1px 6px}
-  .b-ok{background:var(--vz-okBg);color:var(--vz-okDeep);border:1px solid var(--vz-okLine)}
-  .b-plan{background:var(--vz-n2);color:var(--vz-n10);border:1px solid var(--vz-n4)}
-  .b-tier{background:var(--vz-accentBg);color:var(--vz-accent);border:1px solid var(--vz-accentBg)}
   .p{font-size:13px;color:var(--vz-n12);margin-top:3px}
   .modes{display:inline-flex;border:1px solid var(--vz-accentBg);border-radius:7px;overflow:hidden;margin-left:10px;vertical-align:middle}
   .modes button{font:600 12.5px system-ui,sans-serif;border:0;background:var(--vz-n0);color:var(--vz-accent);padding:5px 11px;cursor:pointer}
@@ -189,14 +182,19 @@ for (const [name, pages] of FAMILIES) {
   const h = document.createElement('h2'); h.textContent = name; root.appendChild(h);
   const g = document.createElement('div'); g.className = 'grid';
   for (const p of pages) {
-    total++; if (p.done) built++;
-    const el = document.createElement(p.done ? 'a' : 'div');
-    el.className = 'card' + (p.done ? '' : ' planned');
-    if (p.done) el.href = './' + p.slug + '/index.html';
+    // A published index lists what EXISTS. An entry not marked done is simply not
+    // shown -- no greyed placeholder, no "planned" label, no render-tier tag.
+    // Those were build-tracking chrome: useful while the set was part-written,
+    // meaningless to a reader (the tier tag in particular rendered a bare
+    // "T1"/"T2" with no legend anywhere on the page). Mark an entry done when its
+    // page ships and it appears here.
+    if (!p.done) continue;
+    total++; built++;
+    const el = document.createElement('a');
+    el.className = 'card';
+    el.href = './' + p.slug + '/index.html';
     const plain = (typeof PLAIN === 'object' && PLAIN[p.slug]) || p.d;
-    el.innerHTML = `<div class="t">${p.t}</div><div class="d">${p.d}</div><div class="p">${plain}</div>`
-      + `<div class="tags"><span class="badge ${p.done ? 'b-ok' : 'b-plan'}">${p.done ? '✓ built' : 'planned'}</span>`
-      + `<span class="badge b-tier">${p.tier}</span></div>`;
+    el.innerHTML = `<div class="t">${p.t}</div><div class="d">${p.d}</div><div class="p">${plain}</div>`;
     g.appendChild(el);
   }
   root.appendChild(g);
@@ -215,7 +213,7 @@ document.getElementById('m-plain').onclick = () => setMode('plain');
 document.getElementById('m-tech').onclick = () => setMode('tech');
 setMode(mode);
 
-document.querySelector('.sub').insertAdjacentHTML('beforeend', ` <b>${built}/${total} pages built.</b>`);
+document.querySelector('.sub').insertAdjacentHTML('beforeend', ` <b>${total} demos.</b>`);
 </script>
 </body>
 </html>

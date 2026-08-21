@@ -157,7 +157,6 @@ const ENGINE_CLASSES = [
   { value: 'gpu-matrix', label: 'GPU matrix engines' },
   { value: 'gpu-alu', label: 'GPU vector ALUs' },
   { value: 'npu', label: 'NPUs' },
-  { value: 'dsp', label: 'audio DSPs' },
   { value: 'cpu-simd', label: 'CPU SIMD' },
 ];
 

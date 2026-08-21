@@ -94,17 +94,17 @@ the full reconstruction and its error; hover the scale for the block accounting.
 A **vendor × dtype matrix**: for every architecture, whether each dtype is a
 `native` matrix-engine operand, `vector`/SIMD-only, `emulated` (upconverted to a
 wider type first), `none`, or `unknown` -- the last being a real answer, not a
-gap, because closed NPU IP often publishes no operand list. A dtype key the
+gap, because a closed accelerator often publishes no operand list. A dtype key the
 catalogue does not carry **at all** also renders `unknown`; the column set is
 owned by the page and the capability facts by the JSON, and neither being ahead
 of the other may blank a cell or throw.
 
 23 columns do not fit legibly at once, so there are two filters: **column
 family** (all / scalar floats / block-scaled / integers) and **engine class**
-(GPU matrix engines / GPU vector ALUs / NPUs / audio DSPs / CPU SIMD). Below
+(GPU matrix engines / GPU vector ALUs / NPUs / CPU SIMD). Below
 ~44 px of column width the header keys turn on their side rather than ellipsize
 into uselessness. Drag to scroll, hover a cell for the level, the one-line why,
-and the public vendor document it was read from; click a column header to focus
+and the public artifact it was read from; click a column header to focus
 that dtype and see its tally across the visible rows.
 
 The point it makes that a bit-layout diagram cannot: **a dtype is only cheap
@@ -112,6 +112,23 @@ where the silicon has an engine for it.** int8 is nearly universal, bf16 splits
 the field, fp8 is a recent GPU/CPU-tile arrival, and the block-scaled formats --
 the ones half the open-weights world now ships in -- are native on strikingly few
 engines, which is why they are usually unpacked before they are multiplied.
+
+Three things the GPU rows show that a "newer is wider" reading would get
+backwards:
+
+- **A vendor can DROP an operand.** The 4-bit and 1-bit INTEGER tensor operands
+ are hardware on NVIDIA's Ampere and Ada rows and `emulated` on the Blackwell
+ row: the PTX still assembles, but it lowers to a helper that widens to int8.
+ The 4-bit operand that generation actually added is FLOAT.
+- **One marketing name can be two silicon designs.** `Xe-LPG` gets two rows,
+ because the Meteor Lake iGPU has no matrix engine at all while the Arrow Lake
+ one has an Alchemist-lineage array issued per sub-group of 8. A probe written
+ for the 16-wide form finds nothing on either and concludes wrongly about both.
+- **`emulated` is where the mobile GPUs live.** On the Mali and Adreno rows every
+ sub-byte integer and every narrow float is `emulated`, because the narrowest
+ arithmetic instruction on those parts is an 8-bit dot product. Those formats
+ still pay -- they cut weight bytes, and mobile decode is bandwidth-bound -- but
+ they buy zero arithmetic, which is the distinction the level is there to make.
 
 Data: [`../data/dtype-support.json`](../data/dtype-support.json) (schema
 the public-source rule in `../data/README.md`), fetched at
