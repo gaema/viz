@@ -141,7 +141,7 @@ export async function mount(opts = {}) {
   // and keeps only the theme switch + copy link. That is for a page that REUSES
   // this framework from OUTSIDE this tree (ai/models/shard-planner does) and is
   // therefore not in order.js: without it the strip renders a dead
-  // `../catalogue.html` link and a permanently dimmed "start / end" pair.
+  // `../index.html` link and a permanently dimmed "start / end" pair.
   const slug = currentSlug(opts.slug);
   const nb = neighbours(slug);
   const inCurriculum = opts.curriculum !== false;
@@ -149,7 +149,7 @@ export async function mount(opts = {}) {
   const mkLink = (href, text, cls) => { const a = document.createElement('a'); a.href = href; a.textContent = text; if (cls) a.className = cls; return a; };
   const mkDim = (text) => { const s = document.createElement('span'); s.className = 'vz-nav-copy vz-nav-dim'; s.textContent = text; return s; };
   if (inCurriculum) {
-    nav.append(mkLink('../catalogue.html', '← all demos', 'vz-nav-home'));
+    nav.append(mkLink('../index.html', '← all demos', 'vz-nav-home'));
     nav.append(nb.prev ? mkLink('../' + nb.prev.slug + '/index.html', '‹ ' + nb.prev.slug) : mkDim('‹ start'));
     nav.append(nb.next ? mkLink('../' + nb.next.slug + '/index.html', nb.next.slug + ' ›') : mkDim('end ›'));
     if (nb.index >= 0) { const pos = document.createElement('span'); pos.className = 'vz-nav-pos'; pos.textContent = `${nb.index + 1} / ${nb.total}`; nav.append(pos); const fam = document.createElement('span'); fam.className = 'vz-nav-fam'; fam.textContent = 'Family ' + nb.family; nav.append(fam); }
@@ -173,7 +173,7 @@ export async function mount(opts = {}) {
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
     if (e.key === 'ArrowLeft' && nb.prev) location.href = '../' + nb.prev.slug + '/index.html';
     else if (e.key === 'ArrowRight' && nb.next) location.href = '../' + nb.next.slug + '/index.html';
-    else if (e.key === '/') { e.preventDefault(); location.href = '../catalogue.html'; }
+    else if (e.key === '/') { e.preventDefault(); location.href = '../index.html'; }
   });
 
   // Give the canvas a CSS size before the renderer reads its box (DPR sizing).

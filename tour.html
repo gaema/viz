@@ -6,7 +6,7 @@
 <title>Guided tour | viz</title>
 <!-- Guided, narrated walkthrough of the 51 concept demos in curriculum order.
      STATIC shell (no module imports) so it opens over file:// or http, like
-     catalogue.html. The embedded demo PREVIEW is an <iframe> of each live demo,
+     index.html. The embedded demo PREVIEW is an <iframe> of each live demo,
      which (like every demo) needs http to run its ES modules:
        python3 -m http.server 8099
        open http://localhost:8099/tour.html
@@ -58,7 +58,7 @@
 </head>
 <body>
 <header>
-  <h1 style="display:flex;align-items:baseline;gap:10px"><span>Guided tour <small>— the math of a language model, in order. <a href="catalogue.html" style="color:var(--vz-accent)">grid view →</a></small></span><span style="margin-left:auto"><span data-theme-switch></span></span></h1>
+  <h1 style="display:flex;align-items:baseline;gap:10px"><span>Guided tour <small>— the math of a language model, in order. <a href="index.html" style="color:var(--vz-accent)">grid view →</a></small></span><span style="margin-left:auto"><span data-theme-switch></span></span></h1>
   <div class="prog"><i id="bar"></i></div>
 </header>
 <div class="wrap">
@@ -80,7 +80,7 @@
 </div>
 <script>
 // Curriculum order + plain-language narration (mirrors framework/order.js +
-// catalogue.html; the tour adds the connective prose).
+// index.html; the tour adds the connective prose).
 const FAM = {
   A:['Foundational primitives','Before any "AI", it is linear algebra. These atoms — multiply, dot-product, number formats, softmax — are what every later mechanism is built from.'],
   B:['Attention','Attention is how tokens look at each other. We build it up from the Q/K/V views to the full formula, then the tricks that make it fast and the patterns that emerge.'],

@@ -1,6 +1,6 @@
 // theme-boot.js -- light/dark/auto for the pages that are NOT ES modules.
 //
-// catalogue.html and tour.html are plain HTML that must open over file://, so
+// index.html and tour.html are plain HTML that must open over file://, so
 // they cannot import framework/theme.js. They pair this classic script with the
 // generated framework/theme.css. Both halves agree with theme.js by contract:
 // the same storage key, the same `data-vz-theme` attribute, the same three
