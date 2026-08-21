@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>batch-invariance | viz</title>
+</head>
+<body>
+<!-- Concept page: batch invariance -- why a reduction's answer depends on the
+     batch size it was launched with, and why that is float arithmetic rather
+     than a bug. Wires the framework modules (render / layout / controls /
+     theme). Serve over http (ES module imports are blocked on file:// in a
+     normal browser):
+       python3 -m http.server 8099
+       open http://localhost:8099/batch-invariance/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

@@ -20,6 +20,7 @@ export const ORDER = [
   { slug: 'rope', family: 'B' },
   { slug: 'flash-attention', family: 'B' },
   { slug: 'sparse-attention-select', family: 'B' },
+  { slug: 'attention-sinks', family: 'B' },
   // C -- Transformer block
   { slug: 'tokenization', family: 'C' },
   { slug: 'embedding', family: 'C' },
@@ -53,6 +54,7 @@ export const ORDER = [
   { slug: 'quantization', family: 'G' },
   { slug: 'vram-budget', family: 'G' },
   { slug: 'multimodal-inject', family: 'G' },
+  { slug: 'vlm-connector', family: 'G' },
   // H -- End-to-end (capstone) + training
   { slug: 'forward-pass', family: 'H' },
   { slug: 'backprop', family: 'H' },
@@ -78,13 +80,23 @@ export const ORDER = [
   { slug: 'mla', family: 'J' },
   { slug: 'constrained-decoding', family: 'J' },
   { slug: 'parallelism', family: 'J' },
+  { slug: 'context-editing', family: 'J' },
+  { slug: 'prefix-routing', family: 'J' },
+  { slug: 'hybrid-cache-allocator', family: 'J' },
+  { slug: 'batch-invariance', family: 'J' },
   // K — Diffusion & generative
   { slug: 'diffusion-noise', family: 'K' },
   { slug: 'diffusion-sampler', family: 'K' },
   { slug: 'guidance', family: 'K' },
+  { slug: 'dit', family: 'K' },
+  { slug: 'latent-space', family: 'K' },
+  { slug: 'few-step-distillation', family: 'K' },
+  { slug: 'video-time', family: 'K' },
+  { slug: 'audio-tokens', family: 'K' },
   // L — Reasoning
   { slug: 'thinking-tokens', family: 'L' },
   { slug: 'pass-at-k', family: 'L' },
+  { slug: 'grpo-advantage', family: 'L' },
 ];
 
 // Resolve the current page's slug from an explicit override or the URL path

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>audio tokens | viz</title>
+</head>
+<body>
+<!-- Concept page: how a waveform becomes something a language model can predict.
+     A low-frame-rate encoder turns audio into one vector per frame; residual
+     vector quantization (RVQ) turns each vector into a stack of integer codes,
+     coarse to fine. Shows the bitrate = fps x codebooks x log2(size) trade and
+     the frame-rate-vs-sequence-length trade. Serve over http (ES module imports
+     are blocked on file:// in a normal browser):
+       python3 -m http.server 8099
+       open http://localhost:8099/audio-tokens/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

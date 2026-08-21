@@ -325,6 +325,18 @@ export function rng(seed) {
 }
 function _shape(shape) { // number -> [n] (vector); [r,c] -> matrix
   if (typeof shape === 'number') return { vec: true, n: shape };
+  // A ONE-element array is the trap this guard exists for. `[N]` reads as a
+  // vector to anyone writing it, but cols is then undefined, n is NaN, and the
+  // Float32Array comes back length 0 -- so every value silently reads as 0.
+  // That is worse than a crash: a page using it for gate values printed a
+  // maximum deviation of 0.000000 and looked like a correct identity. Two
+  // separate pages hit this before it was fixed here.
+  if (Array.isArray(shape) && shape.length === 1) return { vec: true, n: shape[0] };
+  if (!Array.isArray(shape) || shape.length !== 2
+      || !Number.isFinite(shape[0]) || !Number.isFinite(shape[1])) {
+    throw new TypeError(
+      `shape must be a number (vector) or [rows, cols]; got ${JSON.stringify(shape)}`);
+  }
   return { vec: false, rows: shape[0], cols: shape[1], n: shape[0] * shape[1] };
 }
 // Deterministic standard-normal (Box-Muller). shape: n (vector) or [rows,cols].

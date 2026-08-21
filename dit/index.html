@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DiT | viz</title>
+</head>
+<body>
+<!-- Concept page: DiT -- a transformer over latent patches, conditioned by
+     MODULATING the normalisation (adaLN-Zero) rather than by concatenation or
+     cross-attention. Wires the framework modules (render / tensor / layout /
+     controls). Serve over http (ES module imports are blocked on file:// in a
+     normal browser):
+       python3 -m http.server 8099
+       open http://localhost:8099/dit/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

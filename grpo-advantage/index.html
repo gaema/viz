@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>group-relative advantage | viz</title>
+</head>
+<body>
+<!-- Concept page: the group-relative advantage GRPO computes for one prompt --
+     reward minus the GROUP MEAN, with no learned value network. Every number is
+     computed in-page. Serve over http (ES module imports are blocked on
+     file:// in a normal browser):
+       python3 -m http.server 8460 
+       open http://localhost:8460/grpo-advantage/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

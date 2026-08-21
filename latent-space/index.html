@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>latent-space | viz</title>
+</head>
+<body>
+<!-- Concept page: why image generation is affordable at all, and the hard
+     ceiling that affordability buys. A diffusion loop run on pixels touches
+     every pixel on every step; latent diffusion pays the pixel cost exactly
+     twice (encode once, decode once) and runs the loop inside a compressed
+     space. The page computes the element count, the compression ratio and a
+     real reconstruction error from an in-page encode/decode of the in-page
+     image, and shows the RECONSTRUCTION FLOOR directly: round-trip with no
+     diffusion at all, and the residual that no sampler can remove.
+     The 8x / 4-channel recipe is presented as contested, not settled.
+     Serve over http (ES module imports are blocked on file://):
+       python3 -m http.server 8099
+       open http://localhost:8099/latent-space/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

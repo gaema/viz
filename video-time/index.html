@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>video-time | viz</title>
+</head>
+<body>
+<!-- Concept page: time as a third patching axis. A causal 3-D autoencoder
+     compresses a clip in space AND in time, the transformer patchifies the
+     latent, and self-attention then runs over the resulting space-time tokens
+     at a cost that grows with the SQUARE of the token count. Every figure is
+     computed live from the resolution / frame-rate / duration / compression
+     controls. Serve over http (ES module imports are blocked on file:// in a
+     normal browser):
+       python3 -m http.server 8099
+       open http://localhost:8099/video-time/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>
