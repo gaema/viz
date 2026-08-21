@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>diffusion-noise | viz</title>
+</head>
+<body>
+<!-- Concept page: what a diffusion model is TRAINED to do. Forward corruption
+     x_t = sqrt(abar_t)*x0 + sqrt(1-abar_t)*eps under a schedule, the network
+     regressing eps (or v, or x0) from that noisy sample plus a timestep, and --
+     the point of the page -- the model's current estimate of the CLEAN sample
+     at every noise level: the blurry dataset mean at high noise, sharp texture
+     at low noise. A toggle swaps the diffusion interpolant for the rectified-
+     flow one, which is what production image/video models actually train.
+     Serve over http (ES module imports are blocked on file://):
+       python3 -m http.server 8099
+       open http://localhost:8099/diffusion-noise/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

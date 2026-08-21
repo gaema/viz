@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>thinking-tokens | viz</title>
+</head>
+<body>
+<!-- There is no reasoning ARCHITECTURE. A reasoning model emits its chain of
+     thought between two literal tokens, <think> and </think>; everything
+     between them is ordinary autoregressive generation. Because the boundary is
+     just a token, test-time compute is a DECODER setting: clamp the boundary
+     token's logit toward -infinity and append "Wait" and the model keeps
+     thinking; force the token early and it must answer now.
+     Opens on a synthetic stand-in. A real GPT-2 (~548 MB) runs the same lever
+     on real logits, but ONLY on an explicit click. Serve:
+       python3 -m http.server 8155 
+       open http://localhost:8155/thinking-tokens/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

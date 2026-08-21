@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>constrained-decoding | viz</title>
+</head>
+<body>
+<!-- Concept page: constrained decoding -- how a grammar / JSON schema is
+     compiled to a pushdown automaton, turned into a per-step bitmask over the
+     whole vocabulary, and added as -inf to the logits before sampling. Serve
+     over http (ES module imports are blocked on file:// in a normal browser):
+       python3 -m http.server 8099
+       open http://localhost:8099/constrained-decoding/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

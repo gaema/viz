@@ -19,6 +19,7 @@ export const ORDER = [
   { slug: 'kv-cache', family: 'B' },
   { slug: 'rope', family: 'B' },
   { slug: 'flash-attention', family: 'B' },
+  { slug: 'sparse-attention-select', family: 'B' },
   // C -- Transformer block
   { slug: 'tokenization', family: 'C' },
   { slug: 'embedding', family: 'C' },
@@ -75,6 +76,15 @@ export const ORDER = [
   { slug: 'disaggregation', family: 'J' },
   { slug: 'kv-quant', family: 'J' },
   { slug: 'mla', family: 'J' },
+  { slug: 'constrained-decoding', family: 'J' },
+  { slug: 'parallelism', family: 'J' },
+  // K — Diffusion & generative
+  { slug: 'diffusion-noise', family: 'K' },
+  { slug: 'diffusion-sampler', family: 'K' },
+  { slug: 'guidance', family: 'K' },
+  // L — Reasoning
+  { slug: 'thinking-tokens', family: 'L' },
+  { slug: 'pass-at-k', family: 'L' },
 ];
 
 // Resolve the current page's slug from an explicit override or the URL path
