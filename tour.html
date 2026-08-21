@@ -144,6 +144,11 @@ const STOPS = [
   ['I','real-kv-cache','Why generation is fast and why long context costs memory, on the real model: watch GPT-2\'s actual KV cache fill — the prompt in one shot (prefill), then one column per generated token (decode) — with the real megabytes climbing.'],
   ['I','real-generate','A real GPT-2 writing text in your browser. Generation is just the next-token step fed back in a loop — logits, sample, append, repeat. Greedy is deterministic (and verified token-for-token vs the reference); turn it off to sample creatively.'],
   ['I','real-vision','The modality jump: a real Vision Transformer classifying a real photo in your browser. See the image cut into 16×16 patches — the ViT "tokens", the image analog of the BPE tokens you started with — and the model\'s real predictions. The same transformer machinery, now on pixels.'],
+  ['J','paged-attention','Why a served model can hold far more conversations than it looks like it should: the KV cache is stored in fixed-size blocks, like pages of memory, so nothing is reserved for text that was never written — and two chats starting the same way physically share the same blocks.'],
+  ['J','radix-attention','Why the second question against a long system prompt answers so much faster than the first: the shared opening was already computed, and the server looks it up in a tree of prefixes instead of redoing it.'],
+  ['J','continuous-batching','Why a busy server still feels responsive: instead of waiting for a whole group of requests to finish together, it slots each new one in the moment any earlier one is done.'],
+  ['J','chunked-prefill','Why one person pasting a huge document does not freeze everyone else: the big prompt is processed in slices that take turns with everybody's next word, instead of hogging the machine in one go.'],
+  ['J','speculative-decoding','How a model can emit several words for the price of about one: a small fast model guesses ahead, the big model checks all the guesses in a single pass, and whatever it agrees with is kept.'],
 ];
 const N = STOPS.length;
 const seen = new Set(JSON.parse(localStorage.getItem('vz-tour-seen') || '[]'));

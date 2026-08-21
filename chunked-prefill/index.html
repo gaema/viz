@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chunked-prefill | viz</title>
+</head>
+<body>
+<!-- Concept page: chunked prefill -- splitting one long prompt's prefill into
+     token-budget chunks and interleaving them with other sequences' decode
+     steps. Wires the framework modules (render / tensor / layout / controls).
+     Serve over http (ES module imports are blocked on file:// in a normal
+     browser):
+       python3 -m http.server 8099
+       open http://localhost:8099/chunked-prefill/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

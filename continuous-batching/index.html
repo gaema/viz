@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>continuous-batching | viz</title>
+</head>
+<body>
+<!-- Concept page: static batching vs continuous batching in an LLM serving
+     runtime -- why a slot is refilled the moment a sequence emits its stop
+     token instead of at the end of the batch. Serve over http (ES module
+     imports are blocked on file:// in a normal browser):
+       python3 -m http.server 8099
+       open http://localhost:8099/continuous-batching/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

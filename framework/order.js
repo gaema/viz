@@ -64,6 +64,12 @@ export const ORDER = [
   { slug: 'real-kv-cache', family: 'I' },
   { slug: 'real-generate', family: 'I' },
   { slug: 'real-vision', family: 'I' },
+  // J -- Serving-time mechanisms
+  { slug: 'paged-attention', family: 'J' },
+  { slug: 'radix-attention', family: 'J' },
+  { slug: 'continuous-batching', family: 'J' },
+  { slug: 'chunked-prefill', family: 'J' },
+  { slug: 'speculative-decoding', family: 'J' },
 ];
 
 // Resolve the current page's slug from an explicit override or the URL path
