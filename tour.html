@@ -91,7 +91,16 @@ const FAM = {
   G:['Quantization & multimodal','The deployment reality: shrink the weights to int4, budget the VRAM, and feed images/audio into a text model as tokens.'],
   H:['End to end & training','Put every piece together: one prompt flowing through the whole pipeline to predict the next word — and then the backward pass that lets it learn.'],
   I:['Real-model grounding','Everything so far ran real math on synthetic (seeded) weights. Now ground it: fetch a real trained model in the browser and watch its real numbers show the same structure.'],
+  J:['Serving many at once','Everything so far was one sequence inside one model. This is the layer above: what a runtime does when many requests share one set of weights and one pool of memory — where the cache lives, who waits, and what crosses the wire.'],
+  K:['Diffusion & generative','How a model makes an image, a video or a sound rather than a next word. One loop underlies all of them: corrupt with a known schedule, learn to undo it, then walk that path backwards at inference.'],
+  L:['Reasoning','How a model spends more compute to think, and what that buys. There is no separate architecture here — the interesting parts are a boundary token, a selection rule, and an honest look at what extra attempts really reveal.'],
 };
+// A family with no FAM entry must NOT take the page down. It did: STOPS grew
+// to families J, K and L while FAM still stopped at I, so the first J stop
+// indexed into undefined, the rail build aborted, and the tour rendered EMPTY
+// through several releases -- the shell still served HTTP 200 and the inline
+// script still parsed cleanly, so nothing flagged it. Degrade to the letter.
+const famOf = (f) => FAM[f] || [f, ''];
 const STOPS = [
   ['A','matmul','Every layer of every model is, underneath, matrix multiplication — the dot product of rows and columns. Start here.'],
   ['A','dot-product','The single number that says "how aligned are these two vectors?" — the heartbeat of attention and similarity.'],
@@ -197,7 +206,7 @@ const $ = (id) => document.getElementById(id);
 // build rail
 let rail = '', curFam = '';
 STOPS.forEach(([f, slug], i) => {
-  if (f !== curFam) { rail += `<div class="fam">${f} · ${FAM[f][0]}</div>`; curFam = f; }
+  if (f !== curFam) { rail += `<div class="fam">${f} · ${famOf(f)[0]}</div>`; curFam = f; }
   rail += `<a data-i="${i}" id="rl${i}"><span class="dot">${i + 1}</span><span>${slug}</span></a>`;
 });
 $('rail').innerHTML = rail;
@@ -206,8 +215,8 @@ $('rail').addEventListener('click', (e) => { const a = e.target.closest('a'); if
 function render() {
   const [f, slug, why] = STOPS[idx];
   const prevFam = idx > 0 ? STOPS[idx - 1][0] : null;
-  $('meta').textContent = `Stop ${idx + 1} of ${N}  ·  Family ${f} — ${FAM[f][0]}`;
-  if (f !== prevFam) { $('faintro').style.display = 'block'; $('faintro').textContent = FAM[f][1]; }
+  $('meta').textContent = `Stop ${idx + 1} of ${N}  ·  Family ${f} — ${famOf(f)[0]}`;
+  if (f !== prevFam) { $('faintro').style.display = 'block'; $('faintro').textContent = famOf(f)[1]; }
   else $('faintro').style.display = 'none';
   $('title').textContent = slug;
   $('why').textContent = why;
