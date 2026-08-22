@@ -421,7 +421,11 @@ mount({
     }
 
     // ---- readout -----------------------------------------------------------
-    let o = `ε~ = ε_u + w·(ε_c − ε_u)   at probe (${probe.x.toFixed(2)}, ${probe.y.toFixed(2)}), σ_t=${rec.sig.toFixed(3)}, w=${wNow.toFixed(1)}:  `;
+    // Say WHY w is 1 here when the slider reads otherwise: this step is outside
+    // the guided interval, so the probe is honestly showing unguided vectors.
+    // Without the note it reads as the slider having been ignored.
+    const wWhy = (wNow !== st.w) ? ` (step ${si} is OUTSIDE the guided interval [${gs}, ${ge}) — slider w=${st.w.toFixed(1)} does not apply here)` : '';
+    let o = `ε~ = ε_u + w·(ε_c − ε_u)   at probe (${probe.x.toFixed(2)}, ${probe.y.toFixed(2)}), σ_t=${rec.sig.toFixed(3)}, w=${wNow.toFixed(1)}${wWhy}:  `;
     o += `ε_u ${fmtV(eu)} + ${wNow.toFixed(1)}·Δ ${fmtV(dl)} = ${fmtV(eg)}   |ε~| = ${mag(eg).toFixed(3)} = ${pct(mag(eg), mag(ec))} of |ε_c|.\n`;
     if (sA && sB) {
       o += `strip @ ${rec.i}/${TSTEP}: control w=1 → sub-modes ${sA.modes}/2, on-prompt ${Math.round(sA.adherence * 100)}%, spread ${sA.spread.toFixed(3)}, typicality ${sA.typ.toFixed(2)}σ  |  `;

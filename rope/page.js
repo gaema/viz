@@ -98,7 +98,10 @@ mount({
     // --- per-pair rotation planes ---
     const pad = 16, np = d / 2, planeRowY = 70;
     const planeW = (page.W - 2 * pad) / np, planeSize = Math.min(planeW - 14, 142), R = planeSize * 0.34;
-    r.label(`per-pair 2-D rotation at position ${fmt(p)}  (drag ↔ to move; hover a plane to inspect)`, pad, planeRowY - 24, { color: T.n14, font: '12px ui-monospace, monospace' });
+    // Baseline sits BELOW the position track (trkY = 40, handle radius 7 reaches
+    // y = 47). At planeRowY - 24 = 46 the track line struck straight through this
+    // caption in every frame.
+    r.label(`per-pair 2-D rotation at position ${fmt(p)}  (drag ↔ to move; hover a plane to inspect)`, pad, planeRowY - 8, { color: T.n14, font: '12px ui-monospace, monospace' });
 
     // Draggable position track (the "scrub on canvas" handle).
     const trkY = 40, trkX0 = pad + 6, trkX1 = page.W - pad - 6, trkW = trkX1 - trkX0;
@@ -209,8 +212,16 @@ mount({
     const v = parseFloat(q.get('pos'));
     if (!Number.isNaN(v)) { posState.pos = v; posState.frozen = true; }
   }
-  // ?theta / base override (kept).
-  if (q.has('theta')) { /* base is a control; ?theta is a documented alias below */ }
+  // ?theta=N — documented alias for ?base=N (the README calls the rotary base θ).
+  // This used to be an empty comment, so the documented parameter silently did
+  // nothing; ?base= worked only because the framework restores control keys.
+  if (q.has('theta') && !q.has('base')) {
+    const v = parseFloat(q.get('theta'));
+    const dom = (page.controls._domain || {}).base;
+    if (Number.isFinite(v) && dom && v >= dom.min && v <= dom.max) {
+      page.controls.set('base', v, { rebuild: true, silent: true });
+    }
+  }
 
   // ?hover=x,y — fake the cursor (headless stand-in for a real hover, since
   // --screenshot has no pointer) so the tooltip path is verifiable.

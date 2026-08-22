@@ -61,8 +61,11 @@ function bars(page, vals, rect, o) {
     ctx.fillStyle = T.n12; ctx.font = '10px ui-monospace, monospace';
     ctx.fillText(fmt(v), cx, (o.signed && v < 0) ? baseY + h + 10 : baseY - h - 4);
     ctx.fillStyle = T.n9; ctx.fillText(String(i), cx, rect.y + rect.h + 1);
-    if (i === o.maxIdx) { ctx.strokeStyle = T.bad; ctx.lineWidth = 2; ctx.strokeRect(cx - bw / 2 - 1.5, Math.min(top, baseY) - 1.5, bw + 3, h + 3); }
+    // activeI FIRST, maxIdx LAST: during the `max` phase activeI === maxIdx, and
+    // whichever is stroked second wins. The red max box is the thing the step is
+    // teaching, so it must be the one that survives the overlap.
     if (i === o.activeI) { ctx.strokeStyle = T.n14; ctx.lineWidth = 2; ctx.strokeRect(cx - bw / 2 - 1.5, Math.min(top, baseY) - 1.5, bw + 3, h + 3); }
+    if (i === o.maxIdx) { ctx.strokeStyle = T.bad; ctx.lineWidth = 2; ctx.strokeRect(cx - bw / 2 - 1.5, Math.min(top, baseY) - 1.5, bw + 3, h + 3); }
   }
   ctx.restore();
 }

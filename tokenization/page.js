@@ -33,7 +33,13 @@ function build(corpus) {
   const topOf = (m) => [...m.entries()].map(([k, v]) => { const p = k.split(''); return { a: p[0], b: p[1], v }; }).sort((x, y) => y.v - x.v);
   const vocabOf = () => { const s = new Set(); for (const w of words) for (const t of w.sym) s.add(t); return s; };
   const tokOf = () => words.reduce((a, w) => a + w.sym.length * w.freq, 0);
-  const snap = (winner, rules, top) => ({ words: words.map((w) => ({ sym: w.sym.slice(), freq: w.freq })), top: top.slice(0, 7), winner, rules: rules.slice(), vocab: vocabOf().size, tokens: tokOf() });
+  // TWO different numbers, and conflating them is how the page used to contradict
+  // its own blurb. `vocab` counts symbols CURRENTLY IN USE, which can FALL — a
+  // merge retires a symbol that no longer appears standalone. The TOKENIZER's
+  // vocabulary is the base alphabet plus one entry per merge rule, and that only
+  // ever grows. Report both, and say which is which.
+  const base = vocabOf().size;
+  const snap = (winner, rules, top) => ({ words: words.map((w) => ({ sym: w.sym.slice(), freq: w.freq })), top: top.slice(0, 7), winner, rules: rules.slice(), vocab: vocabOf().size, vocabAll: base + rules.length, tokens: tokOf() });
   const steps = [], rules = [];
   steps.push(snap(null, [], topOf(pcOf())));
   for (let m = 0; m < MAXM; m++) {
@@ -41,7 +47,7 @@ function build(corpus) {
     for (const w of words) { const out = []; for (let i = 0; i < w.sym.length; i++) { if (i < w.sym.length - 1 && w.sym[i] === win.a && w.sym[i + 1] === win.b) { out.push(nw); i++; } else out.push(w.sym[i]); } w.sym = out; }
     rules.push({ a: win.a, b: win.b, nw }); steps.push(snap(win, rules, top));
   }
-  return { steps, charCount };
+  return { steps, charCount, base };
 }
 
 mount({
@@ -94,7 +100,7 @@ mount({
     const botY = y + 10;
     // counts
     const comp = (1 - S.tokens / cur.charCount) * 100;
-    r.label(`vocab ${S.vocab} symbols  ·  ${S.tokens} tokens (was ${cur.charCount}, −${comp.toFixed(0)}%)`, lx, botY, { color: T.ok, font: '11px ui-monospace, monospace' });
+    r.label(`vocab ${S.vocabAll} entries (${S.vocab} in use)  ·  ${S.tokens} tokens (was ${cur.charCount}, −${comp.toFixed(0)}%)`, lx, botY, { color: T.ok, font: '11px ui-monospace, monospace' });
     r.label(`merges ${k} / ${cur.steps.length - 1}  ·  "_" = word boundary`, lx, botY + 16, { color: T.n11, font: '10px ui-monospace, monospace' });
 
     // ===== pair frequency table (right top) =====
@@ -121,7 +127,7 @@ mount({
     }
 
     let o = `BPE tokenization · step ${k}/${cur.steps.length - 1}.  ${k === 0 ? 'start: every word is a sequence of characters (+ "_" boundary).' : `merged "${S.rules[k - 1].a}"+"${S.rules[k - 1].b}" → "${S.rules[k - 1].nw}" (the most frequent adjacent pair).`}   tier:${r.name}\n`;
-    o += `vocab ${S.vocab} symbols, ${S.tokens} tokens encode the corpus (${cur.charCount} chars, ${comp.toFixed(0)}% fewer). The learned rules are replayed on new text at inference; drag a word's ×freq to change which pairs win.`;
+    o += `vocab ${S.vocabAll} entries — the ${cur.base} starting characters plus one per merge rule, so it only grows — of which ${S.vocab} are in use right now (a merge can retire a symbol that no longer stands alone). ${S.tokens} tokens encode the corpus (${cur.charCount} chars, ${comp.toFixed(0)}% fewer). The learned rules are replayed on new text at inference; drag a word's ×freq to change which pairs win.`;
     page.setReadout(o);
   },
 }).then((page) => {

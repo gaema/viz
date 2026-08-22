@@ -332,6 +332,51 @@ export async function mount(opts = {}) {
 
   // Let the page register controls (and a transport) before the first paint.
   if (typeof opts.controls === 'function') opts.controls(controls, api);
+
+  // Deep links are READ here, not only written. syncURL() above mirrors control
+  // state OUT to the query string, and for a long time nothing read it back --
+  // so every `?key=` hook a page documented was inert unless that page wrote its
+  // own restore loop. Three builders found it independently and identically: six
+  // different URLs producing a byte-identical readout. It also blocks anything
+  // that addresses a page purely by URL, which is how the demos get captured
+  // for video.
+  //
+  // Restored BEFORE the transport rebuild, so a restored control feeds the step
+  // list about to be computed; and silently, so this costs one paint, not one
+  // per parameter. A key the controls do not own (step, theme, hover, play,
+  // compare, ch) is left to whoever does own it.
+  if (typeof location !== 'undefined') {
+    try {
+      for (const [k, raw] of new URLSearchParams(location.search)) {
+        if (!(k in controls.state)) continue;
+        // A query string is UNTRUSTED INPUT. Only a value the widget could
+        // itself have produced may enter state -- otherwise a link can push an
+        // option that does not exist, or a number past a slider's end, and the
+        // page carries it silently. Anything else is ignored, leaving the
+        // default exactly as it was.
+        const dom = (controls._domain || {})[k];
+        const cur = controls.state[k];
+        let v = raw;
+        if (dom && dom.kind === 'enum') {
+          if (!dom.values.includes(raw)) continue;
+        } else if (dom && dom.kind === 'bool') {
+          v = (raw === '1' || raw === 'true');
+        } else if (dom && dom.kind === 'number') {
+          const n = Number(raw);
+          if (!Number.isFinite(n) || n < dom.min || n > dom.max) continue;
+          v = n;
+        } else if (typeof cur === 'boolean') {
+          v = (raw === '1' || raw === 'true');
+        } else if (typeof cur === 'number') {
+          const n = Number(raw);
+          if (!Number.isFinite(n)) continue;
+          v = n;
+        }
+        controls.set(k, v, { rebuild: true, silent: true });
+      }
+    } catch (_) {}
+  }
+
   if (controls._transport) controls._transport.rebuild();
   if (opts.autoplay && controls._transport) controls._transport.play();
   // Open compare via ?compare=1 AFTER the transport exists, so the toggle's

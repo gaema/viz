@@ -158,7 +158,16 @@ mount({
   if (q.has('L')) page.controls.set('L', +q.get('L'));
   if (q.has('gain')) page.controls.set('gain', +q.get('gain'));
   if (q.has('skip')) page.controls.set('skip', q.get('skip') === '1' || q.get('skip') === 'true');
-  if (q.has('drag') && cur) for (const pr of q.get('drag').split(';')) { const [i, v] = pr.split(',').map(Number); if (i >= 0 && i < N) cur.x[i] = v; }
   if (q.has('hover')) { const [hx, hy] = q.get('hover').split(',').map(Number); page.pointer.x = hx; page.pointer.y = hy; page.pointer.over = true; }
   page.redraw();
+  // ?drag=i,v;... sets input components directly (headless stand-in for a pointer
+  // drag). It needs `cur`, which draw() builds on the FIRST paint -- but this
+  // handler runs as a microtask off mount()'s promise, before any frame, and
+  // page.redraw() only schedules an rAF. So `cur` was null here and the guard
+  // dropped the hook silently. Apply it after the first paint instead, then repaint.
+  if (q.has('drag')) requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (!cur) return;
+    for (const pr of q.get('drag').split(';')) { const [i, v] = pr.split(',').map(Number); if (i >= 0 && i < N) cur.x[i] = v; }
+    page.redraw();
+  }));
 });

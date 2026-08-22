@@ -227,18 +227,6 @@ mount({
   const q = new URLSearchParams(location.search);
   const t = page.controls._transport;
   if (q.has('prenorm')) { page.controls.set('prenorm', q.get('prenorm') !== '0'); }
-  // ?drag=row,col,val edits the depth×D heatmap (headless stand-in for a vertical
-  // drag, since --screenshot has no pointer): row 0 sets the embedding x[t,col],
-  // rows 1..4 set that block's delta[t,col]; the trace from that depth downward
-  // recomputes. e.g. ?drag=1,2,2.5 sets attn-0's contribution at dim 2 to 2.5 for
-  // the current token (the running sum + rms column update from depth 1 down).
-  if (q.has('drag') && cur) {
-    const parts = q.get('drag').split(',').map(Number);
-    const [d, cc, v] = parts.length >= 3 ? parts : [parts[0], 0, parts[1]];
-    const op = operandAt(d);
-    const tt = (page.step() || { t: 0 }).t;
-    if (op && cc >= 0 && cc < cur.D) { op.arr.data[tt * cur.D + cc] = v; resync(page); }
-  }
   // ?hover=x,y fakes the cursor position (headless stand-in for a real hover,
   // since --screenshot has no pointer) so the tooltip path is verifiable.
   if (q.has('hover')) {
@@ -250,4 +238,25 @@ mount({
   if (q.has('step') && t) t.seek(parseInt(q.get('step'), 10));
   if (q.get('play') === '1' && t) t.play();
   page.redraw();
+  // ?drag=row,col,val edits the depth×D heatmap (headless stand-in for a vertical
+  // drag, since --screenshot has no pointer): row 0 sets the embedding x[t,col],
+  // rows 1..4 set that block's delta[t,col]; the trace from that depth downward
+  // recomputes. e.g. ?drag=1,2,2.5 sets attn-0's contribution at dim 2 to 2.5 for
+  // the current token (the running sum + rms column update from depth 1 down).
+  //
+  // Deferred to after the first paint, and to after the ?step seek above, for two
+  // reasons. (a) The token it edits is page.step().t, and until the seek has run
+  // the transport index is still -1, so every drag landed on token 0 while the
+  // captured frame showed the token ?step asked for -- the edit was real and
+  // invisible. (b) page.redraw() is rAF-coalesced, so nothing has drawn yet when
+  // this handler runs; a page whose `cur` came from draw() would still be null.
+  if (q.has('drag')) requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (!cur) return;
+    const parts = q.get('drag').split(',').map(Number);
+    const [d, cc, v] = parts.length >= 3 ? parts : [parts[0], 0, parts[1]];
+    const op = operandAt(d);
+    const tt = (page.step() || { t: 0 }).t;
+    if (op && cc >= 0 && cc < cur.D) { op.arr.data[tt * cur.D + cc] = v; resync(page); }
+    page.redraw();
+  }));
 });

@@ -139,7 +139,18 @@ mount({
   for (const key of ['preset', 'G']) if (q.has(key)) page.controls.set(key, q.get(key));
   if (q.has('bits')) page.controls.set('bits', +q.get('bits'));
   if (q.has('seed')) page.controls.set('seed', +q.get('seed'));
-  if (q.has('drag') && cur) for (const pr of q.get('drag').split(';')) { const [i, v] = pr.split(',').map(Number); if (i >= 0 && i < cur.x.length) cur.x[i] = v; }
   if (q.has('hover')) { const [hx, hy] = q.get('hover').split(',').map(Number); page.pointer.x = hx; page.pointer.y = hy; page.pointer.over = true; }
   page.redraw();
+  // ?drag=i,v;... writes weights directly (headless stand-in for a pointer drag).
+  // It needs `cur`, and `cur` is built by the FIRST draw() -- but this handler runs
+  // as a microtask off mount()'s promise, before any frame has painted, and
+  // page.redraw() is rAF-coalesced rather than synchronous. So `cur` was still null
+  // here and the guard dropped the whole hook without a word. Apply it after the
+  // first paint instead (two frames, so a page whose first paint is the ambient
+  // animation tick is covered too), then repaint.
+  if (q.has('drag')) requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (!cur) return;
+    for (const pr of q.get('drag').split(';')) { const [i, v] = pr.split(',').map(Number); if (i >= 0 && i < cur.x.length) cur.x[i] = v; }
+    page.redraw();
+  }));
 });

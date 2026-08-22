@@ -458,16 +458,6 @@ mount({
   for (const k of ['bits', 'budget', 'seed']) if (q.has(k)) page.controls.set(k, +q.get(k));
   if (q.has('ctx')) page.controls.set('ctx', +q.get('ctx'), { rebuild: true });
   const tr = page.controls._transport;
-  page.redraw();   // build the cache first, so ?drag has something to write into
-  // ?drag=r,c,v is the headless stand-in for a pointer drag (--screenshot has no
-  // cursor): it sets one cached value directly, so the outlier-stretches-the-
-  // group state is reproducible from a URL.
-  if (q.has('drag') && cur) {
-    for (const part of q.get('drag').split(';')) {
-      const [rr, cc, vv] = part.split(',').map(Number);
-      if (rr >= 0 && rr < 10 && cc >= 0 && cc < cur.N) { cur[q.get('tensor') || 'K'][rr * cur.N + cc] = Math.max(-3.2, Math.min(3.2, vv)); sel = { r: rr, c: cc }; }
-    }
-  }
   if (q.has('sel')) { const [rr, cc] = q.get('sel').split(',').map(Number); sel = { r: rr | 0, c: cc | 0 }; }
   if (q.has('hover')) { const [hx, hy] = q.get('hover').split(',').map(Number); page.pointer.x = hx; page.pointer.y = hy; page.pointer.over = true; }
   const posKey = q.has('step') ? 'step' : (q.has('pos') ? 'pos' : null);
@@ -475,4 +465,24 @@ mount({
   if (posKey && tr) tr.seek(parseInt(q.get(posKey), 10));
   if (q.get('play') === '1' && tr) tr.play();
   page.redraw();
+  // ?drag=r,c,v[;...] is the headless stand-in for a pointer drag (--screenshot has
+  // no cursor): it sets one cached value directly, so the outlier-stretches-the-
+  // group state is reproducible from a URL.
+  //
+  // It needs `cur`, and draw() builds the cache on the FIRST paint. This handler
+  // runs as a microtask off mount()'s promise -- before any frame -- and the
+  // page.redraw() that used to sit above it is rAF-coalesced, not synchronous, so
+  // `cur` was still null and the guard dropped the hook without a word. Apply it
+  // after the first paint instead, then repaint.
+  if (q.has('drag')) requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (!cur) return;
+    for (const part of q.get('drag').split(';')) {
+      const [rr, cc, vv] = part.split(',').map(Number);
+      if (rr >= 0 && rr < D && cc >= 0 && cc < cur.N) {
+        cur[q.get('tensor') || 'K'][rr * cur.N + cc] = Math.max(-VLIM, Math.min(VLIM, vv));
+        if (!q.has('sel')) sel = { r: rr, c: cc };   // an explicit ?sel still wins
+      }
+    }
+    page.redraw();
+  }));
 });

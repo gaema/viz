@@ -83,7 +83,10 @@ mount({
   controls: (c, page) => {
     c.stepper('N', { label: 'keys (N)', min: 8, max: 16, value: 12 });
     c.stepper('Bk', { label: 'tile size', min: 2, max: 4, value: 3 });
-    c.slider('seed', { label: 'seed', min: 0, max: 99, step: 1, value: 3, rebuild: true });
+    // seed 1, not 3: at seed 3 the running max never grows after tile 1, so the
+    // rescale column reads 1.00 at every step and the page's whole mechanism is
+    // invisible on the URL a visitor lands on. At seed 1 tiles 2 and 3 rescale.
+    c.slider('seed', { label: 'seed', min: 0, max: 99, step: 1, value: 1, rebuild: true });
     c.transport({ compute: () => buildData(page.state), speed: 1.2, loop: true });
   },
   // Direct manipulation: grab the ◂▸ tile handle (or click anywhere on the

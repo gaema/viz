@@ -34,6 +34,11 @@ export class Controls {
     this.state = {};
     this._transport = null;
     this._setters = {};   // key -> fn(val) that re-syncs the widget DOM (no event)
+    // key -> what the widget can actually accept. A deep link is untrusted
+    // input: without this, a URL could push a value into state that no widget
+    // could ever produce (a select option that does not exist, a slider past
+    // its max), and the page would carry it silently.
+    this._domain = {};
   }
 
   // Programmatic update: set state[key] AND re-sync the widget DOM, so a canvas
@@ -90,6 +95,7 @@ export class Controls {
     num.classList.add('vz-num-r');
     input.addEventListener('input', () => { const v = +input.value; num.value = fmt(v); this._changed(key, v, opts); });
     this._setters[key] = (v) => { input.value = v; if (document.activeElement !== num) num.value = fmt(v); };
+    this._domain[key] = { kind: 'number', min, max };
     this._row(opts.label || key, el('div', { class: 'vz-slider' }, [input, num]));
     return this;
   }
@@ -102,6 +108,7 @@ export class Controls {
     const sel = el('select', { class: 'vz-select' }, options.map((o) => el('option', { value: o.value, ...(o.value === value ? { selected: '' } : {}), text: o.label })));
     sel.addEventListener('change', () => this._changed(key, sel.value, opts));
     this._setters[key] = (v) => { sel.value = v; };
+    this._domain[key] = { kind: 'enum', values: options.map((o) => String(o.value)) };
     this._row(opts.label || key, sel);
     return this;
   }
@@ -112,6 +119,7 @@ export class Controls {
     const box = el('input', { type: 'checkbox', class: 'vz-check', ...(value ? { checked: '' } : {}) });
     box.addEventListener('change', () => this._changed(key, box.checked, opts));
     this._setters[key] = (v) => { box.checked = !!v; };
+    this._domain[key] = { kind: 'bool' };
     this._row(opts.label || key, box);
     return this;
   }
@@ -127,6 +135,7 @@ export class Controls {
     this._setters[key] = (v) => { if (document.activeElement !== num) num.value = String(clamp(v, min, max)); };
     const dec = el('button', { class: 'vz-btn', text: '−', onclick: () => set(this.state[key] - step) });
     const inc = el('button', { class: 'vz-btn', text: '+', onclick: () => set(this.state[key] + step) });
+    this._domain[key] = { kind: 'number', min, max };
     this._row(opts.label || key, el('div', { class: 'vz-stepper' }, [dec, num, inc]));
     return this;
   }
