@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kv-tiering | viz</title>
+</head>
+<body>
+<!-- Concept page: the KV cache spilled down a memory hierarchy (accelerator
+     memory -> host DRAM -> local SSD), and the race that decides what happens
+     on a later hit: FETCH the block back up the hierarchy, or RECOMPUTE it
+     from the tokens. Wires the framework modules (render / tensor / layout /
+     controls). Serve over http (ES module imports are blocked on file:// in a
+     normal browser):
+       python3 -m http.server 8099
+       open http://localhost:8099/kv-tiering/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

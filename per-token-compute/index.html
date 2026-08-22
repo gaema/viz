@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>per-token-compute | viz</title>
+</head>
+<body>
+<!-- Concept page: adaptive per-token compute -- how much work a token gets, not
+     which expert it gets. Mixture-of-Depths, zero-computation experts,
+     Mixture-of-Recursions, early exit; and the scheduling cost of a ragged
+     compute shape. Serve over http (ES module imports are blocked on file://):
+       python3 -m http.server 8557 
+       open http://localhost:8557/per-token-compute/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>

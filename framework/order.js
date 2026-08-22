@@ -32,9 +32,12 @@ export const ORDER = [
   { slug: 'transformer-block', family: 'C' },
   { slug: 'prefill-vs-decode', family: 'C' },
   { slug: 'sampling', family: 'C' },
+  { slug: 'hyper-connections', family: 'C' },
   // D -- Mixture of Experts
   { slug: 'moe-routing', family: 'D' },
   { slug: 'moe-balance', family: 'D' },
+  { slug: 'per-token-compute', family: 'D' },
+  { slug: 'expert-placement', family: 'D' },
   // E -- Non-transformer sequence (SSM)
   { slug: 'ssm-scan', family: 'E' },
   { slug: 'mamba-block', family: 'E' },
@@ -78,12 +81,18 @@ export const ORDER = [
   { slug: 'disaggregation', family: 'J' },
   { slug: 'kv-quant', family: 'J' },
   { slug: 'mla', family: 'J' },
+  { slug: 'ring-attention', family: 'J' },
+  { slug: 'context-extension', family: 'J' },
   { slug: 'constrained-decoding', family: 'J' },
   { slug: 'parallelism', family: 'J' },
   { slug: 'context-editing', family: 'J' },
   { slug: 'prefix-routing', family: 'J' },
   { slug: 'hybrid-cache-allocator', family: 'J' },
   { slug: 'batch-invariance', family: 'J' },
+  { slug: 'kv-tiering', family: 'J' },
+  { slug: 'suffix-decoding', family: 'J' },
+  { slug: 'context-parallelism', family: 'J' },
+  { slug: 'dual-batch-overlap', family: 'J' },
   // K — Diffusion & generative
   { slug: 'diffusion-noise', family: 'K' },
   { slug: 'diffusion-sampler', family: 'K' },
@@ -93,10 +102,12 @@ export const ORDER = [
   { slug: 'few-step-distillation', family: 'K' },
   { slug: 'video-time', family: 'K' },
   { slug: 'audio-tokens', family: 'K' },
+  { slug: 'ar-vs-diffusion-images', family: 'K' },
   // L — Reasoning
   { slug: 'thinking-tokens', family: 'L' },
   { slug: 'pass-at-k', family: 'L' },
   { slug: 'grpo-advantage', family: 'L' },
+  { slug: 'verifier-selection', family: 'L' },
 ];
 
 // Resolve the current page's slug from an explicit override or the URL path

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>expert-placement | viz</title>
+</head>
+<body>
+<!-- Concept page: WHERE a Mixture-of-Experts layer's experts physically live
+     under expert parallelism -- which device holds which expert, how much of
+     the batch therefore has to cross the interconnect, and how replication and
+     rebalancing change that. Routing itself (which expert a token picks) is a
+     different question and is drawn on the moe-routing page. Serve over http
+     (ES module imports are blocked on file:// in a normal browser):
+       python3 -m http.server 8099
+       open http://localhost:8099/expert-placement/ -->
+<script type="module" src="./page.js"></script>
+</body>
+</html>
