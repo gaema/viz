@@ -31,7 +31,7 @@
 
 import { Renderer } from './render.js';
 import { Controls } from './controls.js';
-import { currentSlug, neighbours } from './order.js';
+import { currentSlug, neighbours, ORDER, FAMILIES } from './order.js';
 import { T, themeSwitch, onThemeChange, alphaOf } from './theme.js';
 
 const STYLE_ID = 'vz-style';
@@ -45,6 +45,17 @@ html,body{background:var(--vz-n0);margin:0}
 .vz-nav a{color:var(--vz-accent);text-decoration:none;border:1px solid var(--vz-accentBg);background:var(--vz-accentBg);border-radius:6px;padding:2px 9px;white-space:nowrap}
 .vz-nav a:hover{background:var(--vz-accentBg);border-color:var(--vz-accentLine)}
 .vz-nav .vz-nav-home{font-weight:600}
+/* Wordmark + page picker: the same header contract every gaema.ai site
+   carries. The site name goes to this site's root, "· gaema" to the apex, and
+   the <select> jumps to any demo -- the control arch uses for its part picker,
+   so the two sites navigate the same way. */
+.vz-nav .vz-brand{font-weight:650;color:var(--vz-n14);background:none;border:1px solid transparent;padding:2px 4px}
+.vz-nav .vz-brand:hover{background:none;border-color:transparent;color:var(--vz-accent)}
+.vz-nav .vz-brand-home{color:var(--vz-n11);font-weight:400;background:none;border:1px solid transparent;padding:2px 4px 2px 0}
+.vz-nav .vz-brand-home:hover{background:none;border-color:transparent;color:var(--vz-accent)}
+.vz-pick{font:12px ui-monospace,monospace;color:var(--vz-n14);background:var(--vz-n0);border:1px solid var(--vz-n6);border-radius:6px;padding:2px 8px;cursor:pointer;max-width:15rem}
+.vz-pick:hover{border-color:var(--vz-accent)}
+.vz-pick option,.vz-pick optgroup{background:var(--vz-n0);color:var(--vz-n14)}
 .vz-nav .vz-nav-pos{color:var(--vz-n10)}
 .vz-nav .vz-nav-fam{color:var(--vz-n11);background:var(--vz-n2);border:1px solid var(--vz-n4);border-radius:6px;padding:1px 7px}
 .vz-nav .vz-nav-sp{flex:1 1 auto}
@@ -149,10 +160,43 @@ export async function mount(opts = {}) {
   const mkLink = (href, text, cls) => { const a = document.createElement('a'); a.href = href; a.textContent = text; if (cls) a.className = cls; return a; };
   const mkDim = (text) => { const s = document.createElement('span'); s.className = 'vz-nav-copy vz-nav-dim'; s.textContent = text; return s; };
   if (inCurriculum) {
-    nav.append(mkLink('../index.html', '← all demos', 'vz-nav-home'));
+    // Wordmark first, as on every gaema.ai page: site name -> this site's
+    // root, "· gaema" -> the apex. Before this a demo page had no route up to
+    // gaema.ai at all -- only the catalogue carried one, so 90-odd pages were
+    // dead ends as far as the rest of the family was concerned.
+    nav.append(mkLink('../index.html', 'viz', 'vz-brand'));
+    const home = mkLink('https://gaema.ai', '· gaema', 'vz-brand-home');
+    nav.append(home);
+
+    // Page picker, grouped by family -- the same control arch uses, so the two
+    // sites are navigated the same way. It also replaces the old "← all demos"
+    // link (its first option) and the "Family X" badge (the optgroup names it).
+    const pick = document.createElement('select');
+    pick.className = 'vz-pick';
+    pick.setAttribute('aria-label', 'Choose a demo');
+    const all = document.createElement('option');
+    all.value = '../index.html'; all.textContent = 'All demos';
+    pick.append(all);
+    const groups = new Map();
+    for (const item of ORDER) {
+      if (!groups.has(item.family)) {
+        const g = document.createElement('optgroup');
+        g.label = item.family + ' — ' + (FAMILIES[item.family] || item.family);
+        groups.set(item.family, g);
+        pick.append(g);
+      }
+      const o = document.createElement('option');
+      o.value = '../' + item.slug + '/index.html';
+      o.textContent = item.slug;
+      if (item.slug === slug) o.selected = true;
+      groups.get(item.family).append(o);
+    }
+    pick.addEventListener('change', () => { if (pick.value) location.href = pick.value; });
+    nav.append(pick);
+
     nav.append(nb.prev ? mkLink('../' + nb.prev.slug + '/index.html', '‹ ' + nb.prev.slug) : mkDim('‹ start'));
     nav.append(nb.next ? mkLink('../' + nb.next.slug + '/index.html', nb.next.slug + ' ›') : mkDim('end ›'));
-    if (nb.index >= 0) { const pos = document.createElement('span'); pos.className = 'vz-nav-pos'; pos.textContent = `${nb.index + 1} / ${nb.total}`; nav.append(pos); const fam = document.createElement('span'); fam.className = 'vz-nav-fam'; fam.textContent = 'Family ' + nb.family; nav.append(fam); }
+    if (nb.index >= 0) { const pos = document.createElement('span'); pos.className = 'vz-nav-pos'; pos.textContent = `${nb.index + 1} / ${nb.total}`; nav.append(pos); }
   }
   const spacer = document.createElement('span'); spacer.className = 'vz-nav-sp'; nav.append(spacer);
   const copyBtn = document.createElement('span'); copyBtn.className = 'vz-nav-copy'; copyBtn.style.cursor = 'pointer'; copyBtn.style.borderRadius = '6px'; copyBtn.style.padding = '2px 9px'; copyBtn.textContent = '\u{1F517} copy link';

@@ -112,6 +112,25 @@ export const ORDER = [
 
 // Resolve the current page's slug from an explicit override or the URL path
 // (…/<slug>/index.html or …/<slug>/). Returns '' when not on a demo page.
+// Family letter -> display name. Used for the in-demo picker's <optgroup>
+// labels, and kept beside ORDER so adding a family is one edit rather than two
+// (the letters were previously only in the section COMMENTS above, which no
+// code could read).
+export const FAMILIES = {
+  A: 'Foundational primitives',
+  B: 'Attention',
+  C: 'Transformer block',
+  D: 'Mixture of Experts',
+  E: 'Non-transformer sequence (SSM)',
+  F: 'CNN / vision',
+  G: 'Quantization / multimodal',
+  H: 'End-to-end (capstone) + training',
+  I: 'Real-model grounding',
+  J: 'Serving-time mechanisms',
+  K: 'Diffusion & generative',
+  L: 'Reasoning',
+};
+
 export function currentSlug(override) {
   if (override) return override;
   if (typeof location === 'undefined') return '';

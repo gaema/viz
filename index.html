@@ -10,6 +10,9 @@
   html{background:var(--vz-n0)}
   .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .topctl{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  .vz-pick{font:13px ui-monospace,monospace;color:var(--vz-n14);background:var(--vz-n0);border:1px solid var(--vz-n6);border-radius:7px;padding:6px 10px;cursor:pointer;max-width:15rem}
+  .vz-pick:hover{border-color:var(--vz-accent)}
+  .vz-pick option,.vz-pick optgroup{background:var(--vz-n0);color:var(--vz-n14)}
   .vz-theme-btn{font:13px ui-monospace,monospace;line-height:1;border:1px solid var(--vz-n6);border-radius:7px;background:var(--vz-n0);color:var(--vz-n11);padding:6px 10px;cursor:pointer}
   .vz-theme-btn:hover{border-color:var(--vz-accent);color:var(--vz-accent)}
 
@@ -40,6 +43,7 @@
 <div class="topbar">
   <h1>viz <a class="brand-home" href="https://gaema.ai">· gaema</a></h1>
   <div class="topctl">
+    <select id="pick" class="vz-pick" aria-label="Choose a demo" hidden><option value="">All demos</option></select>
     <span class="modes" id="modes"><button id="m-plain" aria-pressed="true">Plain English</button><button id="m-tech" aria-pressed="false">Technical</button></span>
     <span data-theme-switch></span>
   </div>
@@ -407,6 +411,25 @@ document.getElementById('m-tech').onclick = () => setMode('tech');
 setMode(mode);
 
 document.querySelector('.sub').insertAdjacentHTML('beforeend', ` <b>${total} demos.</b>`);
+</script>
+<script type="module">
+  import { ORDER, FAMILIES } from './framework/order.js';
+  const pick = document.getElementById('pick');
+  if (pick) {
+    const groups = new Map();
+    for (const it of ORDER) {
+      if (!groups.has(it.family)) {
+        const g = document.createElement('optgroup');
+        g.label = it.family + ' \u2014 ' + (FAMILIES[it.family] || it.family);
+        groups.set(it.family, g); pick.append(g);
+      }
+      const o = document.createElement('option');
+      o.value = './' + it.slug + '/index.html'; o.textContent = it.slug;
+      groups.get(it.family).append(o);
+    }
+    pick.addEventListener('change', () => { if (pick.value) location.href = pick.value; });
+    pick.hidden = false;
+  }
 </script>
 </body>
 </html>
