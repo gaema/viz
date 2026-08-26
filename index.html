@@ -20,9 +20,12 @@
   .vz-brand:hover{color:var(--vz-accent)}
   .vz-brand-home{color:var(--vz-n11);font-weight:400;text-decoration:none;white-space:nowrap}
   .vz-brand-home:hover{color:var(--vz-accent)}
-  .vz-top-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+  /* Wrap, and let the picker shrink. At 375px the three controls measured
+     439px inside a 375px bar and pushed the whole page 82px wide -- the
+     group was nowrap and the picker had a fixed 15rem cap. */
+  .vz-top-right{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end;max-width:100%}
   .vz-wrap{max-width:1080px;margin:0 auto;padding:24px 18px}
-  .vz-pick{font:13px ui-monospace,monospace;color:var(--vz-n14);background:var(--vz-n0);border:1px solid var(--vz-n6);border-radius:7px;padding:6px 10px;cursor:pointer;max-width:15rem}
+  .vz-pick{font:13px ui-monospace,monospace;color:var(--vz-n14);background:var(--vz-n0);border:1px solid var(--vz-n6);border-radius:7px;padding:6px 10px;cursor:pointer;max-width:min(15rem,100%);min-width:0}
   .vz-pick:hover{border-color:var(--vz-accent)}
   .vz-pick option,.vz-pick optgroup{background:var(--vz-n0);color:var(--vz-n14)}
   .vz-theme-btn{font:13px ui-monospace,monospace;line-height:1;border:1px solid var(--vz-n6);border-radius:7px;background:var(--vz-n0);color:var(--vz-n11);padding:6px 10px;cursor:pointer}
@@ -57,6 +60,21 @@
      sets the default for every card that has not been asked individually, and a
      card carrying its own data-mode answers to that instead. No !important and
      no specificity race -- the two rule sets are disjoint by construction. */
+  /* Portrait phones. Three things measured at 375px and fixed here:
+     the bar stacked to 106px because the picker held a 15rem cap next to a
+     143px mode toggle; the per-card language button was 74x19, well under the
+     24px minimum tap target and there are 92 of them; and the mode toggle's
+     two long labels are what forced the third row. */
+  @media (max-width: 640px) {
+    /* The picker is hidden HERE only, and only narrow: on this page it is a
+       duplicate of the 92-card grid immediately below it, and dropping it puts
+       the whole bar back on one row (108px -> ~57px) instead of three. Demo
+       pages keep theirs -- there the grid is not on screen to duplicate. */
+    #pick{display:none}
+    .lang{padding:9px 11px;font-size:11.5px;min-height:36px;opacity:1}
+    .modes button{padding:8px 10px}
+  }
+
   body[data-mode="plain"] .card:not([data-mode]) > .d{display:none}
   body[data-mode="tech"] .card:not([data-mode]) > .p{display:none}
   .card[data-mode="plain"] > .d{display:none}

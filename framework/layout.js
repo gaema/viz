@@ -57,8 +57,8 @@ html,body{background:var(--vz-n0);margin:0}
 .vz-brand:hover{color:var(--vz-accent)}
 .vz-brand-home{color:var(--vz-n11);font-weight:400;text-decoration:none;white-space:nowrap}
 .vz-brand-home:hover{color:var(--vz-accent)}
-.vz-top-right{display:flex;align-items:center;gap:8px;margin-left:auto}
-.vz-pick{font:13px ui-monospace,monospace;color:var(--vz-n14);background:var(--vz-n0);border:1px solid var(--vz-n6);border-radius:8px;padding:6px 10px;cursor:pointer;max-width:15rem}
+.vz-top-right{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end;max-width:100%}
+.vz-pick{font:13px ui-monospace,monospace;color:var(--vz-n14);background:var(--vz-n0);border:1px solid var(--vz-n6);border-radius:8px;padding:6px 10px;cursor:pointer;max-width:min(15rem,100%);min-width:0}
 .vz-pick:hover{border-color:var(--vz-accent)}
 .vz-pick option,.vz-pick optgroup{background:var(--vz-n0);color:var(--vz-n14)}
 .vz-nav .vz-nav-pos{color:var(--vz-n10)}
