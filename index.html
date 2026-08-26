@@ -15,7 +15,11 @@
 
   body{font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--vz-n14);max-width:1080px;margin:0 auto;padding:24px 18px;background:var(--vz-n0)}
 
-  h1{font-size:24px;margin:0 0 4px} .sub{color:var(--vz-n11);margin:0 0 20px}
+  h1{font-size:24px;margin:0 0 4px}
+  /* Wordmark suffix linking back to gaema.ai -- same shape on arch, so the
+     family reads as a family and there is always a way back up. */
+  h1 .brand-home{font-size:15px;font-weight:400;color:var(--vz-n11);text-decoration:none;white-space:nowrap}
+  h1 .brand-home:hover{color:var(--vz-accent)} .sub{color:var(--vz-n11);margin:0 0 20px}
   h2{font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:var(--vz-n11);margin:26px 0 10px;border-bottom:1px solid var(--vz-n4);padding-bottom:6px}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
   .card{display:flex;flex-direction:column;border:1px solid var(--vz-n4);border-radius:10px;padding:12px 14px;text-decoration:none;color:inherit;background:var(--vz-n0);transition:.12s}
@@ -34,7 +38,7 @@
 </head>
 <body>
 <div class="topbar">
-  <h1>viz</h1>
+  <h1>viz <a class="brand-home" href="https://gaema.ai">· gaema</a></h1>
   <div class="topctl">
     <span class="modes" id="modes"><button id="m-plain" aria-pressed="true">Plain English</button><button id="m-tech" aria-pressed="false">Technical</button></span>
     <span data-theme-switch></span>
