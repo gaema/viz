@@ -469,8 +469,15 @@ for (const [name, pages] of FAMILIES) {
   root.appendChild(g);
 }
 // description mode: plain English (default) vs technical. ?mode=tech or the toggle.
+//
+// A mode in the URL applies to THIS VIEW ONLY and must not be written to
+// storage. It used to be: opening someone's ?mode=tech link overwrote the
+// reader's own saved preference permanently, so every later visit to the plain
+// URL gave them technical -- a link silently reconfigured the site for them.
+// Only an explicit click on the toggle is a preference.
 const q = new URLSearchParams(location.search).get('mode');
-let mode = q === 'tech' || q === 'plain' ? q : (localStorage.getItem('viz-desc-mode') || 'plain');
+const modeFromUrl = q === 'tech' || q === 'plain';
+let mode = modeFromUrl ? q : (localStorage.getItem('viz-desc-mode') || 'plain');
 // A card shows the global mode unless it has been asked individually.
 function cardMode(card) { return card.dataset.mode || mode; }
 
@@ -499,10 +506,10 @@ function langButton(card) {
   return b;
 }
 
-function setMode(m) {
+function setMode(m, persist = true) {
   mode = m;
   document.body.dataset.mode = m;
-  try { localStorage.setItem('viz-desc-mode', m); } catch (e) { /* private mode */ }
+  if (persist) { try { localStorage.setItem('viz-desc-mode', m); } catch (e) { /* private mode */ } }
   document.getElementById('m-plain').setAttribute('aria-pressed', String(m === 'plain'));
   document.getElementById('m-tech').setAttribute('aria-pressed', String(m === 'tech'));
   // The bar is authoritative: setting it clears every per-card override, so
@@ -515,7 +522,7 @@ function setMode(m) {
 }
 document.getElementById('m-plain').onclick = () => setMode('plain');
 document.getElementById('m-tech').onclick = () => setMode('tech');
-setMode(mode);
+setMode(mode, !modeFromUrl);   // a URL mode is a view, not a preference
 
 document.querySelector('.sub').insertAdjacentHTML('beforeend', ` <b>${total} demos.</b>`);
 </script>
