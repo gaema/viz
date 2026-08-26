@@ -48,6 +48,7 @@
   .d{font-size:12.5px;color:var(--vz-n11);margin-top:3px;min-height:2.4em}
   .p{font-size:13px;color:var(--vz-n12);margin-top:3px}
   .modes{display:inline-flex;border:1px solid var(--vz-accentBg);border-radius:7px;overflow:hidden;margin-left:10px;vertical-align:middle}
+  .lbl-abbr{display:none}
   .modes button{font:600 12.5px system-ui,sans-serif;border:0;background:var(--vz-n0);color:var(--vz-accent);padding:5px 11px;cursor:pointer}
   .modes button[aria-pressed="true"]{background:var(--vz-accent);color:var(--vz-n0)}
   /* Scoped to the card's own description divs. Unscoped, `.d` also matched the
@@ -66,10 +67,15 @@
      24px minimum tap target and there are 92 of them; and the mode toggle's
      two long labels are what forced the third row. */
   @media (max-width: 640px) {
-    /* The picker is hidden HERE only, and only narrow: on this page it is a
-       duplicate of the 92-card grid immediately below it, and dropping it puts
-       the whole bar back on one row (108px -> ~57px) instead of three. Demo
-       pages keep theirs -- there the grid is not on screen to duplicate. */
+    /* This page carries one control more than any other -- the plain/technical
+       toggle -- and at 360px there is not room for brand + picker + toggle +
+       theme on one row. Two things give, in order of what they cost a reader:
+       the labels abbreviate (Plain/Tech reads the same at a glance), and the
+       PICKER goes, because on the catalogue it is a duplicate of the 92-card
+       grid immediately below it. Every other page keeps its picker, where the
+       grid is not on screen to duplicate. Result: one 57px row everywhere. */
+    .lbl-full{display:none}
+    .lbl-abbr{display:inline}
     #pick{display:none}
     .lang{padding:9px 11px;font-size:11.5px;min-height:36px;opacity:1}
     .modes button{padding:8px 10px}
@@ -104,7 +110,7 @@
     <span class="vz-brandwrap"><a class="vz-brand" href="./">viz</a> <a class="vz-brand-home" href="https://gaema.ai">· gaema</a></span>
     <div class="vz-top-right">
       <select id="pick" class="vz-pick" aria-label="Choose a demo" hidden><option value="">All demos</option></select>
-      <span class="modes" id="modes"><button id="m-plain" aria-pressed="true">Plain English</button><button id="m-tech" aria-pressed="false">Technical</button></span>
+      <span class="modes" id="modes"><button id="m-plain" aria-pressed="true" aria-label="Plain English"><span class="lbl-full" aria-hidden="true">Plain English</span><span class="lbl-abbr" aria-hidden="true">Plain</span></button><button id="m-tech" aria-pressed="false" aria-label="Technical"><span class="lbl-full" aria-hidden="true">Technical</span><span class="lbl-abbr" aria-hidden="true">Tech</span></button></span>
       <span data-theme-switch></span>
     </div>
   </div>
