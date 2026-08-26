@@ -173,7 +173,7 @@ export function demoPicker(currentSlug, base) {
   for (const item of ORDER) {
     if (!groups.has(item.family)) {
       const g = document.createElement('optgroup');
-      g.label = item.family + ' \u2014 ' + (FAMILIES[item.family] || item.family);
+      g.label = item.family + ' — ' + (FAMILIES[item.family] || item.family);
       groups.set(item.family, g);
       pick.append(g);
     }

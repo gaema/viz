@@ -110,8 +110,6 @@ export const ORDER = [
   { slug: 'verifier-selection', family: 'L' },
 ];
 
-// Resolve the current page's slug from an explicit override or the URL path
-// (…/<slug>/index.html or …/<slug>/). Returns '' when not on a demo page.
 // Family letter -> display name. Used for the in-demo picker's <optgroup>
 // labels, and kept beside ORDER so adding a family is one edit rather than two
 // (the letters were previously only in the section COMMENTS above, which no
@@ -131,6 +129,8 @@ export const FAMILIES = {
   L: 'Reasoning',
 };
 
+// Resolve the current page's slug from an explicit override or the URL path
+// (…/<slug>/index.html or …/<slug>/). Returns '' when not on a demo page.
 export function currentSlug(override) {
   if (override) return override;
   if (typeof location === 'undefined') return '';
