@@ -48,10 +48,14 @@
   .t{font-weight:650;font-size:14px;font-family:ui-monospace,monospace}
   .d{font-size:12.5px;color:var(--vz-n11);margin-top:3px;min-height:2.4em}
   .p{font-size:13px;color:var(--vz-n12);margin-top:3px}
-  .modes{display:inline-flex;border:1px solid var(--vz-accentBg);border-radius:7px;overflow:hidden;margin-left:10px;vertical-align:middle}
-  .lbl-abbr{display:none}
+  /* ONE control, used in two places: the page bar and every card. Both pick one
+     of two, so both are a radiogroup with aria-checked -- a pair of aria-pressed
+     toggles would announce two independent on/off buttons and never say that
+     choosing one un-chose the other. Same markup, same classes; .card-modes only
+     shrinks and positions it. */
+  .modes{display:inline-flex;border:1px solid var(--vz-accentBg);border-radius:7px;overflow:hidden;vertical-align:middle}
   .modes button{font:600 12.5px system-ui,sans-serif;border:0;background:var(--vz-n0);color:var(--vz-accent);padding:5px 11px;cursor:pointer}
-  .modes button[aria-pressed="true"]{background:var(--vz-accent);color:var(--vz-n0)}
+  .modes button[aria-checked="true"]{background:var(--vz-accent);color:var(--vz-n0)}
   /* Scoped to the card's own description divs. The thumbnail SVG classes are
      namespaced (`zd`, `zt`) so they can no longer collide with these -- but the
      `>` stays, because a description is a direct child and saying so costs
@@ -62,24 +66,21 @@
      sets the default for every card that has not been asked individually, and a
      card carrying its own data-mode answers to that instead. No !important and
      no specificity race -- the two rule sets are disjoint by construction. */
-  /* Portrait phones. Three things measured at 375px and fixed here:
-     the bar stacked to 106px because the picker held a 15rem cap next to a
-     143px mode toggle; the per-card language button was 74x19, well under the
-     24px minimum tap target and there are 92 of them; and the mode toggle's
-     two long labels are what forced the third row. */
+  /* Portrait phones. The labels no longer abbreviate here: "plain" and
+     "technical" ARE the short form, so the lbl-full/lbl-abbr pair that used to
+     swap "Plain English" for "Plain" is gone rather than kept as a second way to
+     say the same thing.
+
+     The PICKER still has to go, and that was measured rather than assumed after
+     the labels shrank: shown at 375px it is 240px wide on its own and takes the
+     bar from 56px to 113px, two rows. It is the one control this page can lose,
+     because the 92-card grid immediately below it says the same thing; every
+     other page keeps its picker, where the grid is not on screen to duplicate. */
   @media (max-width: 640px) {
-    /* This page carries one control more than any other -- the plain/technical
-       toggle -- and at 360px there is not room for brand + picker + toggle +
-       theme on one row. Two things give, in order of what they cost a reader:
-       the labels abbreviate (Plain/Tech reads the same at a glance), and the
-       PICKER goes, because on the catalogue it is a duplicate of the 92-card
-       grid immediately below it. Every other page keeps its picker, where the
-       grid is not on screen to duplicate. Result: one 57px row everywhere. */
-    .lbl-full{display:none}
-    .lbl-abbr{display:inline}
     #pick{display:none}
-    .lang{padding:9px 11px;font-size:11.5px;min-height:36px;opacity:1}
     .modes button{padding:8px 10px}
+    .card-modes{opacity:1}
+    .card-modes button{padding:6px 8px;font-size:10.5px;min-height:26px}
   }
 
   body[data-mode="plain"] .card:not([data-mode]) > .d{display:none}
@@ -88,7 +89,7 @@
   .card[data-mode="tech"] > .p{display:none}
 
   /* Per-card language switch. The card is an <a>, and interactive content may
-     not nest inside one, so the button is a SIBLING in a positioned wrapper
+     not nest inside one, so the control is a SIBLING in a positioned wrapper
      rather than a child -- which also keeps every existing a.card rule intact. */
   .card-wrap{position:relative;display:flex}
   .card-wrap > .card{flex:1 1 auto}
@@ -96,13 +97,12 @@
      most readers never find, and hover-gating also splits the behaviour by
      input device -- it would have needed a (hover:none) fallback to exist at
      all on touch. Muted instead, so 92 of them recede until wanted. */
-  .lang{position:absolute;top:8px;right:8px;z-index:2;
-    font:11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
-    color:var(--vz-n10);background:var(--vz-n0);border:1px solid var(--vz-n5);
-    border-radius:5px;padding:3px 6px;cursor:pointer;opacity:.7;
-    transition:opacity .12s,color .12s,border-color .12s}
-  .card-wrap:hover .lang{opacity:1}
-  .lang:hover,.lang:focus-visible{opacity:1;color:var(--vz-accent);border-color:var(--vz-accent)}
+  .card-modes{position:absolute;top:8px;right:8px;z-index:2;
+    background:var(--vz-n0);border-radius:5px;opacity:.72;
+    transition:opacity .12s}
+  .card-wrap:hover .card-modes,.card-modes:focus-within{opacity:1}
+  .card-modes button{font:600 10.5px ui-monospace,SFMono-Regular,Menlo,monospace;
+    padding:3px 7px}
 </style>
 </head>
 <body>
@@ -111,7 +111,7 @@
     <span class="vz-brandwrap"><a class="vz-brand" href="./">viz</a> <a class="vz-brand-home" href="https://gaema.ai">· gaema</a></span>
     <div class="vz-top-right">
       <select id="pick" class="vz-pick" aria-label="Choose a demo" hidden><option value="">All demos</option></select>
-      <span class="modes" id="modes"><button id="m-plain" aria-pressed="true" aria-label="Plain English"><span class="lbl-full" aria-hidden="true">Plain English</span><span class="lbl-abbr" aria-hidden="true">Plain</span></button><button id="m-tech" aria-pressed="false" aria-label="Technical"><span class="lbl-full" aria-hidden="true">Technical</span><span class="lbl-abbr" aria-hidden="true">Tech</span></button></span>
+      <span class="modes" id="modes" role="radiogroup" aria-label="Description language"><button id="m-plain" type="button" role="radio" aria-checked="true">plain</button><button id="m-tech" type="button" role="radio" aria-checked="false" tabindex="-1">technical</button></span>
       <span data-theme-switch></span>
     </div>
   </div>
@@ -120,7 +120,7 @@
 <h1>viz</h1>
 <p class="sub">Interactive visualizations of CNN/LLM internal math. Each page shows the linear algebra of one mechanism, step by step, following an A1–A12 shape taxonomy.</p>
 <p style="margin:0 0 18px;font-size:14px"><a href="tour.html" style="display:inline-block;background:var(--vz-accent);color:var(--vz-n0);text-decoration:none;border-radius:7px;padding:7px 15px;font-weight:600">🎓 New here? Take the guided tour →</a> &nbsp;<span style="color:var(--vz-n11)">— a narrated walkthrough of all the demos in curriculum order, with a progress track.</span></p>
-<p style="margin:0 0 18px;font-size:13.5px;color:var(--vz-n11)">Card descriptions are in <b>plain English</b> (why each one matters in the real world) or <b>technical</b> (what the page shows mathematically) — switch them all at the top right, or flip a single card with the button on it.</p>
+<p style="margin:0 0 18px;font-size:13.5px;color:var(--vz-n11)">Card descriptions are in <b>plain English</b> (why each one matters in the real world) or <b>technical</b> (what the page shows mathematically) — switch them all at the top right, or flip a single card with the toggle on it.</p>
 <div id="root"></div>
 
 <!-- THUMBS:BEGIN -->
@@ -465,7 +465,7 @@ for (const [name, pages] of FAMILIES) {
     el.innerHTML = `<div class="th">${thumb}</div><div class="t">${p.t}</div><div class="d">${p.d}</div><div class="p">${plain}</div>`;
     const wrap = document.createElement('div');
     wrap.className = 'card-wrap';
-    wrap.append(el, langButton(el));
+    wrap.append(el, langToggle(el));
     g.appendChild(wrap);
   }
   root.appendChild(g);
@@ -483,37 +483,72 @@ let mode = modeFromUrl ? q : (localStorage.getItem('viz-desc-mode') || 'plain');
 // A card shows the global mode unless it has been asked individually.
 function cardMode(card) { return card.dataset.mode || mode; }
 
-// One button per card, flipping that card alone. It names the language it will
-// GIVE you rather than the one you are reading -- a control that reports state
-// reads as a label, and this one is an action.
-function langButton(card) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'lang';
-  const paint = () => {
-    const next = cardMode(card) === 'plain' ? 'tech' : 'plain';
-    b.textContent = next === 'tech' ? 'technical' : 'plain english';
-    b.title = 'Show the ' + b.textContent + ' description for this card';
-    b.setAttribute('aria-label', b.title);
+// Roving tabindex + arrow keys, shared by the bar group and all 92 card groups.
+// A radiogroup is ONE tab stop and the arrows move inside it; two separate stops
+// would be the toggle behaviour the aria-checked is there to replace.
+function wireRadioGroup(buttons, pick) {
+  for (const b of buttons) {
+    b.addEventListener('keydown', (e) => {
+      const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      if (!step) return;
+      e.preventDefault();
+      const i = buttons.indexOf(b);
+      const next = buttons[(i + step + buttons.length) % buttons.length];
+      pick(next);
+      next.focus();
+    });
+  }
+}
+
+// The SAME control as the page bar, scaled down and scoped to one card: two
+// radios, one checked, showing which language this card is in rather than
+// naming the next action. An action label cannot pair with a checked state --
+// it promises what a click WILL do while the state reports what IS.
+function langToggle(card) {
+  const box = document.createElement('span');
+  box.className = 'modes card-modes';
+  box.setAttribute('role', 'radiogroup');
+  box.setAttribute('aria-label', 'Description language for this card');
+
+  const mk = (m, label) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.setAttribute('role', 'radio');
+    b.dataset.mode = m;
+    b.addEventListener('click', () => { card.dataset.mode = m; paint(); });
+    return b;
   };
-  b.addEventListener('click', () => {
-    card.dataset.mode = cardMode(card) === 'plain' ? 'tech' : 'plain';
-    paint();
-  });
+  const buttons = [mk('plain', 'plain'), mk('tech', 'technical')];
+
+  const paint = () => {
+    const on = cardMode(card);
+    for (const b of buttons) {
+      const checked = b.dataset.mode === on;
+      b.setAttribute('aria-checked', String(checked));
+      b.tabIndex = checked ? 0 : -1;
+    }
+  };
+  wireRadioGroup(buttons, (b) => { card.dataset.mode = b.dataset.mode; paint(); });
+
+  box.append(...buttons);
   // Deliberately NOT painted here: this runs inside the render loop, and the
-  // label depends on `mode`, which is declared with `let` further down the same
+  // state depends on `mode`, which is declared with `let` further down the same
   // script -- reading it now is a temporal-dead-zone throw that takes the whole
-  // catalogue with it. setMode() paints every button once, right after.
+  // catalogue with it. setMode() paints every group once, right after.
   card._paintLang = paint;
-  return b;
+  return box;
 }
 
 function setMode(m, persist = true) {
   mode = m;
   document.body.dataset.mode = m;
   if (persist) { try { localStorage.setItem('viz-desc-mode', m); } catch (e) { /* private mode */ } }
-  document.getElementById('m-plain').setAttribute('aria-pressed', String(m === 'plain'));
-  document.getElementById('m-tech').setAttribute('aria-pressed', String(m === 'tech'));
+  for (const b of barButtons) {
+    const checked = b.dataset.mode === m;
+    b.setAttribute('aria-checked', String(checked));
+    b.tabIndex = checked ? 0 : -1;
+  }
   // The bar is authoritative: setting it clears every per-card override, so
   // "all technical" means all, not "all except the six I poked earlier".
   for (const card of document.querySelectorAll('.card[data-mode]')) {
@@ -522,8 +557,11 @@ function setMode(m, persist = true) {
   }
   for (const card of document.querySelectorAll('.card')) if (card._paintLang) card._paintLang();
 }
-document.getElementById('m-plain').onclick = () => setMode('plain');
-document.getElementById('m-tech').onclick = () => setMode('tech');
+const barButtons = [document.getElementById('m-plain'), document.getElementById('m-tech')];
+barButtons[0].dataset.mode = 'plain';
+barButtons[1].dataset.mode = 'tech';
+for (const b of barButtons) b.addEventListener('click', () => setMode(b.dataset.mode));
+wireRadioGroup(barButtons, (b) => setMode(b.dataset.mode));
 setMode(mode, !modeFromUrl);   // a URL mode is a view, not a preference
 
 document.querySelector('.sub').insertAdjacentHTML('beforeend', ` <b>${total} demos.</b>`);
