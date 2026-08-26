@@ -8,15 +8,27 @@
 <script src="framework/theme-boot.js"></script>
 <style>
   html{background:var(--vz-n0)}
-  .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
-  .topctl{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  /* Site top bar -- the same component arch carries and the demo pages now
+     build in framework/layout.js: sticky, full-bleed, panel background with a
+     bottom rule, wordmark left, controls right. The bar must sit OUTSIDE the
+     content column for its background to span the viewport, which is why the
+     page body is full-width and the content lives in .vz-wrap. */
+  .vz-top{position:sticky;top:0;z-index:20;background:var(--vz-n0);border-bottom:1px solid var(--vz-n4)}
+  .vz-top-inner{max-width:1080px;margin:0 auto;padding:0 18px;display:flex;align-items:center;gap:16px;min-height:56px;flex-wrap:wrap}
+  .vz-brandwrap{white-space:nowrap}
+  .vz-brand{font-weight:650;letter-spacing:-.01em;color:var(--vz-n14);text-decoration:none}
+  .vz-brand:hover{color:var(--vz-accent)}
+  .vz-brand-home{color:var(--vz-n11);font-weight:400;text-decoration:none;white-space:nowrap}
+  .vz-brand-home:hover{color:var(--vz-accent)}
+  .vz-top-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+  .vz-wrap{max-width:1080px;margin:0 auto;padding:24px 18px}
   .vz-pick{font:13px ui-monospace,monospace;color:var(--vz-n14);background:var(--vz-n0);border:1px solid var(--vz-n6);border-radius:7px;padding:6px 10px;cursor:pointer;max-width:15rem}
   .vz-pick:hover{border-color:var(--vz-accent)}
   .vz-pick option,.vz-pick optgroup{background:var(--vz-n0);color:var(--vz-n14)}
   .vz-theme-btn{font:13px ui-monospace,monospace;line-height:1;border:1px solid var(--vz-n6);border-radius:7px;background:var(--vz-n0);color:var(--vz-n11);padding:6px 10px;cursor:pointer}
   .vz-theme-btn:hover{border-color:var(--vz-accent);color:var(--vz-accent)}
 
-  body{font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--vz-n14);max-width:1080px;margin:0 auto;padding:24px 18px;background:var(--vz-n0)}
+  body{font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--vz-n14);margin:0;background:var(--vz-n0)}
 
   h1{font-size:24px;margin:0 0 4px}
   /* Wordmark suffix linking back to gaema.ai -- same shape on arch, so the
@@ -40,14 +52,18 @@
 </style>
 </head>
 <body>
-<div class="topbar">
-  <h1>viz <a class="brand-home" href="https://gaema.ai">· gaema</a></h1>
-  <div class="topctl">
-    <select id="pick" class="vz-pick" aria-label="Choose a demo" hidden><option value="">All demos</option></select>
-    <span class="modes" id="modes"><button id="m-plain" aria-pressed="true">Plain English</button><button id="m-tech" aria-pressed="false">Technical</button></span>
-    <span data-theme-switch></span>
+<header class="vz-top">
+  <div class="vz-top-inner">
+    <span class="vz-brandwrap"><a class="vz-brand" href="./">viz</a> <a class="vz-brand-home" href="https://gaema.ai">· gaema</a></span>
+    <div class="vz-top-right">
+      <select id="pick" class="vz-pick" aria-label="Choose a demo" hidden><option value="">All demos</option></select>
+      <span class="modes" id="modes"><button id="m-plain" aria-pressed="true">Plain English</button><button id="m-tech" aria-pressed="false">Technical</button></span>
+      <span data-theme-switch></span>
+    </div>
   </div>
-</div>
+</header>
+<div class="vz-wrap">
+<h1>viz</h1>
 <p class="sub">Interactive visualizations of CNN/LLM internal math. Each page shows the linear algebra of one mechanism, step by step, following an A1–A12 shape taxonomy.</p>
 <p style="margin:0 0 18px;font-size:14px"><a href="tour.html" style="display:inline-block;background:var(--vz-accent);color:var(--vz-n0);text-decoration:none;border-radius:7px;padding:7px 15px;font-weight:600">🎓 New here? Take the guided tour →</a> &nbsp;<span style="color:var(--vz-n11)">— a narrated walkthrough of all the demos in curriculum order, with a progress track.</span></p>
 <p style="margin:0 0 18px;font-size:13.5px;color:var(--vz-n11)">Card descriptions are in <b>plain English</b> (why each one matters in the real world) or <b>technical</b> (what the page shows mathematically) — switch at the top right, with the theme.</p>
@@ -431,5 +447,6 @@ document.querySelector('.sub').insertAdjacentHTML('beforeend', ` <b>${total} dem
     pick.hidden = false;
   }
 </script>
+</div>
 </body>
 </html>

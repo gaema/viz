@@ -45,15 +45,20 @@ html,body{background:var(--vz-n0);margin:0}
 .vz-nav a{color:var(--vz-accent);text-decoration:none;border:1px solid var(--vz-accentBg);background:var(--vz-accentBg);border-radius:6px;padding:2px 9px;white-space:nowrap}
 .vz-nav a:hover{background:var(--vz-accentBg);border-color:var(--vz-accentLine)}
 .vz-nav .vz-nav-home{font-weight:600}
-/* Wordmark + page picker: the same header contract every gaema.ai site
-   carries. The site name goes to this site's root, "· gaema" to the apex, and
-   the <select> jumps to any demo -- the control arch uses for its part picker,
-   so the two sites navigate the same way. */
-.vz-nav .vz-brand{font-weight:650;color:var(--vz-n14);background:none;border:1px solid transparent;padding:2px 4px}
-.vz-nav .vz-brand:hover{background:none;border-color:transparent;color:var(--vz-accent)}
-.vz-nav .vz-brand-home{color:var(--vz-n11);font-weight:400;background:none;border:1px solid transparent;padding:2px 4px 2px 0}
-.vz-nav .vz-brand-home:hover{background:none;border-color:transparent;color:var(--vz-accent)}
-.vz-pick{font:12px ui-monospace,monospace;color:var(--vz-n14);background:var(--vz-n0);border:1px solid var(--vz-n6);border-radius:6px;padding:2px 8px;cursor:pointer;max-width:15rem}
+/* Site top bar -- the same component arch carries: sticky, full-bleed, panel
+   background with a bottom rule, and a centred inner wrap holding the wordmark
+   on the left with the page picker and theme switch pushed right. It lives
+   OUTSIDE .vz-page so the bar spans the viewport while its contents line up
+   with the page column. */
+.vz-top{position:sticky;top:0;z-index:20;background:var(--vz-n0);border-bottom:1px solid var(--vz-n4)}
+.vz-top-inner{max-width:1100px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:16px;min-height:56px;flex-wrap:wrap;font:14px system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.vz-brandwrap{white-space:nowrap}
+.vz-brand{font-weight:650;letter-spacing:-.01em;color:var(--vz-n14);text-decoration:none}
+.vz-brand:hover{color:var(--vz-accent)}
+.vz-brand-home{color:var(--vz-n11);font-weight:400;text-decoration:none;white-space:nowrap}
+.vz-brand-home:hover{color:var(--vz-accent)}
+.vz-top-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.vz-pick{font:13px ui-monospace,monospace;color:var(--vz-n14);background:var(--vz-n0);border:1px solid var(--vz-n6);border-radius:8px;padding:6px 10px;cursor:pointer;max-width:15rem}
 .vz-pick:hover{border-color:var(--vz-accent)}
 .vz-pick option,.vz-pick optgroup{background:var(--vz-n0);color:var(--vz-n14)}
 .vz-nav .vz-nav-pos{color:var(--vz-n10)}
@@ -128,6 +133,59 @@ function resolveContainer(target) {
   return target;
 }
 
+// The site top bar. Sticky, full-bleed, and prepended to <body> rather than to
+// the page container, so the bar's background spans the viewport while its
+// contents line up with the page column -- which is how arch's header behaves.
+// Returns early if one is already present (a page that mounts twice).
+export function mountTopBar(currentSlug) {
+  if (document.querySelector('.vz-top')) return;
+  const bar = document.createElement('header'); bar.className = 'vz-top';
+  const inner = document.createElement('div'); inner.className = 'vz-top-inner';
+
+  const brandwrap = document.createElement('span'); brandwrap.className = 'vz-brandwrap';
+  const brand = document.createElement('a'); brand.className = 'vz-brand';
+  brand.href = '../index.html'; brand.textContent = 'viz';
+  const home = document.createElement('a'); home.className = 'vz-brand-home';
+  home.href = 'https://gaema.ai'; home.textContent = '· gaema';
+  brandwrap.append(brand, document.createTextNode(' '), home);
+
+  const right = document.createElement('div'); right.className = 'vz-top-right';
+  right.append(demoPicker(currentSlug, '../'));
+  right.append(themeSwitch(document));
+
+  inner.append(brandwrap, right);
+  bar.append(inner);
+  document.body.insertBefore(bar, document.body.firstChild);
+}
+
+// Grouped page picker: "All demos" then one <optgroup> per family. `base` is
+// the prefix a demo link needs from wherever the picker is mounted.
+export function demoPicker(currentSlug, base) {
+  const pick = document.createElement('select');
+  pick.className = 'vz-pick';
+  pick.setAttribute('aria-label', 'Choose a demo');
+  const all = document.createElement('option');
+  all.value = base + 'index.html'; all.textContent = 'All demos';
+  if (!currentSlug) all.selected = true;
+  pick.append(all);
+  const groups = new Map();
+  for (const item of ORDER) {
+    if (!groups.has(item.family)) {
+      const g = document.createElement('optgroup');
+      g.label = item.family + ' \u2014 ' + (FAMILIES[item.family] || item.family);
+      groups.set(item.family, g);
+      pick.append(g);
+    }
+    const o = document.createElement('option');
+    o.value = base + item.slug + '/index.html';
+    o.textContent = item.slug;
+    if (item.slug === currentSlug) o.selected = true;
+    groups.get(item.family).append(o);
+  }
+  pick.addEventListener('change', () => { if (pick.value) location.href = pick.value; });
+  return pick;
+}
+
 export async function mount(opts = {}) {
   injectStyles();
   const root = resolveContainer(opts.mount);
@@ -160,40 +218,13 @@ export async function mount(opts = {}) {
   const mkLink = (href, text, cls) => { const a = document.createElement('a'); a.href = href; a.textContent = text; if (cls) a.className = cls; return a; };
   const mkDim = (text) => { const s = document.createElement('span'); s.className = 'vz-nav-copy vz-nav-dim'; s.textContent = text; return s; };
   if (inCurriculum) {
-    // Wordmark first, as on every gaema.ai page: site name -> this site's
-    // root, "· gaema" -> the apex. Before this a demo page had no route up to
-    // gaema.ai at all -- only the catalogue carried one, so 90-odd pages were
-    // dead ends as far as the rest of the family was concerned.
-    nav.append(mkLink('../index.html', 'viz', 'vz-brand'));
-    const home = mkLink('https://gaema.ai', '· gaema', 'vz-brand-home');
-    nav.append(home);
+    // SITE CHROME goes in the top bar, not in the page strip: wordmark left,
+    // picker + theme right. Identical to arch's header, so moving between the
+    // two sites does not move the controls.
+    mountTopBar(slug);
 
-    // Page picker, grouped by family -- the same control arch uses, so the two
-    // sites are navigated the same way. It also replaces the old "← all demos"
-    // link (its first option) and the "Family X" badge (the optgroup names it).
-    const pick = document.createElement('select');
-    pick.className = 'vz-pick';
-    pick.setAttribute('aria-label', 'Choose a demo');
-    const all = document.createElement('option');
-    all.value = '../index.html'; all.textContent = 'All demos';
-    pick.append(all);
-    const groups = new Map();
-    for (const item of ORDER) {
-      if (!groups.has(item.family)) {
-        const g = document.createElement('optgroup');
-        g.label = item.family + ' — ' + (FAMILIES[item.family] || item.family);
-        groups.set(item.family, g);
-        pick.append(g);
-      }
-      const o = document.createElement('option');
-      o.value = '../' + item.slug + '/index.html';
-      o.textContent = item.slug;
-      if (item.slug === slug) o.selected = true;
-      groups.get(item.family).append(o);
-    }
-    pick.addEventListener('change', () => { if (pick.value) location.href = pick.value; });
-    nav.append(pick);
-
+    // PAGE controls stay in the strip below: stepping through the curriculum
+    // in order is what a picker cannot express.
     nav.append(nb.prev ? mkLink('../' + nb.prev.slug + '/index.html', '‹ ' + nb.prev.slug) : mkDim('‹ start'));
     nav.append(nb.next ? mkLink('../' + nb.next.slug + '/index.html', nb.next.slug + ' ›') : mkDim('end ›'));
     if (nb.index >= 0) { const pos = document.createElement('span'); pos.className = 'vz-nav-pos'; pos.textContent = `${nb.index + 1} / ${nb.total}`; nav.append(pos); }
@@ -201,7 +232,6 @@ export async function mount(opts = {}) {
   const spacer = document.createElement('span'); spacer.className = 'vz-nav-sp'; nav.append(spacer);
   const copyBtn = document.createElement('span'); copyBtn.className = 'vz-nav-copy'; copyBtn.style.cursor = 'pointer'; copyBtn.style.borderRadius = '6px'; copyBtn.style.padding = '2px 9px'; copyBtn.textContent = '\u{1F517} copy link';
   copyBtn.addEventListener('click', () => { try { navigator.clipboard.writeText(location.href); const o = copyBtn.textContent; copyBtn.textContent = '✓ copied'; setTimeout(() => { copyBtn.textContent = o; }, 1200); } catch (_) {} });
-  nav.append(themeSwitch(document));
   nav.append(copyBtn);
 
   const page = document.createElement('div'); page.className = 'vz-page';
