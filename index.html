@@ -51,9 +51,33 @@
      229 <path class="d"> arrowheads inside the thumbnail SVGs, so every one of
      them was display:none in plain mode -- the DEFAULT -- and appeared only
      when a reader switched to Technical. `.p` has no such collision today;
-     scoped anyway, because the next thumbnail to use it would be silent. */
-  body[data-mode="plain"] .card > .d{display:none}
-  body[data-mode="tech"] .card > .p{display:none}
+     scoped anyway, because the next thumbnail to use it would be silent.
+
+     Two levels, and :not([data-mode]) is what keeps them from fighting: the bar
+     sets the default for every card that has not been asked individually, and a
+     card carrying its own data-mode answers to that instead. No !important and
+     no specificity race -- the two rule sets are disjoint by construction. */
+  body[data-mode="plain"] .card:not([data-mode]) > .d{display:none}
+  body[data-mode="tech"] .card:not([data-mode]) > .p{display:none}
+  .card[data-mode="plain"] > .d{display:none}
+  .card[data-mode="tech"] > .p{display:none}
+
+  /* Per-card language switch. The card is an <a>, and interactive content may
+     not nest inside one, so the button is a SIBLING in a positioned wrapper
+     rather than a child -- which also keeps every existing a.card rule intact. */
+  .card-wrap{position:relative;display:flex}
+  .card-wrap > .card{flex:1 1 auto}
+  /* Always visible, not hover-revealed. A control you cannot see is a control
+     most readers never find, and hover-gating also splits the behaviour by
+     input device -- it would have needed a (hover:none) fallback to exist at
+     all on touch. Muted instead, so 92 of them recede until wanted. */
+  .lang{position:absolute;top:8px;right:8px;z-index:2;
+    font:11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:var(--vz-n10);background:var(--vz-n0);border:1px solid var(--vz-n5);
+    border-radius:5px;padding:3px 6px;cursor:pointer;opacity:.7;
+    transition:opacity .12s,color .12s,border-color .12s}
+  .card-wrap:hover .lang{opacity:1}
+  .lang:hover,.lang:focus-visible{opacity:1;color:var(--vz-accent);border-color:var(--vz-accent)}
 </style>
 </head>
 <body>
@@ -71,7 +95,7 @@
 <h1>viz</h1>
 <p class="sub">Interactive visualizations of CNN/LLM internal math. Each page shows the linear algebra of one mechanism, step by step, following an A1–A12 shape taxonomy.</p>
 <p style="margin:0 0 18px;font-size:14px"><a href="tour.html" style="display:inline-block;background:var(--vz-accent);color:var(--vz-n0);text-decoration:none;border-radius:7px;padding:7px 15px;font-weight:600">🎓 New here? Take the guided tour →</a> &nbsp;<span style="color:var(--vz-n11)">— a narrated walkthrough of all the demos in curriculum order, with a progress track.</span></p>
-<p style="margin:0 0 18px;font-size:13.5px;color:var(--vz-n11)">Card descriptions are in <b>plain English</b> (why each one matters in the real world) or <b>technical</b> (what the page shows mathematically) — switch at the top right, with the theme.</p>
+<p style="margin:0 0 18px;font-size:13.5px;color:var(--vz-n11)">Card descriptions are in <b>plain English</b> (why each one matters in the real world) or <b>technical</b> (what the page shows mathematically) — switch them all at the top right, or flip a single card with the button on it.</p>
 <div id="root"></div>
 
 <!-- THUMBS:BEGIN -->
@@ -413,19 +437,57 @@ for (const [name, pages] of FAMILIES) {
     const plain = (typeof PLAIN === 'object' && PLAIN[p.slug]) || p.d;
     const thumb = (typeof THUMBS === 'object' && THUMBS[p.slug]) || '';
     el.innerHTML = `<div class="th">${thumb}</div><div class="t">${p.t}</div><div class="d">${p.d}</div><div class="p">${plain}</div>`;
-    g.appendChild(el);
+    const wrap = document.createElement('div');
+    wrap.className = 'card-wrap';
+    wrap.append(el, langButton(el));
+    g.appendChild(wrap);
   }
   root.appendChild(g);
 }
 // description mode: plain English (default) vs technical. ?mode=tech or the toggle.
 const q = new URLSearchParams(location.search).get('mode');
 let mode = q === 'tech' || q === 'plain' ? q : (localStorage.getItem('viz-desc-mode') || 'plain');
+// A card shows the global mode unless it has been asked individually.
+function cardMode(card) { return card.dataset.mode || mode; }
+
+// One button per card, flipping that card alone. It names the language it will
+// GIVE you rather than the one you are reading -- a control that reports state
+// reads as a label, and this one is an action.
+function langButton(card) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'lang';
+  const paint = () => {
+    const next = cardMode(card) === 'plain' ? 'tech' : 'plain';
+    b.textContent = next === 'tech' ? 'technical' : 'plain english';
+    b.title = 'Show the ' + b.textContent + ' description for this card';
+    b.setAttribute('aria-label', b.title);
+  };
+  b.addEventListener('click', () => {
+    card.dataset.mode = cardMode(card) === 'plain' ? 'tech' : 'plain';
+    paint();
+  });
+  // Deliberately NOT painted here: this runs inside the render loop, and the
+  // label depends on `mode`, which is declared with `let` further down the same
+  // script -- reading it now is a temporal-dead-zone throw that takes the whole
+  // catalogue with it. setMode() paints every button once, right after.
+  card._paintLang = paint;
+  return b;
+}
+
 function setMode(m) {
   mode = m;
   document.body.dataset.mode = m;
   try { localStorage.setItem('viz-desc-mode', m); } catch (e) { /* private mode */ }
   document.getElementById('m-plain').setAttribute('aria-pressed', String(m === 'plain'));
   document.getElementById('m-tech').setAttribute('aria-pressed', String(m === 'tech'));
+  // The bar is authoritative: setting it clears every per-card override, so
+  // "all technical" means all, not "all except the six I poked earlier".
+  for (const card of document.querySelectorAll('.card[data-mode]')) {
+    delete card.dataset.mode;
+    if (card._paintLang) card._paintLang();
+  }
+  for (const card of document.querySelectorAll('.card')) if (card._paintLang) card._paintLang();
 }
 document.getElementById('m-plain').onclick = () => setMode('plain');
 document.getElementById('m-tech').onclick = () => setMode('tech');
