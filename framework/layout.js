@@ -32,6 +32,8 @@
 import { Renderer } from './render.js';
 import { Controls } from './controls.js';
 import { currentSlug, neighbours, ORDER, FAMILIES } from './order.js';
+import { modeSwitch } from './descmode.js';
+import { PLAIN } from './plain.js';
 import { T, themeSwitch, onThemeChange, alphaOf } from './theme.js';
 
 const STYLE_ID = 'vz-style';
@@ -59,7 +61,13 @@ html,body{background:var(--vz-n0);margin:0}
 .vz-brand-home:hover{color:var(--vz-accent)}
 .vz-top-right{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end;max-width:100%}
 .vz-pick{font:13px ui-monospace,monospace;color:var(--vz-n14);background:var(--vz-n0);border:1px solid var(--vz-n6);border-radius:8px;padding:6px 10px;cursor:pointer;max-width:min(15rem,100%);min-width:0}
-@media (max-width:640px){.vz-pick{max-width:9rem}}
+/* Portrait. The bar now carries one control more than it did -- brand, picker,
+   language, theme -- and at 375px that is 10px too wide for one row. The picker
+   yields, because it is the only elastic control here and a truncated part name
+   still identifies the page (the full text is there the moment the list opens).
+   It is not DROPPED the way the catalogue drops it: there the 92-card grid sits
+   directly below and says the same thing, and here nothing does. */
+@media (max-width:640px){.vz-pick{max-width:5rem}}
 .vz-pick:hover{border-color:var(--vz-accent)}
 .vz-pick option,.vz-pick optgroup{background:var(--vz-n0);color:var(--vz-n14)}
 .vz-nav .vz-nav-pos{color:var(--vz-n10)}
@@ -72,6 +80,23 @@ html,body{background:var(--vz-n0);margin:0}
 .vz-head h1{font-size:20px;margin:0;font-weight:650}
 .vz-badge{font:12px ui-monospace,monospace;color:var(--vz-n11);background:var(--vz-n2);border:1px solid var(--vz-n4);border-radius:6px;padding:2px 8px;white-space:nowrap}
 .vz-blurb{color:var(--vz-n12);margin:10px 0 14px}
+/* Description language. The switch is the same component the catalogue bar
+   uses, so a reader who set "technical" there finds the same control in the
+   same place here -- and the same stored preference already applied. */
+.vz-modes{display:inline-flex;border:1px solid var(--vz-accentBg);border-radius:7px;overflow:hidden;vertical-align:middle}
+.vz-mode-btn{font:600 12.5px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;border:0;background:var(--vz-n0);color:var(--vz-accent);padding:6px 10px;cursor:pointer;line-height:1}
+.vz-mode-btn[aria-checked="true"]{background:var(--vz-accent);color:var(--vz-n0)}
+/* Must come AFTER the base .vz-mode-btn rule, not up with the other portrait
+   rules: same specificity, so source order decides, and placed earlier it lost
+   silently -- the buttons kept reporting the wide padding. */
+@media (max-width:640px){.vz-mode-btn{padding:6px 8px}}
+/* Which blurb shows. Keyed off <html>, which mode-boot.js/descmode.js set
+   before first paint, so the page never renders both for a frame.
+   Written as :not(tech) rather than ="plain" so that a missing attribute --
+   a page that somehow renders before the boot script -- falls back to plain,
+   the default, instead of showing both. */
+:root:not([data-vz-mode="tech"]) .vz-blurb-tech{display:none}
+:root[data-vz-mode="tech"] .vz-blurb-plain{display:none}
 .vz-body{display:flex;gap:16px;align-items:flex-start}
 .vz-controls{flex:0 0 230px;display:flex;flex-direction:column;gap:10px}
 .vz-stage{flex:1 1 auto;min-width:0;background:var(--vz-n1);border:1px solid var(--vz-n4);border-radius:8px;padding:8px}
@@ -152,6 +177,7 @@ export function mountTopBar(currentSlug) {
 
   const right = document.createElement('div'); right.className = 'vz-top-right';
   right.append(demoPicker(currentSlug, '../'));
+  right.append(modeSwitch(document));
   right.append(themeSwitch(document));
 
   inner.append(brandwrap, right);
@@ -195,7 +221,18 @@ export async function mount(opts = {}) {
   const h1 = document.createElement('h1'); h1.textContent = opts.title || 'visualization';
   const head = document.createElement('div'); head.className = 'vz-head'; head.append(h1, badge);
 
-  const blurb = document.createElement('p'); blurb.className = 'vz-blurb'; blurb.textContent = opts.blurb || '';
+  // Two blurbs, one shown. The technical one is the page's own `blurb`; the
+  // plain one comes from the generated plain.js, keyed by slug. A page with no
+  // plain entry falls back to its technical text rather
+  // than rendering an empty paragraph -- the switch is still correct there, it
+  // just has nothing different to show.
+  const plainText = PLAIN[currentSlug(opts.slug)] || opts.blurb || '';
+  const blurb = document.createElement('p');
+  blurb.className = 'vz-blurb vz-blurb-tech';
+  blurb.textContent = opts.blurb || '';
+  const blurbPlain = document.createElement('p');
+  blurbPlain.className = 'vz-blurb vz-blurb-plain';
+  blurbPlain.textContent = plainText;
 
   const panel = document.createElement('div'); panel.className = 'vz-controls';
   const canvas = document.createElement('canvas');
@@ -236,7 +273,7 @@ export async function mount(opts = {}) {
   nav.append(copyBtn);
 
   const page = document.createElement('div'); page.className = 'vz-page';
-  page.append(nav, head, blurb, body, readout);
+  page.append(nav, head, blurbPlain, blurb, body, readout);
   root.appendChild(page);
 
   // Global keyboard nav: ←/→ move between demos, '/' jumps to the catalogue.
