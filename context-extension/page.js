@@ -9,7 +9,7 @@
 // is LONGER than L has only ever been seen over a slice of its circle, so a
 // position past L drives it into angles that were never in the training data.
 //
-// That single fact separates the four responses, and the separation is a
+// That single fact separates the five responses, and the separation is a
 // PICTURE rather than a table: naive extrapolation moves nothing and lets every
 // long-wavelength pair fall off the end; position interpolation divides all
 // positions by the extension factor, so nothing is out of distribution but

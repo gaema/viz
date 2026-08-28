@@ -8,7 +8,10 @@
 // the same construction with different coefficients:
 //   diffusion (DDPM, https://arxiv.org/abs/2006.11239)
 //       a = sqrt(abar_t),  s = sqrt(1 - abar_t)          (a^2 + s^2 = 1)
-//   rectified flow (Lipman et al., https://arxiv.org/abs/2210.02747)
+//   rectified flow (Liu, Gong & Liu, https://arxiv.org/abs/2209.03003 -- NOT
+//       2210.02747, which is Lipman et al.'s Flow Matching; the two sibling
+//       cards diffusion-sampler and few-step-distillation both cite 2209.03003
+//       for this, and the README here already does)
 //       a = 1 - tau,       s = tau                        (a + s = 1)
 // The flow-matching paper's Gaussian probability paths subsume the diffusion
 // paths as special cases, and rectified flow is what production image/video

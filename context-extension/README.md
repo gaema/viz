@@ -4,7 +4,7 @@
 
 Interactive page: what actually breaks when a model trained with rotary position
 embedding is asked for positions beyond the length it was trained on, and how
-the four standard responses differ -- shown as a picture rather than a table.
+the five standard responses differ -- shown as a picture rather than a table.
 
 ## Complements the `rope` page -- it does not re-teach it
 
@@ -80,7 +80,7 @@ the choice of measure matters.
 - **Drag the trained-context line** (the dashed line on the spectrum) up
  down to change `L`; which pairs are "long" is redefined under your hand.
 - **Drag the position track** at the top to place the position by hand.
-- **Method switch** redraws the same spectrum, so the four responses are
+- **Method switch** redraws the same spectrum, so the five responses are
  compared on one widget rather than four.
 - **Hover any pair column** for its `θᵢ`, wavelength before and after, turns
  completed inside `L`, the arc of angles ever seen, its angle at the current

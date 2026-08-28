@@ -29,7 +29,7 @@ in-page from a seeded synthetic group; neither reproduces anyone's measurements.
 | `A_i` | `r_i − μ`, optionally `÷ (σ + 1e−4)` |
 | `ρ_i` | the ratio between the new and old policy on rollout `i` |
 | clipped term | `min(ρ_i·A_i, clip(ρ_i, 1−ε, 1+ε)·A_i)` |
-| gradient signal | mean `|A|` over the rollouts still inside the clip window |
+| gradient signal | mean `|A|` over the rollouts that are not **clamped** — which is not the same as "inside the clip window", and the difference is the asymmetry below: a rollout can sit far outside the window and still carry gradient if the step pulls it back toward 1 |
 
 The clipped objective bounds how far one step may move the policy. When the
 clipped branch wins, the term is **constant in `ρ`**, so it has no gradient at

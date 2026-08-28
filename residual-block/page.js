@@ -148,7 +148,7 @@ mount({
 
     let o = `residual block: y = F(x) + x.  F branch gain g=${g.toFixed(2)} (|F|≈g·|x|), depth L=${L}, skip ${skip ? 'ON' : 'OFF'}.   tier:${r.name}\n`;
     o += skip
-      ? `with the skip, the gradient reaching layer 0 is (1+g)^${L} ≈ ${gSk >= 0.01 ? gSk.toFixed(2) : gSk.toExponential(1)} — the identity path keeps it O(1) no matter how deep. At init g≈0 so y≈x and (1+0)^L=1: perfect signal + gradient flow through the whole stack.`
+      ? `with the skip, the gradient reaching layer 0 is (1+g)^${L} ≈ ${gSk >= 0.01 ? gSk.toFixed(2) : gSk.toExponential(1)} — the identity path stops it VANISHING, which is the whole point, but it is only O(1) while g stays small: crank g and the same product explodes instead. At init g≈0 so y≈x and (1+0)^L=1: perfect signal + gradient flow through the whole stack.`
       : `WITHOUT the skip the per-block factor g=${g.toFixed(2)} compounds: gradient at layer 0 = g^${L} ≈ ${gNo.toExponential(1)} — vanished. The early layers get almost no gradient and never learn. Toggle the skip back on to restore the highway.`;
     page.setReadout(o);
   },

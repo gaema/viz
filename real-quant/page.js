@@ -20,7 +20,9 @@ import { groupQuant, stats, histogram } from './quant.js';
 const WEIGHTS_URL = 'https://huggingface.co/gpt2/resolve/main/model.safetensors';
 
 const TENSORS = ['h.0.mlp.c_fc.weight', 'h.0.attn.c_attn.weight', 'h.6.mlp.c_fc.weight', 'h.11.mlp.c_fc.weight'];
-const GROUPS = { '32': 32, '64': 64, '128': 128, 'whole row (3072)': 3072 };
+// Named by SIZE, not "whole row": c_attn is [768, 2304], so a 3072-element
+// group spans 1⅓ of its rows. Only the mlp.c_fc tensors are 3072 wide.
+const GROUPS = { '32': 32, '64': 64, '128': 128, '3072': 3072 };
 
 let M = { status: 'init', source: 'synthetic', name: TENSORS[0], shape: null, w: null, n: 0, st: null, fetching: false };
 let loadStarted = false;
@@ -96,7 +98,9 @@ mount({
     ctx.strokeStyle = 'rgba(207,34,46,0.55)'; ctx.lineWidth = 1;
     for (let qi = -qmax; qi <= qmax; qi++) { const v = qi * scale0; if (v < lo || v > hi) continue; const x = hx + ((v - lo) / (hi - lo)) * (hw - 20); ctx.beginPath(); ctx.moveTo(x, hy); ctx.lineTo(x, hy + hH); ctx.stroke(); }
     ctx.fillStyle = T.bad; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'left';
-    ctx.fillText(`${(2 ** bits)} levels (int${bits}, group 0 scale)`, hx + 4, hy + 11);
+    // 2**bits - 1: the quantiser clamps to [-qmax, +qmax] with qmax = 2^(b−1)−1,
+    // so int4 has FIFTEEN levels — and the tick loop directly above draws 15.
+    ctx.fillText(`${(2 ** bits) - 1} levels (int${bits}, group 0 scale)`, hx + 4, hy + 11);
     ctx.restore();
 
     // ---- right: RMSE vs bits (current group), current highlighted ----

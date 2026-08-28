@@ -19,13 +19,18 @@ const _mixRGB = (a, b, t) => `rgb(${Math.round(a[0] + (b[0] - a[0]) * t)},${Math
 
 
 const N = 16, PX = 3.2;                       // input size, display px per feature-map cell
-const EDGE = [                                // Layer-1 oriented edge kernels (Sobel-like)
-  [-1, -2, -1, 0, 0, 0, 1, 2, 1],             // horizontal
-  [-1, 0, 1, -2, 0, 2, -1, 0, 1],             // vertical
-  [0, 1, 2, -1, 0, 1, -2, -1, 0],             // diag /
-  [2, 1, 0, 1, 0, -1, 0, -1, -2],             // diag \
+// Layer-1 oriented edge kernels (Sobel-like). Named by the EDGE ORIENTATION
+// each one fires on, which is PERPENDICULAR to its gradient direction -- the
+// labels used to mix the two conventions, so the glyph and the word beside it
+// described different things (`│ horiz` for the kernel that finds horizontal
+// edges) and the diagonals were each other's.
+const EDGE = [
+  [-1, -2, -1, 0, 0, 0, 1, 2, 1],             // Sobel-y: gradient ↓, fires on ─ edges
+  [-1, 0, 1, -2, 0, 2, -1, 0, 1],             // Sobel-x: gradient →, fires on │ edges
+  [0, 1, 2, -1, 0, 1, -2, -1, 0],             // gradient ↗, fires on ╲ edges
+  [2, 1, 0, 1, 0, -1, 0, -1, -2],             // gradient ↖, fires on ╱ edges
 ];
-const L1LBL = ['│ horiz', '─ vert', '╱ diag', '╲ diag'];
+const L1LBL = ['─ horiz', '│ vert', '╲ diag', '╱ diag'];
 
 let cur = null;
 let inRect = null, mapRects = [];   // captured in draw

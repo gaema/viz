@@ -12,9 +12,22 @@
 //   Kimi Delta Attention  : b_t = w_t = gamma_t       -- one rate PER CHANNEL.
 //   Gated DeltaNet-2      : b_t and w_t INDEPENDENT   -- erase and write split.
 //
-// The last line is the whole lesson: GDN and KDA use a single gate to control
-// erase AND write at once; GDN-2 separates them, so the state can keep old
-// content (b near 1) while still admitting new content (w free), or the reverse.
+// The last line is the whole lesson: GDN and KDA tie erase and write to ONE
+// gate; GDN-2 separates them, so the state can keep old content (b near 1)
+// while still admitting new content (w free), or the reverse. That is the
+// reduction GDN-2 itself states -- it collapses to KDA when the two gates
+// become one channel-wise vector, and to GDN when the decay collapses further
+// to a scalar (arXiv:2605.22791).
+//
+// CAREFUL, because the collapse is about the TIE, not about the count: real GDN
+// carries a second per-token scalar, the delta-rule write strength beta_t, in
+//     S_t = alpha_t . S_{t-1} . (I - beta_t k_t k_t^T) + beta_t v_t k_t^T
+// (that is the rule the `gated-deltanet` card draws). beta_t sits on the write
+// term AND inside the erase projector, so it cannot move one without the other
+// -- which is exactly the coupling GDN-2 removes, and why "one gate" is the
+// right lesson even though it is not literally one scalar. The b/w form above
+// is this page's own parameterisation with beta folded in, not GDN's notation;
+// do not read `b_t = w_t = alpha_t` as a claim that GDN has a single scalar.
 //
 // The page draws the gate as the thing that differs: one handle that dims the
 // whole matrix, a column of per-row handles that dims it unevenly, or two
@@ -171,7 +184,7 @@ mount({
     },
     {
       goal: 'GDN-2 only: hold on to the old memory while writing almost nothing new — every write gate under 0.25, and end retention still above 25%.',
-      hint: 'Erase and write are separate gates here: push the w column left and the b column right. Under GDN or KDA that is ONE gate, so writing little forces forgetting fast.',
+      hint: 'Erase and write are separate gates here: push the w column left and the b column right. Under GDN or KDA they are TIED, so you cannot write little without also forgetting fast.',
       check: (api) => ({
         solved: api.state.mode === 'gdn2' && (api.probe.maxW ?? 1) < 0.25 && (api.probe.retEnd || 0) > 0.25,
         detail: `mode=${api.state.mode} max w=${(api.probe.maxW ?? 1).toFixed(2)} end retention=${pct(api.probe.retEnd || 0)}`,

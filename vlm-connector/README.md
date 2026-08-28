@@ -17,7 +17,7 @@ projection either way; the interesting choice is *how many tokens come out*.
 | Connector | Shape | Tokens per image | What it costs |
 |---|---|---|---|
 | **linear / MLP projector** | one projection per patch | `(H/p)·(W/p)` -- every patch becomes a token | nothing structural, and therefore everything: the token count *is* the resolution. The most expensive shape ([LLaVA](https://arxiv.org/abs/2304.08485)) |
-| **pixel-shuffle / patch-merge** | a `k×k` block of neighbouring patches is concatenated along the **channel** axis, then projected once | `(H/p)·(W/p)/k²` | spatial detail: `k²` patches now share one token, and a grid side that is not a multiple of `k` leaves a remainder outside the merged grid ([InternVL](https://arxiv.org/abs/2409.12191), Qwen-VL) |
+| **pixel-shuffle / patch-merge** | a `k×k` block of neighbouring patches is concatenated along the **channel** axis, then projected once | `⌊(H/p)/k⌋·⌊(W/p)/k⌋` | spatial detail: `k²` patches now share one token, and a grid side that is not a multiple of `k` leaves a remainder outside the merged grid — which is why the count floors rather than divides ([Qwen2-VL](https://arxiv.org/abs/2409.12191), [InternVL](https://arxiv.org/abs/2312.14238)) |
 | **resampler (perceiver-style cross-attention)** | a **fixed** number of learned queries attend to all the patches | `Q`, **constant at any resolution** | a fixed bottleneck: past a point, extra pixels have nowhere to go, and the output tokens carry no spatial layout at all ([Flamingo](https://arxiv.org/abs/2204.14198)) |
 
 **The trade is arithmetic, and the page computes it live rather than tabulating

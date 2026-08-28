@@ -8,7 +8,7 @@ one big compute step -- blocks every other sequence's next token while it runs.
 **Chunked prefill** splits that prefill into pieces of at most a few tokens
 packs each piece into a step alongside the waiting sequences' decode tokens, up
 to a per-step **token budget**. **Anchor**: A4 KV cache / runtime shape (Family
-C). Companion to [prefill-vs-decode](../prefill-vs-decode/README.md), which
+J, serving time). Companion to [prefill-vs-decode](../prefill-vs-decode/README.md), which
 shows *why* the two regimes have different shapes; this page shows what a
 scheduler does about it.
 

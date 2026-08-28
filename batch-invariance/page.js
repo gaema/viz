@@ -44,7 +44,10 @@ const fr = Math.fround;
 const f32 = new Float32Array(1), u32 = new Uint32Array(f32.buffer);
 const bitsOf = (x) => { f32[0] = x; return u32[0] >>> 0; };
 const fromBits = (b) => { u32[0] = b >>> 0; return f32[0]; };
-/** Move k representable float32 steps away from zero (k may be negative). */
+/** Move k representable float32 steps in the +value direction (k may be
+ *  negative). NOT "away from zero": for a negative x this walks TOWARD zero,
+ *  which is what every callsite wants -- the runner-up sits at +rivalUlps
+ *  above the sequential sum. */
 function addUlps(x, k) {
   const b = bitsOf(x);
   return fromBits((b >>> 31) ? (b - k) >>> 0 : (b + k) >>> 0);

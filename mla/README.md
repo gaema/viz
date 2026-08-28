@@ -62,14 +62,23 @@ slopes differ by the compression factor, so the absolute gap keeps widening the
 longer the context gets. At 8K tokens over 61 layers in fp16 that is 30.50 GB
 against 549.0 MB.
 
-Published figures for the shape the defaults use (DeepSeek-V2/V3/R1
-hyperparameters: `kv_lora_rank = 512`, `qk_rope_head_dim = 64`, 128 heads,
-`qk_nope_head_dim = 128`) are reported in the DeepSeek-V2 paper
-(arXiv:2405.04434): a 56.9× element-count reduction versus the multi-head
-predecessor, and 5.76× higher generation throughput at equivalent batch sizes on
-the authors' hardware. Those are the paper's reported numbers, not measurements
-taken here; everything the page displays is computed live in the browser from
-the control values.
+The defaults use DeepSeek-V2/V3/R1 hyperparameters (`kv_lora_rank = 512`,
+`qk_rope_head_dim = 64`, 128 heads, `qk_nope_head_dim = 128`). Be careful which
+figures belong to whom:
+
+- **56.9× fewer cached elements** is what THIS PAGE computes from those
+ hyperparameters (`32768 / 576`), against a same-shape multi-head baseline. It
+ is arithmetic, not a quoted result.
+- The DeepSeek-V2 paper (arXiv:2405.04434) reports a **93.3% KV-cache
+ reduction** — and against DeepSeek 67B, which used **GQA**, not MHA, so it is
+ not the same comparison as the one drawn here.
+- The paper's **5.76×** is a *maximum* generation throughput, and it is obtained
+ precisely by running **larger** batches off the smaller cache — so it is not
+ "at equivalent batch sizes". That phrasing contradicted the mechanism the page
+ teaches.
+
+Everything the page displays is computed live in the browser from the control
+values; nothing here is measured on our own hardware.
 
 ## Render tier
 

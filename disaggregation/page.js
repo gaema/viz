@@ -304,7 +304,9 @@ function tipFor(r, kind, bw) {
   ];
   if (kind === 'disagg') {
     lines.push(`KV cache = ${r.P} tok × ${KV_MB_PER_TOK} MB/tok = ${r.mb.toFixed(0)} MB (K+V, every layer)`);
-    lines.push(`transfer = ${r.mb.toFixed(0)} MB ÷ ${bw} GB/s = ${r.xMs.toFixed(1)} ms` + (p.linkQ > 0 ? ` (+ ${p.linkQ.toFixed(0)} ms queued for the link)` : ''));
+    // MiB/GiB, because xferMs divides by 1024. Printed as MB ÷ GB/s the shown
+    // equation did not evaluate to the number beside it (256/25 = 10.24, not 10.0).
+    lines.push(`transfer = ${r.mb.toFixed(0)} MiB ÷ ${bw} GiB/s = ${r.xMs.toFixed(1)} ms` + (p.linkQ > 0 ? ` (+ ${p.linkQ.toFixed(0)} ms queued for the link)` : ''));
     if (p.slotQ > 0) lines.push(`then waited ${p.slotQ.toFixed(0)} ms for a free decode slot`);
     lines.push(`decode ${p.dec.toFixed(0)} ms on decode machine ${r.decM}`);
   } else {

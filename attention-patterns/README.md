@@ -14,9 +14,11 @@ cells dark. Scrub the transport through four patterns:
  set grows with position → `O(i)` per query, unbounded KV cache.
 - **Sliding-window (SWA)** — query attends only to the last `w` keys
  (`i−w < j ≤ i`). Bounded `O(w)` per query / cache (Mistral).
-- **Hybrid by layer** — a strip of per-layer grids alternating **local** (SWA)
- and **global** (full): most layers cheap, a few see everything (Gemma 2/3:
- 5 local: 1 global).
+- **Hybrid by layer** — a strip of per-layer grids, most **local** (SWA) and a
+ few **global** (full): most layers cheap, a few see everything. The ratio is
+ the model's choice, and the two Gemmas differ — Gemma 2 alternates **1: 1**
+ with a 4096 window, Gemma 3 runs **5 local: 1 global** with a 1024 window.
+ The strip is drawn at Gemma 3's ratio.
 - **Attention sink** — sliding window **plus** the first `s` tokens always
  attended (the "sink"), which stabilizes very long / streaming contexts
  (StreamingLLM).

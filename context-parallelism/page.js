@@ -21,8 +21,12 @@
 //             softmax statistics they have accumulated so far, because a query
 //             that moves must take its unfinished answer with it.
 //
-// Both compute the SAME attention output, bit-for-bit-equivalent maths. Only
-// the traffic differs.
+// Both compute the SAME attention -- mathematically identical output, neither
+// an approximation of the other. Only the traffic differs. NOT "bit-for-bit":
+// the two patterns meet the KV blocks in opposite ring orders, and an online-
+// softmax accumulation over a different order is not bit-identical in floating
+// point. That is the very thing the batch-invariance card in this family
+// exists to teach.
 //
 // WHY IT FLIPS BY PHASE. Pass-KV's payload is the resident KV shard: it scales
 // with how much context the device holds and not at all with how many queries

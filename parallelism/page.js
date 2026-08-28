@@ -162,14 +162,19 @@ function build(st) {
   const allreduce = 2 * (N - 1) * payload;
   const attnWire = N < 2 ? 0
     : attn === 'tp' ? L * allreduce
-      : attn === 'pp' ? (N - 1) * payload      // one send per stage boundary per pass
-        : 0;                                    // dp: attention crosses NOTHING
+      : 0;                                      // dp: attention crosses NOTHING
   const dispatch = crossTok * d * BPE;          // per layer
   const moeWire = N < 2 ? 0
     : moe === 'tp' ? L * allreduce
-      : moe === 'pp' ? (N - 1) * payload
+      : moe === 'pp' ? 0
         : L * 2 * dispatch;                     // ep: dispatch out + combine back
-  const wire = attnWire + moeWire;
+  // Pipeline traffic is per BOUNDARY, not per sublayer. Under PP both sublayers
+  // of a layer sit on the same device, so a forward pass crosses N-1 boundaries
+  // and carries one payload each -- charging it inside attnWire AND moeWire
+  // doubled it whenever both selects were 'pp', and contradicted the page's own
+  // band label ("<payload> per stage boundary · N-1 boundaries per pass").
+  const ppWire = N < 2 || (attn !== 'pp' && moe !== 'pp') ? 0 : (N - 1) * payload;
+  const wire = attnWire + moeWire + ppWire;
   const wirePerGpu = wire / N;
   const linkBps = st.link * 1e9;
   const commMs = linkBps > 0 ? (wirePerGpu / linkBps) * 1000 : 0;
@@ -186,7 +191,7 @@ function build(st) {
   return {
     N, d, L, E, k, B, S, dff, attn, moe, latent, kvHeads, kvPerTok, kvTotal,
     attnBytes, moeBytes, gpus, w, pRank, a2a, recv, imbalance, crossTok,
-    payload, attnWire, moeWire, wire, wirePerGpu, commMs, anyPP, bubble,
+    payload, attnWire, moeWire, ppWire, wire, wirePerGpu, commMs, anyPP, bubble,
     budget, peak, fits, fleetWeights, modelWeights, dup: fleetWeights / modelWeights,
     layersOn, expertsOn, toksOn,
   };
@@ -605,12 +610,16 @@ mount({
 
     // ---- the wire-bytes bar ----------------------------------------------
     const barY = H - 34, barH = 13, barW = W - 2 * pad;
-    const total = Math.max(1, m.attnWire + m.moeWire);
+    // Divide the bar by the TOTAL, pipeline term included, or a pure-PP config
+    // draws an empty bar beside a non-zero wire figure.
+    const total = Math.max(1, m.wire);
     const aw = barW * (m.attnWire / total), mw = barW * (m.moeWire / total);
+    const pw = barW * (m.ppWire / total);
     ctx.save();
     ctx.fillStyle = rgbaToken('n14', 0.06); ctx.fillRect(pad, barY, barW, barH);
     ctx.fillStyle = alphaOf(COL_A, 0.8); ctx.fillRect(pad, barY, aw, barH);
     ctx.fillStyle = alphaOf(COL_M, 0.8); ctx.fillRect(pad + aw, barY, mw, barH);
+    ctx.fillStyle = alphaOf(T.n10, 0.8); ctx.fillRect(pad + aw + mw, barY, pw, barH);
     ctx.restore();
     r.label(`wire / decode step: ${fmtB(m.wire)} fabric · ${fmtB(m.wirePerGpu)} per GPU · ${m.commMs.toFixed(2)} ms @ ${st.link} GB/s`,
       pad, barY - 5, { color: T.n12, font: '10.5px ui-monospace, monospace' });
@@ -631,6 +640,7 @@ mount({
     }
     if (aw > 60) r.label(`attention ${fmtB(m.attnWire)}`, pad + 5, barY + barH - 3.5, { color: inkOn(COL_A), font: '9.5px ui-monospace, monospace' });
     if (mw > 60) r.label(`MoE ${fmtB(m.moeWire)}`, pad + aw + 5, barY + barH - 3.5, { color: inkOn(COL_M), font: '9.5px ui-monospace, monospace' });
+    if (pw > 60) r.label(`pipeline boundaries ${fmtB(m.ppWire)}`, pad + aw + mw + 5, barY + barH - 3.5, { color: T.n0, font: '9.5px ui-monospace, monospace' });
     if (m.wire === 0) r.label('nothing crosses the wire in this configuration', pad + 5, barY + barH - 3.5, { color: T.n11, font: '9.5px ui-monospace, monospace' });
 
     // ---- hover ------------------------------------------------------------
@@ -677,7 +687,10 @@ mount({
     // ---- readout ----------------------------------------------------------
     const dupTxt = m.dup > 1.01 ? `${m.dup.toFixed(2)}× the model's weights are resident across the strip (replication)` : 'weights are sharded, not replicated';
     let o = `attention ${SHORT[m.attn]} · MoE ${SHORT[m.moe]} · ${m.N} GPU${m.N > 1 ? 's' : ''} · ${m.latent ? 'latent' : 'grouped'} KV     tier:${r.name}\n`;
-    o += `WIRE  ${fmtB(m.wire)}/decode step across the fabric (${fmtB(m.wirePerGpu)} per GPU = ${m.commMs.toFixed(2)} ms at ${st.link} GB/s) — attention ${fmtB(m.attnWire)}, MoE ${fmtB(m.moeWire)}`;
+    // The pipeline term is per BOUNDARY, so it belongs to neither sublayer and
+    // is named separately -- otherwise the split reads "attention 0 B, MoE 0 B"
+    // beside a non-zero total.
+    o += `WIRE  ${fmtB(m.wire)}/decode step across the fabric (${fmtB(m.wirePerGpu)} per GPU = ${m.commMs.toFixed(2)} ms at ${st.link} GB/s) — attention ${fmtB(m.attnWire)}, MoE ${fmtB(m.moeWire)}${m.ppWire ? `, pipeline boundaries ${fmtB(m.ppWire)}` : ''}`;
     o += m.moe === 'ep' ? ` (all-to-all, busiest rank ${m.imbalance.toFixed(2)}× the mean — routing decides this, not the topology)\n` : '\n';
     o += `MEM   peak per GPU ${fmtB(m.peak)} of ${st.budget} GB — ${m.fits ? 'fits' : 'DOES NOT FIT'}; ${dupTxt}; KV ${fmtB(m.kvTotal)} total`;
     o += m.attn === 'tp' && m.kvHeads <= 1 ? `, and tensor parallel cannot shard a single-head latent cache — every rank keeps a whole copy.\n` : `.\n`;

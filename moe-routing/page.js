@@ -29,7 +29,14 @@ function route(logits, N, E, k, cap, upto) {
   for (let i = 0; i < N; i++) sel.push(Array.from({ length: E }, (_, e) => e).sort((a, b) => g.data[i * E + b] - g.data[i * E + a]).slice(0, k));
   const load = new Int32Array(E), drop = new Int32Array(E); let drops = 0, assigned = 0;
   for (let i = 0; i <= upto && i < N; i++) for (const e of sel[i]) { if (load[e] < cap) { load[e]++; assigned++; } else { drop[e]++; drops++; } }
-  const P = new Float32Array(E); for (let i = 0; i < N; i++) for (let e = 0; e < E; e++) P[e] += g.data[i * E + e] / N;
+  // P must cover the SAME tokens as f, or the Switch aux loss E·Σ fₑPₑ is not
+  // 1.0 at uniform and the readout's "1.0 = perfectly uniform" anchor is wrong
+  // for every step but the last. f is accumulated over the transport cursor
+  // (i ≤ upto), so P is too; it used to average over all N while f saw a
+  // prefix, and the page autoplays, so the mixed-population value is what a
+  // reader looks at most of the time.
+  const seen = Math.min(upto, N - 1) + 1;
+  const P = new Float32Array(E); for (let i = 0; i < seen; i++) for (let e = 0; e < E; e++) P[e] += g.data[i * E + e] / seen;
   const f = new Float32Array(E); for (let e = 0; e < E; e++) f[e] = assigned > 0 ? load[e] / assigned : 0;
   let aux = 0; for (let e = 0; e < E; e++) aux += f[e] * P[e]; aux *= E;
   return { g, sel, load, drop, drops, P, aux, assigned };

@@ -53,11 +53,17 @@ function computeScores(att, n, ids) {
     out.push([]);
     for (let h = 0; h < att[l].length; h++) {
       const A = att[l][h], p = prevScore(A, n), s = sinkScore(A, n), ind = inductionScore(A, n, ids);
-      // dominant category, only if it clears a floor (most heads are "none")
-      let cat = 'none', best = 0.45;
-      if (p > best) { best = p; cat = 'prev'; }
-      if (s > 0.6 && s > best) { best = s; cat = 'sink'; }
-      if (ind > 0.30 && ind >= best) { cat = 'induction'; }
+      // Dominant category, each against its OWN floor (most heads are "none").
+      // `best` used to start at 0.45 and be shared, so the induction branch
+      // silently required ind >= 0.45 rather than the 0.30 it tests: on the
+      // default sentence the strongest induction head scores 0.41, so NO head
+      // was ever green -- while the legend, the README and the "jump to
+      // induction head" button all promised one.
+      const FLOOR = { prev: 0.45, sink: 0.6, induction: 0.30 };
+      let cat = 'none', best = 0;
+      if (p > FLOOR.prev && p > best) { best = p; cat = 'prev'; }
+      if (s > FLOOR.sink && s > best) { best = s; cat = 'sink'; }
+      if (ind > FLOOR.induction && ind >= best) { cat = 'induction'; }
       out[l].push({ prev: p, sink: s, induction: ind, cat });
     }
   }

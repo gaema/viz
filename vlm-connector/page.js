@@ -188,7 +188,11 @@ mount({
     const ctxCap = +st.ctx, nImg = Math.round(+st.imgs), nText = Math.round(+st.text);
     const imgTok = g.tokens * nImg, seq = imgTok + nText;
     const pctCtx = (imgTok / ctxCap) * 100, pctSeq = (seq / ctxCap) * 100;
-    const halfTok = tokensAt(Math.max(RES_MIN, +st.res / 2), g.patch, st.conn, g.k, Math.round(+st.queries));
+    // The half-resolution comparison is CLAMPED to the slider's floor, so name
+    // the resolution it actually used. Below 448 it is not a halving at all,
+    // and at 224 it compares the current setting with itself.
+    const halfRes = Math.max(RES_MIN, +st.res / 2);
+    const halfTok = tokensAt(halfRes, g.patch, st.conn, g.k, Math.round(+st.queries));
     const seqHalf = halfTok * nImg + nText;
     const attnNow = seq * seq, attnFull = ctxCap * ctxCap;
 
@@ -470,7 +474,7 @@ mount({
       r.label('attention work ∝ seq²  (the text model, over the whole sequence)', bx, ay, { color: T.n14, font: mono(11) });
       const bars = [
         ['text only', nText * nText, T.accent],
-        ['half res', seqHalf * seqHalf, T.teal],
+        [`${halfRes}px`, seqHalf * seqHalf, T.teal],
         ['now', attnNow, sevCol],
         ['full context', attnFull, T.n8],
       ];
@@ -536,14 +540,22 @@ mount({
     const eq = st.conn === 'resampler'
       ? `tokens = queries = ${num(g.tokens)} — independent of (${+st.res}/${g.patch})² = ${num(g.N)} patches`
       : st.conn === 'merge'
-        ? `tokens = (${+st.res}/${g.patch})² / ${g.k}² = ${num(g.gridN)}² / ${g.k * g.k} = ${num(g.tokens)}`
+        // FLOOR, not divide: the merged grid is ⌊gridN/k⌋ on a side, so a grid
+        // that is not a multiple of k drops a remainder. Printing gridN²/k²
+        // stated arithmetic that did not equal the token count beside it
+        // (32²/9 = 113.8, not the 100 the page computes and draws).
+        ? `tokens = ⌊${num(g.gridN)}/${g.k}⌋² = ${Math.max(1, Math.floor(g.gridN / g.k))}² = ${num(g.tokens)}`
         : `tokens = (${+st.res}/${g.patch})² = ${num(g.gridN)}² = ${num(g.tokens)}  (a projector folds nothing, so the k slider does not apply)`;
     let o = `${CONN_LABEL[st.conn]} · ${eq}   tier:${r.name}\n`;
     o += `${num(g.tokens)} tokens/image × ${nImg} image${nImg === 1 ? '' : 's'} = ${num(imgTok)} image tokens + ${num(nText)} text = ${num(seq)} of ${num(ctxCap)} context (${pctSeq.toFixed(1)}%; the pictures alone eat ${pctCtx.toFixed(1)}%). `;
     o += `Attention over the sequence costs seq² = ${sci(attnNow)} units = ${(attnNow / attnFull * 100).toFixed(2)}% of a full ${num(ctxCap)}-token pass. `;
+    const halved = halfRes < +st.res;
+    const at = `${halfRes}px`;
     o += st.conn === 'resampler'
-      ? `Halving the resolution changes nothing — still ${num(halfTok)} tokens/image, ${(seqHalf * seqHalf / attnNow * 100).toFixed(1)}% of the same work: the connector sets the bill, not the pixels.\n`
-      : `Halving the resolution gives ${num(halfTok)} tokens/image and ${(seqHalf * seqHalf / attnNow * 100).toFixed(1)}% of that work — the cost moves with the SQUARE, twice over.\n`;
+      ? `Dropping to ${at} changes nothing — still ${num(halfTok)} tokens/image, ${(seqHalf * seqHalf / attnNow * 100).toFixed(1)}% of the same work: the connector sets the bill, not the pixels.\n`
+      : halved
+        ? `Dropping to ${at} gives ${num(halfTok)} tokens/image and ${(seqHalf * seqHalf / attnNow * 100).toFixed(1)}% of that work — the cost moves with the SQUARE, twice over.\n`
+        : `Already at the ${at} floor, so there is no lower resolution to compare against here — raise the resolution to see the square-law bite.\n`;
     o += st.conn === 'projector'
       ? `A projector spends one token per patch, so resolution IS the token budget: there is no knob to turn but the picture size.`
       : st.conn === 'merge'

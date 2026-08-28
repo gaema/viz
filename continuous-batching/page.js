@@ -187,10 +187,18 @@ function rebuild(st) {
   const A = simStatic(reqs, S), B = simCont(reqs, S);
   const mA = metrics(A, S, reqs), mB = metrics(B, S, reqs);
   const span = Math.max(mA.span, mB.span, 1);
+  // DEAD slot-steps are the hatched ones -- a slot held open by a batch that
+  // cannot admit anyone. That is not the same as IDLE (cap - busy), which also
+  // counts steps where the queue is simply empty, and the difference is the
+  // page's whole point: continuous batching has no dead cells at all, while the
+  // figure printed here used to say it had several with none hatched.
+  const deadOf = (g) => { let n = 0; for (const col of g) for (const c of col) if (c && c.waste) n++; return n; };
+  const gA = gridFor(A, reqs, S, span), gB = gridFor(B, reqs, S, span);
+  mA.dead = deadOf(gA); mB.dead = deadOf(gB);
   cur = {
     reqs, S, span,
-    A: { sim: A, m: mA, grid: gridFor(A, reqs, S, span), q: queueDepth(A, reqs, span), title: 'STATIC batching — the batch runs until its LONGEST sequence finishes' },
-    B: { sim: B, m: mB, grid: gridFor(B, reqs, S, span), q: queueDepth(B, reqs, span), title: 'CONTINUOUS batching — a freed slot takes the next queued request immediately' },
+    A: { sim: A, m: mA, grid: gA, q: queueDepth(A, reqs, span), title: 'STATIC batching — the batch runs until its LONGEST sequence finishes' },
+    B: { sim: B, m: mB, grid: gB, q: queueDepth(B, reqs, span), title: 'CONTINUOUS batching — a freed slot takes the next queued request immediately' },
   };
   return Array.from({ length: span }, (_, i) => ({ t: i, label: `decode step ${i + 1} / ${span}` }));
 }
@@ -271,7 +279,7 @@ mount({
       const gy = y0 + 30, gh = S * cellH;
       panels.push({ P, gy, gh });
       r.label(P.title, padL, y0 + 12, { color: accent, font: '12px ui-monospace, monospace' });
-      r.label(`${P.m.span} steps to drain · ${(100 * P.m.util).toFixed(0)}% slot utilisation · ${P.m.idle} dead slot-steps · avg wait ${P.m.avgWait.toFixed(1)} · avg latency ${P.m.avgLat.toFixed(1)}`,
+      r.label(`${P.m.span} steps to drain · ${(100 * P.m.util).toFixed(0)}% slot utilisation · ${P.m.dead} dead slot-steps (${P.m.idle} idle in all) · avg wait ${P.m.avgWait.toFixed(1)} · avg latency ${P.m.avgLat.toFixed(1)}`,
         padL, y0 + 26, { color: T.n11, font: '11px ui-monospace, monospace' });
 
       // faint every-5-steps rules, so the shared x axis is readable as steps
@@ -394,8 +402,8 @@ mount({
 
     const dSpan = A.m.span - B.m.span, dWait = A.m.avgWait - B.m.avgWait;
     let o = `same ${reqs.length} requests, same output lengths, same ${S} slots — only the admission policy differs.    tier:${r.name}\n`;
-    o += `STATIC     ${String(A.m.span).padStart(3)} steps to drain · ${(100 * A.m.util).toFixed(0)}% utilisation · ${A.m.idle} dead slot-steps · avg wait ${A.m.avgWait.toFixed(1)} · avg latency ${A.m.avgLat.toFixed(1)} · worst ${A.m.worst}\n`;
-    o += `CONTINUOUS ${String(B.m.span).padStart(3)} steps to drain · ${(100 * B.m.util).toFixed(0)}% utilisation · ${B.m.idle} dead slot-steps · avg wait ${B.m.avgWait.toFixed(1)} · avg latency ${B.m.avgLat.toFixed(1)} · worst ${B.m.worst}\n`;
+    o += `STATIC     ${String(A.m.span).padStart(3)} steps to drain · ${(100 * A.m.util).toFixed(0)}% utilisation · ${A.m.dead} dead slot-steps (${A.m.idle} idle in all) · avg wait ${A.m.avgWait.toFixed(1)} · avg latency ${A.m.avgLat.toFixed(1)} · worst ${A.m.worst}\n`;
+    o += `CONTINUOUS ${String(B.m.span).padStart(3)} steps to drain · ${(100 * B.m.util).toFixed(0)}% utilisation · ${B.m.dead} dead slot-steps (${B.m.idle} idle in all) · avg wait ${B.m.avgWait.toFixed(1)} · avg latency ${B.m.avgLat.toFixed(1)} · worst ${B.m.worst}\n`;
     o += dSpan > 0
       ? `Continuous drains the queue ${dSpan} step(s) sooner (${(100 * B.m.span / A.m.span).toFixed(0)}% of the static makespan — lower is better) and cuts average wait by ${dWait.toFixed(1)} steps. `
       : 'With these lengths the two schedules coincide — spread the output lengths apart (drag a bar) and the static schedule starts padding. ';

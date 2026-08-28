@@ -18,7 +18,7 @@ import { T, alphaOf } from '../framework/theme.js';
 const PATTERNS = [
   { key: 'full', name: 'Full (causal)', desc: 'every query attends to all past keys (j ≤ i) — O(i) per query; the KV cache grows unbounded with context' },
   { key: 'sliding', name: 'Sliding-window (SWA)', desc: 'query attends only to the last w keys (i−w < j ≤ i) — O(w) per query; bounded cache (Mistral)' },
-  { key: 'hybrid', name: 'Hybrid by layer', desc: 'layers alternate local (SWA) and global (full): most layers cheap, a few see everything (Gemma 2/3: 5 local : 1 global)' },
+  { key: 'hybrid', name: 'Hybrid by layer', desc: 'most layers are local (SWA) and a few are global (full), so most layers are cheap and a few see everything. The ratio is a model\'s choice: Gemma 2 alternates 1 : 1 with a 4096 window, Gemma 3 runs 5 local : 1 global with a 1024 window' },
   { key: 'sink', name: 'Attention sink', desc: 'sliding window PLUS the first s tokens always attended (the “sink”) — stabilizes long/streaming context (StreamingLLM)' },
 ];
 
@@ -197,9 +197,13 @@ mount({
       const L = 8, gap = 12;
       const cell = Math.max(5, Math.min(14, Math.min((page.W - 2 * pad - (L - 1) * gap) / (L * N), (page.H - topY - 90) / N)));
       const gw = N * cell, totW = L * gw + (L - 1) * gap, x0 = Math.max(pad, (page.W - totW) / 2);
-      r.label('hybrid-by-layer — layers alternate local (SWA) and global (full):', pad, topY - 14, { color: T.n14, font: '12px ui-monospace, monospace' });
+      // Drawn at Gemma 3's ratio, 5 local per global. It used to draw l%2 (a
+      // 1:1 alternation, which is Gemma 2's) while the caption beside it said
+      // 5:1 -- the picture and its own label disagreed in the same frame.
+      const PER_GLOBAL = 6;
+      r.label('hybrid-by-layer — 5 local (SWA) per 1 global (full), Gemma 3\'s ratio:', pad, topY - 14, { color: T.n14, font: '12px ui-monospace, monospace' });
       for (let l = 0; l < L; l++) {
-        const local = l % 2 === 1, fn = makeFn(local ? 'sliding' : 'full', w, s);
+        const local = l % PER_GLOBAL !== 0, fn = makeFn(local ? 'sliding' : 'full', w, s);
         const rect = { x: x0 + l * (gw + gap), y: topY + 14, w: gw, h: N * cell };
         drawGrid(ctx, rect, N, fn, qi, 0);
         ctx.save(); ctx.fillStyle = local ? T.warn : T.accent; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'center';

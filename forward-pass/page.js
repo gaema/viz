@@ -166,7 +166,10 @@ mount({
 
     // hover
     if (page.pointer.over && dragTok < 0) {
-      const p = page.pointer; const rs = lyTok + n * (tokH + 3) + 18;
+      // +28 to match rsY, where the heatmap is actually DRAWN. At +18 the
+      // hit-test sat 10px (0.77 of a cell) above the grid, so the tooltip named
+      // the wrong token row and printed that row's value.
+      const p = page.pointer; const rs = lyTok + n * (tokH + 3) + 28;
       if (k >= 1 && p.x >= lx && p.x <= lx + D * rcw && p.y >= rs && p.y <= rs + n * rch) { const i = Math.floor((p.y - rs) / rch), j = Math.floor((p.x - lx) / rcw); if (i < n && j < D) page.setTip(`${sLabel}\nrow ${i} ("${cur._words[i]}"), channel ${j}\n= ${Xshow.d[i * D + j].toFixed(3)}`); }
     }
 

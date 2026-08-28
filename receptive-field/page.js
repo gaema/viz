@@ -43,6 +43,13 @@ mount({
     if (page.pointer.over) { const p = page.pointer; let best = Math.min(dx, dy) * 0.6 + 7; for (let l = 0; l <= L; l++) for (let pos = 0; pos < N; pos++) { const c = nx(pos, l), dd = Math.hypot(p.x - c.x, p.y - c.y); if (dd < best) { best = dd; hov = { l, pos }; } } }
     if (hov) { fl = hov.l; fp = hov.pos; }
 
+    // RF of the FOCUS unit, which is not the full-depth RF unless the focus is
+    // on the top layer. The bracket and the tooltip describe the cone actually
+    // drawn, so they must use this; `rf` above stays the headline figure for a
+    // conv-L unit. They used to share `rf`, so hovering a conv-1 unit drew a
+    // 3-wide cone and labelled it 9.
+    let rfF = 1; for (let l = 1; l <= fl; l++) rfF += (k - 1) * dilAt(l);
+
     // receptive-field interval per layer (top-down)
     const lo = [], hi = []; lo[fl] = fp; hi[fl] = fp;
     for (let l = fl; l >= 1; l--) { const d = dilAt(l); lo[l - 1] = lo[l] - half * d; hi[l - 1] = hi[l] + half * d; }
@@ -70,14 +77,14 @@ mount({
     // input RF bracket
     const a = nx(clamp(lo[0]), 0), b = nx(clamp(hi[0]), 0), by = baseY + 16;
     ctx.save(); ctx.strokeStyle = T.accent; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a.x - 3, by); ctx.lineTo(a.x - 3, by + 6); ctx.lineTo(b.x + 3, by + 6); ctx.lineTo(b.x + 3, by); ctx.stroke();
-    ctx.fillStyle = T.accent; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(`receptive field = ${rf} input unit${rf === 1 ? '' : 's'}${rf > N ? ' (wider than shown)' : ''}`, (a.x + b.x) / 2, by + 9); ctx.restore();
+    ctx.fillStyle = T.accent; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(`receptive field = ${rfF} input unit${rfF === 1 ? '' : 's'}${rfF > N ? ' (wider than shown)' : ''}`, (a.x + b.x) / 2, by + 9); ctx.restore();
 
     r.label(`each "conv ${L}" unit sees ${rf} inputs    ·    RF = 1 + Σₗ (k−1)·dₗ`, leftX, topY - 48, { color: T.n14, font: '12px ui-monospace, monospace' });
     r.label(st.mode === 'double'
       ? `doubling dilation dₗ = 2^(l−1) → RF grows EXPONENTIALLY:  1 + (k−1)(2^L − 1) = ${rf}`
       : `fixed dilation d=${st.dil} → RF grows LINEARLY with depth:  1 + L·(k−1)·d = ${rf}`, leftX, topY - 32, { color: T.n11, font: '10px ui-monospace, monospace' });
 
-    if (hov) page.setTip(`unit (conv ${hov.l}, pos ${hov.pos})\nreceptive field on input = ${rf} unit${rf === 1 ? '' : 's'}\n(cone widens k−1=${k - 1} per layer × dilation)`);
+    if (hov) page.setTip(`unit (${hov.l === 0 ? 'input' : 'conv ' + hov.l}, pos ${hov.pos})\nreceptive field on input = ${rfF} unit${rfF === 1 ? '' : 's'}\n(cone widens k−1=${k - 1} per layer × dilation)`);
 
     let o = `receptive field: stacking convs grows what each output sees.  ${L} layers · kernel ${k} · ${st.mode === 'double' ? 'doubling' : 'fixed d=' + st.dil} dilation → RF = ${rf} input units.    tier:${r.name}\n`;
     o += st.mode === 'double'

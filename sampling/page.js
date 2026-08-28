@@ -113,7 +113,11 @@ mount({
       ctx.fillStyle = !isKept ? T.n3 : (strat === 'greedy' && isTop) ? T.bad : alphaOf(T.accent, 0.72);
       ctx.fillRect(x + 2, yBase - h, bw - 4, h);
       if (flash.idx === idx && page.t - flash.ft < 0.3) { ctx.fillStyle = alphaOf(T.ok, 0.9); ctx.fillRect(x + 2, yBase - h - 8, bw - 4, 5); }   // sampled flash
-      if (total > 0) { const eh = (tally[idx] / total) * (barsH * (pmax)); ctx.strokeStyle = T.n14; ctx.lineWidth = 1.4; ctx.strokeRect(x + bw / 2 - 4, yBase - eh, 8, eh); }  // empirical freq
+      // Empirical frequency, on the SAME scale as the bar above it (h uses
+      // probs/pmax). It used to multiply by pmax where the bar divides, so the
+      // outline sat at pmax² of its true height and could never converge to the
+      // bar -- while the readout said "outline bars converge to p".
+      if (total > 0) { const eh = (tally[idx] / total) / pmax * barsH; ctx.strokeStyle = T.n14; ctx.lineWidth = 1.4; ctx.strokeRect(x + bw / 2 - 4, yBase - eh, 8, eh); }  // empirical freq
       ctx.fillStyle = isKept ? T.n12 : T.n9; ctx.textBaseline = 'top';
       ctx.fillText(`"${VOCAB[idx]}"`, x + bw / 2, yBase + 4);
       ctx.fillText(probs[idx].toFixed(2), x + bw / 2, yBase + 16);

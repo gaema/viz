@@ -108,7 +108,10 @@ mount({
     r.label('qₜ (query)', lvX, qrow - 6, { color: T.ok, font: '10px ui-monospace, monospace' });
     r.label(`α = ${st.alpha.toFixed(2)}  (decay/forget)`, pad, qrow + 44, { color: T.violet, font: '11px ui-monospace, monospace' });
     r.label(`β = ${st.beta.toFixed(2)}  (write strength)`, pad, qrow + 62, { color: T.warn, font: '11px ui-monospace, monospace' });
-    r.label(st.delta ? 'delta rule ON: erase old value at kₜ, then write' : 'delta OFF: plain accumulate (memory saturates)', pad, qrow + 84, { color: st.delta ? T.n14 : T.bad, font: '10px ui-monospace, monospace' });
+    // "delta OFF" still applies the decay gate α -- it is GATED linear
+    // attention, not the ungated Sₜ = Sₜ₋₁ + vₜkₜᵀ. Saying "plain accumulate"
+    // named a recurrence this branch does not run.
+    r.label(st.delta ? 'delta rule ON: erase old value at kₜ, then write' : 'delta OFF: gated accumulate — repeated keys pile up instead of overwriting', pad, qrow + 84, { color: st.delta ? T.n14 : T.bad, font: '10px ui-monospace, monospace' });
 
     // center: the state matrix S [d×d]
     const Scell = Math.max(16, Math.min(34, (page.H * 0.42) / d));

@@ -79,7 +79,7 @@ mount({
   compare: { key: 'temp', a: 0.3, b: 3, labelA: 'low T — sharp (≈ greedy)', labelB: 'high T — flat (≈ uniform)' },
   autoplay: true,
   challenges: [
-    { goal: 'Sharpen to near one-hot — top class ≥ 0.9.', hint: 'lower the temperature T toward 0.1 AND drag one logit bar far above the others.', check: (api) => ({ solved: (api.probe.maxP ?? 0) >= 0.9, detail: `top class p = ${((api.probe.maxP ?? 0) * 100).toFixed(0)}% (need ≥ 90%)` }) },
+    { goal: 'Sharpen to near one-hot — top class ≥ 0.9.', hint: 'lower the temperature T to its minimum, 0.2, AND drag one logit bar far above the others.', check: (api) => ({ solved: (api.probe.maxP ?? 0) >= 0.9, detail: `top class p = ${((api.probe.maxP ?? 0) * 100).toFixed(0)}% (need ≥ 90%)` }) },
     { goal: 'Flatten to near-uniform — top class within 5% of 1/k.', hint: 'raise the temperature T toward the max.', check: (api) => { const uni = 1 / Math.max(1, api.probe.k ?? 1); return { solved: (api.probe.maxP ?? 1) <= uni + 0.05, detail: `top ${((api.probe.maxP ?? 1) * 100).toFixed(0)}% vs uniform ${(uni * 100).toFixed(0)}%` }; } },
   ],
   controls: (c, page) => {

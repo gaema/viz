@@ -72,7 +72,11 @@ function perf(st) {
   const qB = block * hid * KV_BYTES;
   const oB = block * hid * ACC_BYTES + block * 2 * ACC_BYTES;   // O plus the m / l columns
   const mem = 2 * kvBytes + qB + oB;            // current block + incoming block + Q + accumulator
-  const single = n * kvBytes + qB + oB;         // one device holding the WHOLE sequence's KV
+  // One device holding the WHOLE sequence: its queries and its accumulator are
+  // whole-sequence too, not one shard's. Scaling only kvBytes understated this
+  // baseline by ~2.1x at the defaults and by more as n grows -- against the
+  // page's own headline comparison, which is the one number it exists to make.
+  const single = n * (kvBytes + qB + oB);
   return { n, seq, hid, block, kvBytes, flops, tc, tt, stepMs, idle, mem, single, qB, oB,
     total: n * stepMs, totalIdle: n * idle, hidden: hid };
 }
@@ -152,7 +156,10 @@ mount({
       check: (api) => ({ solved: (api.probe.tc ?? 0) > (api.probe.tt ?? 1), detail: `compute ${fmtMs(api.probe.tc ?? 0)} vs transfer ${fmtMs(api.probe.tt ?? 0)} per block` }) },
     { goal: 'Now break it — drive the ring into a stall with real idle time on the timeline.', hint: 'drop the link bandwidth, or cut the blocks small by adding devices at a short sequence.',
       check: (api) => ({ solved: (api.probe.idle ?? 0) > 0, detail: `idle ${fmtMs(api.probe.idle ?? 0)} per step` }) },
-    { goal: 'Hold a 256K-token sequence with under 512 MB of memory per device.', hint: 'per-device memory is set by the BLOCK, not by the sequence — add devices and the block shrinks with them.',
+    // The device slider alone cannot reach this at the default width: memory is
+    // 14·block·hid + 8·block, so at 256K with the maximum 12 devices and
+    // hidden = 4096 it is still ~1.25 GB. The width has to come down too.
+    { goal: 'Hold a 256K-token sequence with under 512 MB of memory per device.', hint: 'per-device memory is set by the BLOCK and the model WIDTH, not by the sequence — add devices to shrink the block, and narrow the hidden size too; devices alone will not get you there at 4096.',
       check: (api) => ({ solved: (api.probe.seq ?? 0) >= 256 * 1024 && (api.probe.mem ?? 1e12) < 512e6, detail: `${fmtTok(api.probe.seq ?? 0)} tokens, ${fmtB(api.probe.mem ?? 0)} per device` }) },
   ],
   controls: (c, page) => {
