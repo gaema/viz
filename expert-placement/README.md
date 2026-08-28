@@ -50,8 +50,10 @@ Both appear in DeepSeek-V3's deployment description
 ([arXiv:2412.19437](https://arxiv.org/abs/2412.19437)), which keeps redundant
 copies of high-load experts and periodically recomputes the expert placement
 from measured load. The broader expert-parallel load-balancing literature —
-[FasterMoE](https://arxiv.org/abs/2203.10924),
-[SmartMoE](https://arxiv.org/abs/2304.11414),
+[FasterMoE](https://doi.org/10.1145/3503221.3508418) (PPoPP '22 — no arXiv
+preprint; 2203.10924 is an unrelated condensed-matter paper),
+[SmartMoE](https://www.usenix.org/conference/atc23/presentation/zhai) (USENIX
+ATC '23 — likewise no arXiv; 2304.11414 is Pipeline MoE, a different system),
 [Tutel](https://arxiv.org/abs/2206.03382) — treats placement, not routing, as
 the tunable. Nothing here describes any particular deployment's configuration:
 the interconnect and compute rates are **reader-set sliders** whose defaults are

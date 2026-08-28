@@ -68,8 +68,10 @@ disagreement with a red **▲**.
 | Mask compute is **per-request state** | the cache is per (schema, node) and the stack is per sequence, so this work does not batch across a request group the way a GEMM does -- every sequence in a batch owns its own automaton position |
 | **Compilation** is paid per unique schema | the readout reports the node count compiled once per schema. Cached, it is free; a workload where every request carries a *different* schema pays it every time |
 
-The often-quoted "constrained decoding costs 5-15%" figure predates the mask
-cache. With a warm cache on a repeated schema the per-step overhead is near zero,
+The folklore that constrained decoding costs a double-digit percentage predates
+the mask cache — stated here without a figure, because the "5-15%" number this
+line used to quote has no source anyone can chase.
+With a warm cache on a repeated schema the per-step overhead is near zero,
 and jump-forward makes some schemas *faster* than free-running decode by skipping
 model calls outright.
 

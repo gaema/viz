@@ -19,11 +19,32 @@ what multiplies the two terms:
 
 | Design | Gate | What it buys |
 |---|---|---|
-| **Gated DeltaNet (GDN)** | `bₜ = wₜ = αₜ·1` -- one **scalar** per token, in this page's `b`/`w` form | Forgetting at all: the state decays instead of saturating. But the *whole* matrix decays at one rate, so no feature can be kept while another is dropped. **Read the gate column as the tie, not the count**: GDN's own rule is `Sₜ = αₜ·Sₜ₋₁·(I − βₜkₜkₜᵀ) + βₜvₜkₜᵀ` — the one [`gated-deltanet`](../gated-deltanet/README.md) draws — so there IS a second scalar, the write strength `βₜ`. It sits on the write term *and* inside the erase projector, so moving one moves the other, which is the coupling this page is about. |
+| **Gated DeltaNet (GDN)** | `bₜ = wₜ = αₜ·1` in this page's `b`/`w` form | Forgetting at all: the state decays instead of saturating. But the *whole* matrix decays at one rate, so no feature can be kept while another is dropped. |
 | **Kimi Delta Attention (KDA)** | `bₜ = wₜ = γₜ` -- a **diagonal**, one rate per channel | Each feature dimension of the state forgets at its own rate: fine-grained control over what decays fast and what is held. Ships in **Kimi Linear**, hybridised 3:1 with full attention. |
-| **Gated DeltaNet-2 (GDN-2)** | `bₜ` and `wₜ` **independent**, both channel-wise | GDN and KDA both use a *single* gate to decide erase **and** write at once. Splitting them lets the state keep old content (`b` near 1) while still admitting new content (`w` free), or the reverse. Generalises both: GDN is `b = w = α·1`, KDA is `b = w = γ`. |
+| **Gated DeltaNet-2 (GDN-2)** | `bₜ` and `wₜ` **independent**, both channel-wise | GDN and KDA both use a *single* gate to decide erase **and** write at once. Splitting them lets the state keep old content (`b` near 1) while still admitting new content (`w` free), or the reverse. |
 
-Progression, in one line: **scalar → per-channel → decoupled**.
+Progression, in one line: **scalar → per-channel → decoupled**, where *per-channel*
+means **the decay**.
+
+### The gate column is this page's stand-in, not any paper's notation
+
+Each design carries a decay **and** a delta strength; the two-gate `b`/`w` form
+folds them together so all three sit on one widget. Check the page against the
+real rules, not against the table:
+
+| | Rule | Decay | Delta strength |
+|---|---|---|---|
+| GDN | `Sₜ = αₜ·Sₜ₋₁·(I − βₜkkᵀ) + βₜvkᵀ` | scalar `αₜ` | scalar `βₜ` |
+| KDA | `Sₜ = (I − βₜkkᵀ)·Diag(αₜ)·Sₜ₋₁ + βₜkvᵀ` | **channel-wise** `αₜ` | still **scalar** `βₜ` |
+| GDN-2 | `Sₜ = (I − k(bₜ⊙k)ᵀ)·Diag(αₜ)·Sₜ₋₁ + k(wₜ⊙v)ᵀ` | channel-wise `αₜ` | **separate** `bₜ` (key axis) and `wₜ` (value axis) |
+
+Two things this table exists to stop you concluding. KDA did **not** make the
+erase/write gate channel-wise — its `βₜ` is a scalar per head, and GDN-2's own
+abstract says KDA "still uses a single scalar gate to control two different
+things". And the reduction runs the way the paper states it: GDN-2 recovers KDA
+when `bₜ = wₜ = βₜ·1`, i.e. both gates collapse to the same **scalar** while the
+channel-wise decay is retained, and recovers GDN by then also setting
+`αₜ = αₜ·1`.
 
 Sources (public papers): Gated DeltaNet, arXiv:2412.06464 · Kimi Linear / KDA,
 arXiv:2510.26692 · Gated DeltaNet-2, arXiv:2605.22791.

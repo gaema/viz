@@ -47,9 +47,11 @@
 //   Liu et al., "World Model on Million-Length Video and Language with
 //     Blockwise RingAttention", https://arxiv.org/abs/2402.08268
 //   Grattafiori et al., "The Llama 3 Herd of Models",
-//     https://arxiv.org/abs/2407.21783 -- describes long-context serving with
-//     the key/value tensors gathered rather than the queries, on the grounds
-//     that grouped-query attention makes K,V much smaller than Q.
+//     https://arxiv.org/abs/2407.21783 -- gathers the key/value tensors rather
+//     than the queries, on the grounds that grouped-query attention makes K,V
+//     much smaller than Q. Cited for that rationale; note the paper makes it
+//     about long-context TRAINING (context parallelism inside its 4-D
+//     pretraining parallelism), not serving.
 //   Ainslie et al., "GQA: Training Generalized Multi-Query Transformer Models
 //     from Multi-Head Checkpoints", https://arxiv.org/abs/2305.13245
 //   Brandon et al., "Striped Attention: Faster Ring Attention for Causal

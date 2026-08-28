@@ -22,7 +22,13 @@ become single tokens — the **vocabulary grows** and the **token count shrinks*
 - bottom: the **vocab size**, the **token count** (vs the original character
  count), and the compression.
 
-This is exactly how GPT / LLaMA tokenizers are **trained**; at inference the learned
+This is the BPE **training** loop itself — but not, exactly, the alphabet the
+production tokenizers run it over. GPT-2/3/4 and Llama-3 train **byte-level**
+BPE: the base alphabet is the 256 bytes, after a pre-tokenization regex split,
+not the characters shown here; Llama-1/2 use SentencePiece BPE with a `▁`
+word-start marker rather than this page's trailing `_`. The merge rule is
+identical; the starting vocabulary, and therefore the merges actually learned,
+are not. At inference the learned
 merge rules are simply **replayed** on new text. The trailing `_` marks a word
 boundary (so a merge can't cross between words).
 

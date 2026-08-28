@@ -21,7 +21,7 @@
 //     a learned per-head sink logit in current open-weight models.
 //   * a per-head OUTPUT GATE -- the head scales its own contribution down
 //     instead. It never needed to signal "nothing here" through the attention
-//     distribution at all. Gated Attention (Qi et al.,
+//     distribution at all. Gated Attention (Qiu et al.,
 //     https://arxiv.org/abs/2505.06708) reports that head-wise output gating
 //     removes the sink outright.
 //   One adds a place for the mass to go; the other removes the need for the

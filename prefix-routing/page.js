@@ -37,9 +37,11 @@
 // and is recomputed from scratch whenever a control moves. Nothing is asserted.
 //
 // Mechanism sources (both public):
-//   SGLang -- RadixAttention and cache-aware load balancing across workers:
-//     "Efficiently Programming Large Language Models using SGLang",
-//     https://arxiv.org/abs/2312.07104
+//   SGLang -- "SGLang: Efficient Execution of Structured Language Model
+//     Programs", https://arxiv.org/abs/2312.07104, for RadixAttention (KV reuse
+//     INSIDE one worker). The cross-worker cache-aware balancer this page draws
+//     is the separate SGLang Router (sgl-router), shipped in v0.4:
+//     https://lmsys.org/blog/2024-12-04-sglang-v0-4/
 //   vLLM production-stack -- the KV-cache-aware routing logic in its router:
 //     https://docs.vllm.ai/projects/production-stack/en/latest/
 import { mount } from '../framework/layout.js';

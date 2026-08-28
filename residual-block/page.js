@@ -6,8 +6,12 @@
 //   (2) depth chart: the gradient magnitude reaching layer 0 as it propagates
 //       back through L stacked blocks. Per block the local factor is g (no skip)
 //       vs 1+g (skip), so grad_0 = g^L vanishes without the skip while the
-//       identity path keeps (1+g)^L ~ O(1) with it. ∂y/∂x = I + ∂F/∂x: the "+I"
-//       is the gradient highway. Drag x; tune depth L, gain g, toggle the skip.
+//       identity path holds (1+g)^L -- ~O(1) only while g is small; large g
+//       makes the same product explode. dy/dx = I + dF/dx: the "+I" is the
+//       gradient highway. NOTE the provenance: this derivation is Identity
+//       Mappings in Deep ResNets (1603.05027), NOT the original ResNet paper,
+//       which explicitly argues its problem is degradation rather than
+//       vanishing gradients. Drag x; tune depth L, gain g, toggle the skip.
 import { mount } from '../framework/layout.js';
 import { seededRandn } from '../framework/tensor.js';
 import { T, alphaOf } from '../framework/theme.js';

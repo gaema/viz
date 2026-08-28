@@ -14,7 +14,8 @@ Builds on [ssm-scan](../ssm-scan/README.md) / [gated-deltanet](../gated-deltanet
 A stack of `N` layers. Most are **SSM** layers (recurrent constant-size state,
 `O(L)` per token, **no KV cache**); every `P`-th layer is a **full-attention**
 layer (`O(L²)`, a **KV cache** `[L × 2·d]`). The interleave pattern -- e.g. one
-attention every 5–7 layers -- is the whole design knob.
+attention every 4th layer (Qwen3-Next and Kimi Linear both ship 3:1) to every
+8th (Jamba's `a:m = 1:7`) -- is the whole design knob.
 
 - **Where KV exists**: only the attention rows hold a KV cache (shown as a cache
  strip); the SSM rows carry just a small recurrent state (a flowing line). A

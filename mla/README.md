@@ -62,7 +62,10 @@ slopes differ by the compression factor, so the absolute gap keeps widening the
 longer the context gets. At 8K tokens over 61 layers in fp16 that is 30.50 GB
 against 549.0 MB.
 
-The defaults use DeepSeek-V2/V3/R1 hyperparameters (`kv_lora_rank = 512`,
+The defaults use **DeepSeek-V3/R1**'s shape — 61 layers, hidden 7168. The four
+attention hyperparameters named next are shared with V2, but V2 itself is 60
+layers and hidden 5120, so do not read the whole default configuration as V2's
+(`kv_lora_rank = 512`,
 `qk_rope_head_dim = 64`, 128 heads, `qk_nope_head_dim = 128`). Be careful which
 figures belong to whom:
 

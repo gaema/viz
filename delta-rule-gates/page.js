@@ -14,20 +14,30 @@
 //
 // The last line is the whole lesson: GDN and KDA tie erase and write to ONE
 // gate; GDN-2 separates them, so the state can keep old content (b near 1)
-// while still admitting new content (w free), or the reverse. That is the
-// reduction GDN-2 itself states -- it collapses to KDA when the two gates
-// become one channel-wise vector, and to GDN when the decay collapses further
-// to a scalar (arXiv:2605.22791).
+// while still admitting new content (w free), or the reverse.
 //
-// CAREFUL, because the collapse is about the TIE, not about the count: real GDN
-// carries a second per-token scalar, the delta-rule write strength beta_t, in
-//     S_t = alpha_t . S_{t-1} . (I - beta_t k_t k_t^T) + beta_t v_t k_t^T
-// (that is the rule the `gated-deltanet` card draws). beta_t sits on the write
-// term AND inside the erase projector, so it cannot move one without the other
-// -- which is exactly the coupling GDN-2 removes, and why "one gate" is the
-// right lesson even though it is not literally one scalar. The b/w form above
-// is this page's own parameterisation with beta folded in, not GDN's notation;
-// do not read `b_t = w_t = alpha_t` as a claim that GDN has a single scalar.
+// THE b/w FORM ABOVE IS THIS PAGE'S TEACHING STAND-IN, NOT ANY PAPER'S NOTATION.
+// Every one of the three designs carries a decay AND a delta strength, and this
+// two-gate form folds them together to put the three rows on one widget. The
+// actual rules, so a reader can check the page against the sources:
+//
+//   GDN   S_t = alpha_t . S_{t-1} . (I - beta_t k k^T) + beta_t v k^T
+//         scalar decay alpha_t, scalar delta strength beta_t
+//   KDA   S_t = (I - beta_t k k^T) . Diag(alpha_t) . S_{t-1} + beta_t k v^T
+//         CHANNEL-WISE decay alpha_t, still a SCALAR beta_t (arXiv:2510.26692)
+//   GDN-2 S_t = (I - k (b_t . k)^T) . Diag(alpha_t) . S_{t-1} + k (w_t . v)^T
+//         channel-wise decay, PLUS separate erase b_t (key axis, R^d_k) and
+//         write w_t (value axis, R^d_v) -- the tie broken (arXiv:2605.22791)
+//
+// So "scalar -> per-channel -> decoupled" is right when "per-channel" is read as
+// THE DECAY. It is NOT that KDA made the erase/write gate channel-wise: KDA's
+// beta_t is a scalar per head, and GDN-2's own abstract says KDA "still uses a
+// single scalar gate to control two different things". The reduction runs the
+// other way from what this comment used to claim: GDN-2 recovers KDA when
+// b_t = w_t = beta_t . 1 -- collapsing to the same SCALAR, with the channel-wise
+// decay retained -- and recovers GDN by then also setting alpha_t = alpha_t . 1.
+// Note beta cannot in fact be folded into a left diag(b): diag(b).S.(I-beta kk^T)
+// is not of the form diag(b').S.(I-kk^T) unless beta = 1.
 //
 // The page draws the gate as the thing that differs: one handle that dims the
 // whole matrix, a column of per-row handles that dims it unevenly, or two
@@ -164,7 +174,7 @@ function rateBar(page, x, y, w, h, val, color, text) {
 mount({
   mount: 'body',
   title: 'delta-rule-gates — scalar, then per-channel, then decoupled',
-  blurb: 'Every delta-rule linear-attention layer carries the same object: a fixed [d×d] matrix state S — a key→value memory — rewritten once per token. What changed across three generations is the GATE. Gated DeltaNet uses ONE scalar per token: the whole matrix forgets at a single rate. Kimi Delta Attention makes it a diagonal — one rate per channel — so a feature can be kept while its neighbour is dropped. Gated DeltaNet-2 notices that both of those use a single gate to decide erase AND write at the same time, and splits it into two independent channel-wise gates: b (how much old content survives) and w (how much new content is committed). Drag the gate handles and watch a memory written at step 0 decay under your hand; the closing panel scores the same sequence under all three designs.',
+  blurb: 'Every delta-rule linear-attention layer carries the same object: a fixed [d×d] matrix state S — a key→value memory — rewritten once per token. What changed across three generations is the GATE. Gated DeltaNet decays the whole matrix at ONE scalar rate. Kimi Delta Attention makes that DECAY a diagonal — one rate per channel — so a feature can be kept while its neighbour is dropped, though its delta strength β is still a single scalar doing erase and write together. Gated DeltaNet-2 is the one that splits that scalar, into two independent channel-wise gates: b (how much old content survives) and w (how much new content is committed). Drag the gate handles and watch a memory written at step 0 decay under your hand; the closing panel scores the same sequence under all three designs. The b/w handles are a teaching stand-in that folds each design\'s decay and delta strength together — the README gives all three real update rules.',
   prefer: 'webgl2',
   aspect: '16 / 10',
   autoplay: true,
@@ -225,7 +235,7 @@ mount({
     r.label('Sₜ = diag(bₜ) · Sₜ₋₁ · (I − kₜkₜᵀ)  +  diag(wₜ) · vₜkₜᵀ', 16, 26, { color: T.n14, font: '13px ui-monospace, monospace' });
     const sub = {
       gdn:  'GDN:    bₜ = wₜ = αₜ·1        one scalar — the whole matrix forgets at one rate',
-      kda:  'KDA:    bₜ = wₜ = γₜ          one rate per channel — rows forget independently',
+      kda:  'KDA:    bₜ = wₜ = γₜ          per-channel DECAY — rows forget independently (β itself stays scalar)',
       gdn2: 'GDN-2:  bₜ and wₜ independent — erase and write are separate channel-wise gates',
     }[mode];
     r.label(sub, 16, 44, { color: mode === 'gdn2' ? T.violet : T.n11, font: '11px ui-monospace, monospace' });
@@ -400,7 +410,7 @@ mount({
         let hit = false;
         for (const h of gateHits) {
           if (p.x >= h.x && p.x <= h.x + h.w && p.y >= h.y && p.y <= h.y + h.h) {
-            const nm = h.kind === 'a' ? 'α (scalar — shared by every row)' : h.kind === 'g' ? `γ[${h.i}] (channel ${h.i}, erase AND write)` : h.kind === 'b' ? `b[${h.i}] (erase — how much of row ${h.i} survives)` : `w[${h.i}] (write — how much of v[${h.i}] is committed)`;
+            const nm = h.kind === 'a' ? 'α (scalar — shared by every row)' : h.kind === 'g' ? `γ[${h.i}] (channel ${h.i} — KDA's per-channel decay; its β is scalar and ties erase to write)` : h.kind === 'b' ? `b[${h.i}] (erase — how much of row ${h.i} survives)` : `w[${h.i}] (write — how much of v[${h.i}] is committed)`;
             const val = h.kind === 'a' ? st.alpha : h.kind === 'g' ? gates.g[h.i] : h.kind === 'b' ? gates.b[h.i] : gates.w[h.i];
             page.setTip(`${nm} = ${val.toFixed(2)}\ndrag ↔ to change`);
             hit = true; break;

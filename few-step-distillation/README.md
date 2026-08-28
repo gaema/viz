@@ -151,4 +151,7 @@ measure -- what the shipped families actually train against.
  step regime this page is named for.
 - Yin et al., *Improved Distribution Matching Distillation* (DMD2) --
  <https://arxiv.org/abs/2405.14867>. Distribution matching in place of a pure
- regression, and the diversity problem it is aimed at.
+ regression, and the **cost and quality ceiling** that regression loss imposed
+ by tying the student to the teacher's original sampling paths — the paper's
+ own stated motivation, which is not the diversity argument this line used to
+ give it.

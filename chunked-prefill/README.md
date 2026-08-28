@@ -5,7 +5,10 @@
 Interactive page: the **scheduling** consequence of the two inference regimes.
 A serving engine runs one batched step at a time, so a long prompt's prefill --
 one big compute step -- blocks every other sequence's next token while it runs.
-**Chunked prefill** splits that prefill into pieces of at most a few tokens
+**Chunked prefill** splits that prefill into pieces of at most a per-step token budget — a few hundred to a few thousand tokens in a
+real engine (vLLM's `max_num_batched_tokens`, tuned around 2048 for latency
+8192+ for throughput); the toy budget on this page is far smaller so the packing
+is visible
 packs each piece into a step alongside the waiting sequences' decode tokens, up
 to a per-step **token budget**. **Anchor**: A4 KV cache / runtime shape (Family
 J, serving time). Companion to [prefill-vs-decode](../prefill-vs-decode/README.md), which

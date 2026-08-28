@@ -12,9 +12,14 @@ synthetic weights.
 ## Why a hand-written forward pass
 
 transformers.js **cannot emit attention weights** — the ONNX export drops the
-attention probabilities ([Optimum #325](https://github.com/huggingface/optimum/issues/325)
-is still open; setting `output_attentions` in an ONNX config throws at session
-init). So this page does NOT use transformers.js for inference. Instead
+attention probabilities. The default `OnnxConfig` common-outputs set has no
+attentions, so a stock export — including the `Xenova/*` models transformers.js
+consumes — has none, and asking for them throws at `InferenceSession` init with
+"Graph output (attentions) does not exist in the graph". ([Optimum
+#325](https://github.com/huggingface/optimum/issues/325) is the reference, but
+note it was **closed in 2022** with a custom-`OnnxConfig` workaround, not a
+change to the default export — this page used to cite it as a live blocker.)
+So this page does NOT use transformers.js for inference. Instead
 [`gpt2.js`](gpt2.js):
 
 1. fetches the raw GPT-2 **safetensors** weights (HF, CORS-enabled) and parses
@@ -34,9 +39,14 @@ fixture ([`gpt2-groundtruth.fixture.json`](gpt2-groundtruth.fixture.json)):
 
 - attention matrices at layers 0 / 4 / 5 / 11 match within **max|Δ| ≈ 5e-5**
  (the fixture's 4-dp rounding floor),
-- the JS head detectors independently pick the **same literature heads** PyTorch
- does: previous-token = **L4·H11** (score 1.00), induction = **L5·H5** (0.41),
- attention-sink = **L7·H2** (0.98).
+- the JS head detectors independently pick the same heads PyTorch does:
+ previous-token = **L4·H11** (score 1.00) and induction = **L5·H5** (0.41),
+ both of which are attested in the interpretability literature for
+ gpt2-small. The strongest sink head **on this sentence** is **L7·H2** (0.98)
+ — that one is this page's own measurement, not a literature head: the
+ published per-head survey of gpt2-small classes 7.2 as non-standard
+ induction, and the attention-sink work reports sink behaviour pooled over
+ layers rather than naming individual heads.
 
 Run it (548 MB weights not committed):
 `GPT2_WEIGHTS=~/.cache/huggingface/hub/models--gpt2/snapshots/*/model.safetensors node real-attention/gpt2.test.mjs`

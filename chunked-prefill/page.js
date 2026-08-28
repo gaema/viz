@@ -9,7 +9,7 @@
 // A serving engine runs one batched step at a time. If a newly-arrived long
 // prompt's prefill is a single step, every other sequence's next token waits for
 // the whole thing -- a visible hole in their token stream. CHUNKED PREFILL
-// splits that prefill into pieces of at most a few tokens and packs each piece
+// splits that prefill into pieces bounded by a per-step token budget — a few hundred to a few thousand tokens in a real engine (vLLM’s max_num_batched_tokens), and a handful here so the packing stays visible — and packs each piece
 // into a step alongside the waiting sequences' decode tokens, up to a per-step
 // token budget.
 //
@@ -146,7 +146,7 @@ function setBudget(page, v) {
 mount({
   mount: 'body',
   title: 'chunked-prefill — stop one long prompt from stalling everyone else',
-  blurb: 'A serving engine runs one batched step at a time. Run a long prompt’s prefill as ONE step and every other sequence’s next token waits for all of it — a hole in their token stream. Chunked prefill splits that prefill into pieces of at most a few tokens and packs each piece into a step next to the waiting sequences’ decode tokens, up to a per-step token budget. DRAG the dashed budget line up and down: the timeline re-packs under your hand and the two latency numbers move in OPPOSITE directions — the long prompt’s time-to-first-token gets worse, everyone else’s worst gap gets better. Hover a step for exactly what it carried, or a gap in a token strip for what the scheduler was doing instead.',
+  blurb: 'A serving engine runs one batched step at a time. Run a long prompt’s prefill as ONE step and every other sequence’s next token waits for all of it — a hole in their token stream. Chunked prefill splits that prefill into pieces bounded by a per-step token budget — a few hundred to a few thousand tokens in a real engine (vLLM’s max_num_batched_tokens), and a handful here so the packing stays visible — and packs each piece into a step next to the waiting sequences’ decode tokens, up to a per-step token budget. DRAG the dashed budget line up and down: the timeline re-packs under your hand and the two latency numbers move in OPPOSITE directions — the long prompt’s time-to-first-token gets worse, everyone else’s worst gap gets better. Hover a step for exactly what it carried, or a gap in a token strip for what the scheduler was doing instead.',
   prefer: 'canvas2d',
   aspect: '2 / 1',
   autoplay: true,

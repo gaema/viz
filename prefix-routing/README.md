@@ -82,9 +82,13 @@ better). Nothing on the page is annotated.
 
 Both public:
 
-- **SGLang** -- RadixAttention plus its cache-aware load balancer across
- workers: *Efficiently Programming Large Language Models using SGLang*,
- <https://arxiv.org/abs/2312.07104>
+- **SGLang** -- *SGLang: Efficient Execution of Structured Language Model
+ Programs*, <https://arxiv.org/abs/2312.07104>, for **RadixAttention** — KV
+ reuse *inside one worker*. The cross-worker cache-aware balancer this page is
+ actually about is a later, separate component: the **SGLang Router**
+ (`sgl-router`), shipped in v0.4 —
+ <https://lmsys.org/blog/2024-12-04-sglang-v0-4/>. The paper does not contain
+ it, so citing the paper alone left this card's own subject unsourced.
 - **vLLM production-stack** -- the KV-cache-aware routing logic in its router:
  <https://docs.vllm.ai/projects/production-stack/en/latest/>
 

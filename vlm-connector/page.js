@@ -10,7 +10,7 @@
 //   projector  -- a linear / MLP projection per patch (LLaVA). Every patch
 //                 becomes one token, so the token count IS the patch count and
 //                 scales with resolution squared. The most expensive shape.
-//   merge      -- pixel-shuffle / patch-merge (InternVL, Qwen-VL): a k x k block
+//   merge      -- pixel-shuffle / patch-merge (InternVL 1.5, Qwen2-VL): a k x k block
 //                 of neighbouring patches is concatenated along the CHANNEL axis
 //                 and projected once, dividing the token count by k^2 and giving
 //                 up some spatial detail.
@@ -131,7 +131,7 @@ const STEPS = [
 mount({
   mount: 'body',
   title: 'vlm-connector — how the vision encoder reaches the language model',
-  blurb: 'A vision encoder turns an image into a grid of patch embeddings, and those cannot enter a language model as they are: the wrong width (encoder dim, not the LLM embedding dim) and the wrong number (a grid that grows with the square of the resolution). A CONNECTOR fixes both — and the shape you pick decides how many tokens the picture costs. A linear/MLP projector (LLaVA) emits one token per patch, so the count scales with resolution squared. Pixel-shuffle / patch-merge (InternVL, Qwen-VL) concatenates a k×k block of neighbouring patches along the CHANNEL axis and projects it once, dividing the count by k² and giving up some spatial detail. A perceiver-style resampler (Flamingo, and Qwen-VL in its early form) lets a FIXED number of learned queries attend to the patches, so the count is constant at any resolution — at the cost of a bottleneck that cannot represent more detail however far you push the pixels. The whole trade is arithmetic: tokens = (H/patch)·(W/patch)/merge², and the language model’s attention grows with the SQUARE of the total sequence length. Drag the image’s corner handle to resize it, drag the rail inside the connector to change the merge factor (or the query count), and watch the token count and the context bar move under your hand.',
+  blurb: 'A vision encoder turns an image into a grid of patch embeddings, and those cannot enter a language model as they are: the wrong width (encoder dim, not the LLM embedding dim) and the wrong number (a grid that grows with the square of the resolution). A CONNECTOR fixes both — and the shape you pick decides how many tokens the picture costs. A linear/MLP projector (LLaVA) emits one token per patch, so the count scales with resolution squared. Pixel-shuffle / patch-merge (InternVL 1.5, Qwen2-VL) concatenates a k×k block of neighbouring patches along the CHANNEL axis and projects it once, dividing the count by k² and giving up some spatial detail. A perceiver-style resampler (Flamingo, and Qwen-VL in its early form) lets a FIXED number of learned queries attend to the patches, so the count is constant at any resolution — at the cost of a bottleneck that cannot represent more detail however far you push the pixels. The whole trade is arithmetic: tokens = (H/patch)·(W/patch)/merge², and the language model’s attention grows with the SQUARE of the total sequence length. Drag the image’s corner handle to resize it, drag the rail inside the connector to change the merge factor (or the query count), and watch the token count and the context bar move under your hand.',
   prefer: 'canvas2d',
   aspect: '16 / 10',
   animate: true,

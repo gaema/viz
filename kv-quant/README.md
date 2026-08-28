@@ -81,8 +81,11 @@ property of that model's tensors: something to measure, not to assume. Published
 KV-cache-compression work does treat the two halves asymmetrically -- for
 instance, TurboQuant (arXiv:2504.19874) rotates KV vectors precisely so that
 large values *stop* concentrating in particular coordinates before per-coordinate
-quantization is applied, and the `shard` KV compressor pairs a low-rank treatment
-of keys with a rotated vector-quantized treatment of values.
+quantization is applied. The open-source **Shard** KV compressor
+(<https://github.com/krish1905/shard>) does the same asymmetrically — a low-rank
+treatment of keys with a rotated vector-quantized treatment of values — though it
+is a repository rather than published work, so it sits beside the paper above
+rather than inside the "published" claim.
 
 ## The tradeoff, all three axes live
 

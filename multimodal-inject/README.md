@@ -22,7 +22,7 @@ that live in the **same embedding space as words**:
  attends across text and media **uniformly** -- the model never sees a "modality
  type", only token vectors.
 
-This is exactly how LLaVA, Qwen-VL, and audio-LMs work. The merged-sequence heatmap
+This is exactly how LLaVA, Qwen2-VL, and audio-LMs work. The merged-sequence heatmap
 colour-codes each column by source (text = blue, image = orange, audio = green)
 brackets the injected media block.
 

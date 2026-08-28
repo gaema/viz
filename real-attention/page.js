@@ -332,7 +332,7 @@ mount({
     const o = `${M.source === 'real' ? `REAL GPT-2 (124M, ${M.backend === 'gpu' ? 'WebGPU' : 'CPU'})` : 'synthetic (idealized)'} · ${n} tokens · selected head L${sl}·H${sh}: ` +
       `prev=${(sc ? sc.prev : 0).toFixed(2)} induction=${(sc ? sc.induction : 0).toFixed(2)} sink=${(sc ? sc.sink : 0).toFixed(2)}    tier:${r.name}\n` +
       (M.source === 'real' ? 'These are the real model’s attention weights. Try the head-map: blue=prev-token, green=induction, amber=sink.' :
-        'Idealized stand-in (load real GPT-2 for true weights). In real gpt2-small: prev-token=L4·H11, induction=L5·H5, sink=L7·H2.');
+        'Idealized stand-in (load real GPT-2 for true weights). In real gpt2-small: prev-token=L4·H11 and induction=L5·H5 are attested heads; L7·H2 is the strongest sink on THIS sentence, measured here rather than named in the literature.');
     page.setReadout(o);
   },
   challenges: [

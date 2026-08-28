@@ -8,8 +8,11 @@
 //                          BREAKS: the earliest tokens go first, and those are
 //                          exactly the ones the attention distribution leans on.
 //   2. sinks + window   -- keep the first S tokens forever plus the last B-S
-//                          (StreamingLLM, arXiv:2309.17453). A two-token change
-//                          to the same budget rescues the score.
+//                          (StreamingLLM, arXiv:2309.17453). A couple of tokens
+//                          rescue the score IN THIS TOY; the paper's own result
+//                          is that FOUR initial tokens suffice on real models and
+//                          that one or two do not, so do not read the toy's S=2
+//                          as the published figure.
 //   3. heavy hitters    -- accumulate attention per cached token and evict the
 //                          lowest when the cache fills (H2O, arXiv:2306.14048).
 //                          Keeps what was actually attended to, wherever it is.
@@ -197,6 +200,10 @@ mount({
       options: POLICIES.map((p) => ({ value: p.key, label: p.name })),
     });
     c.slider('budget', { label: 'cache budget B (slots, constant)', min: 2, max: 24, step: 1, value: 8, rebuild: true });
+    // Default 2, which is what this toy needs -- NOT what StreamingLLM reports.
+    // The paper says four initial tokens suffice and one or two do not; that is
+    // a statement about real models, and the difference is worth seeing, so the
+    // slider opens on the toy's own answer and reaches 4 in one drag.
     c.slider('sinks', { label: 'sink tokens S (drag the bracket too)', min: 0, max: 6, step: 1, value: 2, rebuild: true });
     c.stepper('N', { label: 'context length (tokens)', min: 8, max: 48, value: 32, rebuild: true });
     c.slider('seed', { label: 'seed (token content)', min: 0, max: 99, step: 1, value: 7, rebuild: true });

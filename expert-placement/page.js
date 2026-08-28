@@ -26,8 +26,8 @@
 // (https://arxiv.org/abs/2412.19437), whose deployment section describes
 // redundant copies of high-load experts plus periodic rebalancing of the expert
 // placement from observed load; and the published expert-parallel
-// load-balancing literature, e.g. FasterMoE (https://arxiv.org/abs/2203.10924),
-// SmartMoE (https://arxiv.org/abs/2304.11414) and Tutel
+// load-balancing literature, e.g. FasterMoE (PPoPP '22, doi 10.1145/3503221.3508418),
+// SmartMoE (USENIX ATC '23) and Tutel
 // (https://arxiv.org/abs/2206.03382), which all treat placement -- not routing
 // -- as the tunable. Interconnect bandwidths here are reader-set sliders whose
 // defaults are public nominal figures, not measurements.

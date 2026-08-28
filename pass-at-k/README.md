@@ -66,8 +66,8 @@ RL-trained model's pass@k is overtaken by its own base model at large k, on
 verifiable reasoning benchmarks -- is:
 
 > Yue et al., *Does Reinforcement Learning Really Incentivize Reasoning Capacity
-> in LLMs Beyond the Base Model?*, arXiv:2504.13837 (April 2025; v2 November
-> 2025). <https://arxiv.org/abs/2504.13837>
+> in LLMs Beyond the Base Model?*, arXiv:2504.13837 (v1 April 2025; latest v5,
+> November 2025). <https://arxiv.org/abs/2504.13837>
 
 Nothing on the page is a transcription of that paper's figures, and none of the
 numbers it shows should be cited as a measurement of any real model.

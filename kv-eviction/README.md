@@ -18,8 +18,8 @@ grey in the bar above.
 | Policy | Keeps | Why it is here |
 |---|---|---|
 | **Sliding window** | the last `B` tokens | the obvious policy, constant memory, and the one that fails -- the first tokens go first |
-| **Sinks + sliding window** | the first `S` tokens forever + the last `B−S` | StreamingLLM (arXiv:2309.17453): the same budget, rescued by a two-token change |
-| **Heavy-hitter eviction** | the top `B` tokens by accumulated attention, wherever they sit | H2O (arXiv:2306.14048): evict the lowest accumulated score when the cache fills |
+| **Sinks + sliding window** | the first `S` tokens forever + the last `B−S` | StreamingLLM (arXiv:2309.17453): the same budget, rescued by keeping a handful of initial tokens. **On real models the paper reports FOUR suffice and that one or two do not** — this page's toy recovers at two, which is a property of the toy, not the published result |
+| **Heavy-hitter eviction** | the top `B` tokens by accumulated attention, wherever they sit | H2O (arXiv:2306.14048): evict the lowest accumulated score when the cache fills. This is the greedy rule alone — H2O as evaluated splits the same budget between heavy hitters and **recent** tokens, and its paper says keeping either alone does not hold up |
 
 The score panel shows all three at once, so the ranking is visible on load
 rather than after three clicks: **kept attention mass, as a percent of the
