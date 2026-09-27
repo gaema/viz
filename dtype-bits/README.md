@@ -38,8 +38,11 @@ is amortised over its block.
 | int | `uint8` | 8 | unsigned, × scale with a **zero-point** (128 here) |
 | int | `int1` | 1 | the bit *is* the sign: 0 → +scale, 1 → −scale |
 
-All integer rows share one absmax, so the comparison is about **code count**,
-not about who got a friendlier scale.
+All integer rows share one absmax of 8. The bits hold a **code**,
+**×scale** is a separate number fitted so those codes reach that absmax
+(`8 / 127` for int8, `8 / 7` for int4, `±8` for int1). The scale is not
+stored in the bit strip. The comparison is about **code count**: fewer bits
+means a coarser scale, not a friendlier one.
 
 ## What each view shows
 

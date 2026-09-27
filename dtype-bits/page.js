@@ -275,6 +275,15 @@ function intScale(dt) {
   const { qmax } = intSpan(dt);
   return dt.range / Math.max(1, qmax);
 }
+
+// The bits are a code. The scale is a separate number, fitted so those codes
+// span absmax `range`, and it is not stored in the strip.
+function intScaleText(dt) {
+  const sc = fmt(intScale(dt));
+  if (dt.binary) return `×scale = ${sc}: the bit is only a sign, 0 → +${sc} and 1 → −${sc}. It is fitted to absmax ${dt.range} and is not stored in the bit.`;
+  if (dt.zp) return `×scale = ${sc}: these bits are a code, value = (code − ${dt.zp}) × ${sc}. The scale is fitted to absmax ${dt.range} and is not one of these bits.`;
+  return `×scale = ${sc}: these bits are a code, value = code × ${sc}. The scale is fitted so the largest code is ±${dt.range}, and it is not stored in the strip.`;
+}
 function encodeInt(v, dt) {
   const scale = intScale(dt), { qmin, qmax } = intSpan(dt);
   if (dt.binary) return { kind: 'int', code: v < 0 ? 1 : 0, scale };
@@ -491,9 +500,9 @@ function bitInfo(dt, i) {
   }
   const N = dt.bits;
   if (dt.binary) return { field: 'sign', line: 'the single bit → + or − the scale' };
-  if (i === 0 && dt.signed) return { field: 'sign', line: `sign bit → −2^${N - 1} = −${fmt(P2(N - 1))} (×scale)` };
+  if (i === 0 && dt.signed) return { field: 'sign', line: `sign bit → −2^${N - 1} = −${fmt(P2(N - 1))}, then × scale ${fmt(intScale(dt))}` };
   const w = N - 1 - i;
-  return { field: 'magnitude', line: `bit ${i} → weight 2^${w} = ${fmt(P2(w))} (×scale)` };
+  return { field: 'magnitude', line: `bit ${i} → weight 2^${w} = ${fmt(P2(w))}, then × scale ${fmt(intScale(dt))}` };
 }
 
 // ---- drawing ---------------------------------------------------------------
@@ -507,9 +516,9 @@ function drawBitRow(page, dt, bitcells, rev, activeIdx, rect) {
   bitRowRect = { x: x0, y: y0, w: N * cw, h: ch };
   const groups = dt.kind === 'float'
     ? [['sign', 0, 1], ['exponent', 1, 1 + dt.E], ['mantissa', 1 + dt.E, N]]
-    : (dt.binary ? [['sign only (±scale)', 0, N]]
-      : (dt.signed === false ? [['magnitude (− zero-point, ×scale)', 0, N]]
-        : [['sign', 0, 1], ['magnitude (×scale)', 1, N]]));
+    : (dt.binary ? [[`sign only (±${fmt(intScale(dt))})`, 0, N]]
+      : (dt.signed === false ? [[`magnitude, zero-point ${dt.zp}, ×${fmt(intScale(dt))}`, 0, N]]
+        : [['sign', 0, 1], [`magnitude ×${fmt(intScale(dt))}`, 1, N]]));
   if (ghost) groups.push([`unused container bits (${ghost})`, N, total]);
   groupRects = [];
   ctx.save();
@@ -561,20 +570,25 @@ function drawTable(page, value, focusKey, rect) {
     if (!Number.isFinite(e)) return 1;
     return hi <= lo ? 1 : Math.max(0.02, (Math.log10(e) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo)));
   };
-  const rowH = Math.max(13, Math.min(22, (page.H - rect.y - 26) / Math.max(1, rows.length)));
+  const intRow = rows.find((e) => e.dt.kind === 'int');
+  const capH = intRow ? 14 : 0;
+  const rowH = Math.max(13, Math.min(22, (page.H - rect.y - 26 - capH) / Math.max(1, rows.length)));
   const fs = rowH < 16 ? 10 : 12;
   // The label column has to clear 'MXFP8 (e4m3 x32)' / 'uint8 (zp+scale)'.
   const colN = rect.x, colB = rect.x + 154, colD = rect.x + 212, colBar = rect.x + 288;
   const barMax = Math.max(40, Math.min(150, rect.w - 366)), colE = colBar + barMax + 8;
   const hf = { color: T.n11, font: '11px ui-monospace, monospace' };
-  r.label('dtype', colN, rect.y, hf);
-  r.label('bits', colB, rect.y, hf);
-  r.label('decoded', colD, rect.y, hf);
-  r.label('|error|  (log-scaled bar)', colBar, rect.y, hf);
-  let y = rect.y + 18;
+  if (intRow) r.label(`integer ×scale is not in the bits — each row is a code times a scale fitted to absmax ${intRow.dt.range}`, colN, rect.y, { color: T.n12, font: '10px ui-monospace, monospace' });
+  const headY = rect.y + capH;
+  r.label('dtype', colN, headY, hf);
+  r.label('bits', colB, headY, hf);
+  r.label('decoded', colD, headY, hf);
+  r.label('|error|  (log-scaled bar)', colBar, headY, hf);
+  let y = headY + 18;
   for (const e of rows) {
     const foc = e.dt.key === focusKey;
-    r.label(e.dt.label, colN, y, { color: foc ? T.n14 : T.n12, font: (foc ? 'bold ' : '') + fs + 'px ui-monospace, monospace' });
+    const name = e.dt.kind === 'int' ? `${e.dt.key} ×${fmt(intScale(e.dt))}` : e.dt.label;
+    r.label(name, colN, y, { color: foc ? T.n14 : T.n12, font: (foc ? 'bold ' : '') + fs + 'px ui-monospace, monospace' });
     r.label(fmtBits(e.dt.bits) + (e.dt.container ? `/${e.dt.container}` : ''), colB, y, { color: e.dt.kind === 'block' ? T.violet : T.n12, font: fs + 'px ui-monospace, monospace' });
     r.label(fmt(e.decoded), colD, y, { color: T.n12, font: fs + 'px ui-monospace, monospace' });
     ctx.fillStyle = fieldFill(e.dt.kind === 'block' ? 'scale' : 'sign', foc ? 0.9 : 0.5);
@@ -971,6 +985,7 @@ mount({
     if (dt.container) {
       banner(`tf32 is NOT a memory format: ${dt.bits} meaningful bits ride in a ${dt.container}-bit register — it is what the tensor core INGESTS, not what anything stores.`, T.warn);
     }
+    if (dt.kind === 'int') banner(intScaleText(dt), T.n12);
 
     drawBitRow(page, dt, bitcells, rev, activeIdx, { x: pad, y: bannerY + 30, w: page.W - 2 * pad, h: 44 });
     // The table's whole point is "the SAME number, stored every way", so it must
@@ -1009,7 +1024,8 @@ mount({
 
     const err = st.value - decoded;
     const ulp = dt.kind === 'int' ? cur.raw.scale : Math.abs(decoded) * P2(-dt.M) || P2(1 - dt.bias - dt.M);
-    let out = `value = ${fmt(st.value)}    ${dt.label}    ${dt.bits} bits${dt.container ? ` in a ${dt.container}-bit container` : ''}    decoded = ${fmt(decoded)}    error = ${fmt(err)}    ulp ≈ ${fmt(ulp)}    tier:${r.name}\n`;
+    const scaleNote = dt.kind === 'int' ? `    ${intScaleText(dt)}` : `    ulp ≈ ${fmt(ulp)}`;
+    let out = `value = ${fmt(st.value)}    ${dt.label}    ${dt.bits} bits${dt.container ? ` in a ${dt.container}-bit container` : ''}    decoded = ${fmt(decoded)}    error = ${fmt(err)}${scaleNote}    tier:${r.name}\n`;
     out += s ? `${s.label}\nreconstructed so far = ${fmt(partial)}` : '(click a bit to flip it · press ▶ or scrub to reveal bits and rebuild the value)';
     page.setReadout(out);
   },
