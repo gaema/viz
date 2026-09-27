@@ -27,10 +27,15 @@ export function compressionLabel(bits, group) {
 // The hover equation multiplies the scale it prints. Rounding the true
 // reconstruction is a different digit once that scale has been shortened.
 export function weightTip(x, group, index, levels) {
-  const s = group.s.toFixed(3);
   const z = group.z;
   const q = group.q[index];
   const xs = Number(x).toFixed(3);
+  const barXp = ((q - z) * group.s).toFixed(3);
+  let s = group.s.toFixed(3);
+  for (let d = 3; d <= 12; d++) {
+    const shown = group.s.toFixed(d);
+    if (((q - z) * Number(shown)).toFixed(3) === barXp) { s = shown; break; }
+  }
   const xp = ((q - z) * Number(s)).toFixed(3);
   const err = (Number(xs) - Number(xp)).toFixed(4);
   const text = `x = ${xs} fp16\nq = ${q} (of 0..${levels})  →  x′ = (q − z)·s = ${xp}\nerr = ${err}   [s=${s} z=${z}]`;

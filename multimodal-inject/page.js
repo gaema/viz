@@ -38,8 +38,14 @@ function buildImage(seed, S, gN) {
 function buildAudio(seed, N) {
   const L = 256, s = new Float32Array(L), rnd = seededRandn(seed, L, { std: 1 });
   for (let i = 0; i < L; i++) s[i] = 0.6 * Math.sin(i * 0.13) + 0.3 * Math.sin(i * 0.41 + 1) + 0.15 * rnd[i] * (0.5 + 0.5 * Math.sin(i * 0.02));
-  const feat = [], fl = L / N;
-  for (let f = 0; f < N; f++) { let rms = 0, zc = 0; for (let i = 0; i < fl; i++) { const v = s[f * fl + i]; rms += v * v; if (i > 0 && (v >= 0) !== (s[f * fl + i - 1] >= 0)) zc++; } feat.push([Math.sqrt(rms / fl) - 0.3, zc / fl - 0.3, (f / N) - 0.5]); }
+  const feat = [];
+  for (let f = 0; f < N; f++) {
+    const a = Math.floor(f * L / N), b = Math.max(a + 1, Math.floor((f + 1) * L / N));
+    const n = b - a;
+    let rms = 0, zc = 0;
+    for (let i = 0; i < n; i++) { const v = s[a + i]; rms += v * v; if (i > 0 && (v >= 0) !== (s[a + i - 1] >= 0)) zc++; }
+    feat.push([Math.sqrt(rms / n) - 0.3, zc / n - 0.3, (f / N) - 0.5]);
+  }
   return { s, feat };
 }
 function project(feat3, Wp, seed, idx) { const out = new Float32Array(D), sd = seededRandn(seed + idx * 7, 5, { std: 0.6 }); const f = [feat3[0], feat3[1], feat3[2], sd[0], sd[1], sd[2], sd[3], sd[4]]; for (let o = 0; o < D; o++) { let v = 0; for (let j = 0; j < 8; j++) v += Wp[o * 8 + j] * f[j]; out[o] = v; } return out; }

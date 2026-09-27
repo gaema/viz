@@ -137,8 +137,10 @@ mount({
     r.label('output (layer L)', cx + 2, cTop + chH + 14, { color: T.n11, font: '9px ui-monospace, monospace' });
     r.label('→ input (layer 0)', cx + cw - 92, cTop + chH + 14, { color: T.n11, font: '9px ui-monospace, monospace' });
     r.label(`reaching layer 0 after ${L} blocks:`, cx + 2, cTop + chH + 30, { color: T.n14, font: '10px ui-monospace, monospace' });
-    r.label(`skip: ${gSk >= 0.01 ? gSk.toFixed(2) : gSk.toExponential(1)} (gradient flows)`, cx + 210, cTop + chH + 30, { color: T.ok, font: '10px ui-monospace, monospace' });
-    r.label(`no-skip: ${gNo >= 1e-4 ? gNo.toFixed(4) : gNo.toExponential(1)} ${gNo < 1e-3 ? '(vanished)' : ''}`, cx + 430, cTop + chH + 30, { color: T.bad, font: '10px ui-monospace, monospace' });
+    const floor = Math.pow(10, eLo), top = Math.pow(10, eHi);
+    const clip = (v) => v < floor ? ` (chart floor ${floor.toExponential(0)})` : v > top ? ` (chart top ${top.toExponential(0)})` : '';
+    r.label(`skip: ${gSk >= 0.01 ? gSk.toFixed(2) : gSk.toExponential(1)} (gradient flows)${clip(gSk)}`, cx + 210, cTop + chH + 30, { color: T.ok, font: '10px ui-monospace, monospace' });
+    r.label(`no-skip: ${gNo >= 1e-4 ? gNo.toFixed(4) : gNo.toExponential(1)} ${gNo < 1e-3 ? '(vanished)' : ''}${clip(gNo)}`, cx + 430, cTop + chH + 30, { color: T.bad, font: '10px ui-monospace, monospace' });
 
     // hover
     if (page.pointer.over && dragI < 0) {

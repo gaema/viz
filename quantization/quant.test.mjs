@@ -40,11 +40,12 @@ for (let g0 = 0; g0 < x.length && !oldTip; g0 += G) {
     const tip = weightTip(grp[i], Q, i, levels);
     const fromPrinted = ((tip.q - tip.z) * Number(tip.s)).toFixed(3);
     const trueShown = Q.deq[i].toFixed(3);
-    ok(tip.xp === fromPrinted && tip.err === (Number(tip.x) - Number(tip.xp)).toFixed(4), 'hover reconstruction divides the printed scale (' + tip.text.replace(/\n/g, ' | ') + ')');
-    if (fromPrinted !== trueShown && !oldTip) oldTip = { tip, trueShown };
+    const fromThree = ((Q.q[i] - Q.z) * Number(Q.s.toFixed(3))).toFixed(3);
+    ok(tip.xp === fromPrinted && tip.xp === trueShown && tip.err === (Number(tip.x) - Number(tip.xp)).toFixed(4), 'hover reconstruction matches the bar and the printed scale (' + tip.text.replace(/\n/g, ' | ') + ')');
+    if (fromThree !== trueShown && !oldTip) oldTip = { tip, trueShown, fromThree, three: Q.s.toFixed(3) };
   }
 }
-ok(oldTip && oldTip.tip.xp !== oldTip.trueShown && !oldTip.tip.text.includes('= ' + oldTip.trueShown), 'rejects x′ = ' + (oldTip ? oldTip.trueShown : '?') + ' when the printed scale gives ' + (oldTip ? oldTip.tip.xp : '?'));
+ok(oldTip && oldTip.tip.s !== oldTip.three && oldTip.tip.xp === oldTip.trueShown && oldTip.tip.xp !== oldTip.fromThree, 'the hover prints extra scale digits when 3 decimals miss the bar (' + (oldTip ? oldTip.tip.s : '?') + ')');
 const pageSrc = readFileSync(new URL('./page.js', import.meta.url), 'utf8');
 ok(pageSrc.includes('weightTip('), 'the hover calls weightTip');
 ok(!pageSrc.includes('Q.deq[li].toFixed'), 'the hover does not round the true reconstruction on its own');

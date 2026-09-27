@@ -77,7 +77,8 @@ mount({
     // input RF bracket
     const a = nx(clamp(lo[0]), 0), b = nx(clamp(hi[0]), 0), by = baseY + 16;
     ctx.save(); ctx.strokeStyle = T.accent; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(a.x - 3, by); ctx.lineTo(a.x - 3, by + 6); ctx.lineTo(b.x + 3, by + 6); ctx.lineTo(b.x + 3, by); ctx.stroke();
-    ctx.fillStyle = T.accent; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(`receptive field = ${rfF} input unit${rfF === 1 ? '' : 's'}${rfF > N ? ' (wider than shown)' : ''}`, (a.x + b.x) / 2, by + 9); ctx.restore();
+    ctx.fillStyle = T.accent; ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; const drawn = clamp(hi[0]) - clamp(lo[0]) + 1;
+    ctx.fillText(`receptive field = ${drawn} input unit${drawn === 1 ? '' : 's'}${drawn === rfF ? '' : ` (${rfF} before the edges clip it)`}`, (a.x + b.x) / 2, by + 9); ctx.restore();
 
     r.label(`each "conv ${L}" unit sees ${rf} inputs    ·    RF = 1 + Σₗ (k−1)·dₗ`, leftX, topY - 48, { color: T.n14, font: '12px ui-monospace, monospace' });
     r.label(st.mode === 'double'

@@ -490,7 +490,9 @@ mount({
       ctx.restore();
       r.label(st.conn === 'resampler'
         ? 'halve the resolution and nothing moves — the connector sets the bill'
-        : `halve the resolution → ${num(halfTok)} tok/image → attention ${(seqHalf * seqHalf / attnNow * 100).toFixed(1)}% of now`,
+        : halfRes < +st.res
+          ? `${halfRes}px (half of ${+st.res}) → ${num(halfTok)} tok/image → attention ${(seqHalf * seqHalf / attnNow * 100).toFixed(1)}% of now`
+          : `${halfRes}px is the floor, not half of ${+st.res} → ${num(halfTok)} tok/image`,
       bx, ay + 12 + bars.length * 17 + 12, { color: T.n11, font: mono(9) });
     }
 
@@ -538,14 +540,14 @@ mount({
 
     // ===================== readout ==========================================
     const eq = st.conn === 'resampler'
-      ? `tokens = queries = ${num(g.tokens)} — independent of (${+st.res}/${g.patch})² = ${num(g.N)} patches`
+      ? `tokens = queries = ${num(g.tokens)} — independent of ⌊${+st.res}/${g.patch}⌋² = ${num(g.gridN)}² = ${num(g.N)} patches`
       : st.conn === 'merge'
         // FLOOR, not divide: the merged grid is ⌊gridN/k⌋ on a side, so a grid
         // that is not a multiple of k drops a remainder. Printing gridN²/k²
         // stated arithmetic that did not equal the token count beside it
         // (32²/9 = 113.8, not the 100 the page computes and draws).
         ? `tokens = ⌊${num(g.gridN)}/${g.k}⌋² = ${Math.max(1, Math.floor(g.gridN / g.k))}² = ${num(g.tokens)}`
-        : `tokens = (${+st.res}/${g.patch})² = ${num(g.gridN)}² = ${num(g.tokens)}  (a projector folds nothing, so the k slider does not apply)`;
+        : `tokens = ⌊${+st.res}/${g.patch}⌋² = ${num(g.gridN)}² = ${num(g.tokens)}  (a projector folds nothing, so the k slider does not apply)`;
     let o = `${CONN_LABEL[st.conn]} · ${eq}   tier:${r.name}\n`;
     o += `${num(g.tokens)} tokens/image × ${nImg} image${nImg === 1 ? '' : 's'} = ${num(imgTok)} image tokens + ${num(nText)} text = ${num(seq)} of ${num(ctxCap)} context (${pctSeq.toFixed(1)}%; the pictures alone eat ${pctCtx.toFixed(1)}%). `;
     o += `Attention over the sequence costs seq² = ${sci(attnNow)} units = ${(attnNow / attnFull * 100).toFixed(2)}% of a full ${num(ctxCap)}-token pass. `;

@@ -102,19 +102,19 @@ mount({
     r.label(`depthwise+pointwise: ${fmt(dwsep)}`, bx + 6, y2 + 14, { color: T.n0, font: '10px ui-monospace, monospace' });
     // ratio call-out
     ctx.save(); ctx.fillStyle = T.n14; ctx.font = 'bold 15px ui-monospace, monospace'; ctx.textAlign = 'left';
-    ctx.fillText(`${ratio.toFixed(1)}× fewer`, bx + Math.max(wdw + wpw + 12, 160), y2 + 15); ctx.restore();
-    r.label(`ratio = (k²·Cout)/(k²+Cout) = (${k * k}·${Cout})/(${k * k}+${Cout}) = ${ratio.toFixed(2)}×   ·   params: ${fmt(Cin * Cout * k * k)} → ${fmt(Cin * k * k + Cin * Cout)} (${(Cin * Cout * k * k / (Cin * k * k + Cin * Cout)).toFixed(1)}×)`, bx, y2 + barH + 18, { color: T.n11, font: '10px ui-monospace, monospace' });
+    ctx.fillText(ratio >= 1 ? `${ratio.toFixed(2)}× fewer` : `${ratio.toFixed(2)}× the full conv`, bx + Math.max(wdw + wpw + 12, 160), y2 + 15); ctx.restore();
+    r.label(`ratio = (k²·Cout)/(k²+Cout) = (${k * k}·${Cout})/(${k * k}+${Cout}) = ${ratio.toFixed(2)}×   ·   params: ${fmt(Cin * Cout * k * k)} → ${fmt(Cin * k * k + Cin * Cout)} (${(Cin * Cout * k * k / (Cin * k * k + Cin * Cout)).toFixed(2)}×)`, bx, y2 + barH + 18, { color: T.n11, font: '10px ui-monospace, monospace' });
 
     // hover
     if (page.pointer.over && !dragMode) {
       const p = page.pointer;
       if (stdInRect && p.x >= stdInRect.x - 14 && p.x <= stdInRect.x + stdInRect.w + 14 && p.y >= stdInRect.y && p.y <= stdInRect.y + stdInRect.h) page.setTip(`${Cin} input channels\ndrag ↕ to change Cin`);
       else if (stdOutRect && p.x >= stdOutRect.x - 14 && p.x <= stdOutRect.x + stdOutRect.w + 14 && p.y >= stdOutRect.y && p.y <= stdOutRect.y + stdOutRect.h) page.setTip(`${Cout} output channels\ndrag ↕ to change Cout`);
-      else if (p.y >= by && p.y <= y2 + barH) page.setTip(`full conv: ${fmt(full)} MACs\ndepthwise: ${fmt(dw)}\npointwise: ${fmt(pw)}\ndw-sep total: ${fmt(dwsep)}  →  ${ratio.toFixed(1)}× cheaper`);
+      else if (p.y >= by && p.y <= y2 + barH) page.setTip(`full conv: ${fmt(full)} MACs\ndepthwise: ${fmt(dw)}\npointwise: ${fmt(pw)}\ndw-sep total: ${fmt(dwsep)}  →  ${ratio.toFixed(2)}× the full conv`);
     }
 
     let o = `depthwise-separable conv: split a full conv (spatial+channel jointly) into depthwise (k×k per channel) + pointwise (1×1 mix).   tier:${r.name}\n`;
-    o += `H=W=${hw}, Cin=${Cin}, Cout=${Cout}, k=${k}:  full = ${fmt(full)} MACs vs depthwise ${fmt(dw)} + pointwise ${fmt(pw)} = ${fmt(dwsep)}  →  ${ratio.toFixed(1)}× fewer (cost goes from a PRODUCT Cin·Cout·k² to a SUM Cin·k²+Cin·Cout).`;
+    o += `H=W=${hw}, Cin=${Cin}, Cout=${Cout}, k=${k}:  full = ${fmt(full)} MACs vs depthwise ${fmt(dw)} + pointwise ${fmt(pw)} = ${fmt(dwsep)}  →  ${ratio.toFixed(2)}× the full conv (cost goes from a PRODUCT Cin·Cout·k² to a SUM Cin·k²+Cin·Cout).`;
     page.setReadout(o);
   },
 }).then((page) => {

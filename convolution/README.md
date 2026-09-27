@@ -22,7 +22,7 @@ sums:
 - **dilation `dil`**: gaps between the kernel taps (a larger receptive field for
  the same `k` weights -- atrous convolution).
 
-Output size: `out = ⌊(n + 2p − dil·(k−1) − 1)/s⌋ + 1`. The current receptive
+Output size: `out = max(1, ⌊(n + 2p − dil·(k−1) − 1)/s⌋ + 1)`. The current receptive
 field is outlined on the input with the kernel weights overlaid; the output grid
 fills as the kernel slides (auto-plays + loops), and the readout shows the
 sum-of-products for the current pixel.

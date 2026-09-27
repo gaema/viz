@@ -64,7 +64,7 @@ function conv(st) {
 mount({
   mount: 'body',
   title: 'convolution — kernel · receptive field, summed',
-  blurb: 'A k×k kernel slides over the (zero-padded) input; each output pixel is a sum of products: out[oy,ox] = Σ W[i,j]·Xpad[oy·s + i·dil, ox·s + j·dil]. stride s sets how far the kernel jumps (bigger ⇒ smaller output); padding p adds a zero border (keeps the size up); dilation spreads the kernel taps apart (bigger receptive field, same weights). Output size = ⌊(n+2p − dil·(k−1) − 1)/s⌋ + 1. The current receptive field is outlined with the kernel weights overlaid; the output fills as the kernel slides. Drag an input cell to change it; hover to inspect.',
+  blurb: 'A k×k kernel slides over the (zero-padded) input; each output pixel is a sum of products: out[oy,ox] = Σ W[i,j]·Xpad[oy·s + i·dil, ox·s + j·dil]. stride s sets how far the kernel jumps (bigger ⇒ smaller output); padding p adds a zero border (keeps the size up); dilation spreads the kernel taps apart (bigger receptive field, same weights). Output size = max(1, ⌊(n+2p − dil·(k−1) − 1)/s⌋ + 1). The current receptive field is outlined with the kernel weights overlaid; the output fills as the kernel slides. Drag an input cell to change it; hover to inspect.',
   prefer: 'canvas2d',
   aspect: '2 / 1',
   autoplay: true,
@@ -167,7 +167,7 @@ mount({
 
     let o = `2-D conv: out[oy,ox] = Σ W[i,j]·Xpad[oy·s+i·dil, ox·s+j·dil].   n=${n} k=${k} stride=${s} pad=${p} dil=${dil} → output ${Hout}×${Hout}.    tier:${r.name}\n`;
     o += sp ? `sliding: kernel at output (${oy},${ox}); receptive field outlined; sum of ${k * k} products = ${acc.toFixed(2)}.`
-      : `output ${Hout}×${Hout} = ⌊(${n}+2·${p} − ${dil}·(${k}−1) − 1)/${s}⌋+1. Drag an input cell to change the affected outputs.`;
+      : `output ${Hout}×${Hout} = max(1, ⌊(${n}+2·${p} − ${dil}·(${k}−1) − 1)/${s}⌋+1). Drag an input cell to change the affected outputs.`;
     page.setReadout(o);
   },
 }).then((page) => {
