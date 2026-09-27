@@ -37,9 +37,8 @@ export function massLabel(scale, norm) {
   const exps = nums.map((n) => Math.exp(n - top));
   const z = exps.reduce((a, b) => a + b, 0);
   const mass = exps.map((e) => (e / z).toFixed(3));
-  let win = 0;
-  for (let i = 1; i < mass.length; i++) {
-    if (Number(mass[i]) > Number(mass[win])) win = i;
-  }
+  const a = Number(mass[0]);
+  const b = Number(mass[1]);
+  const win = a === b ? 'tie' : (a > b ? 0 : 1);
   return { scores, mass, win };
 }

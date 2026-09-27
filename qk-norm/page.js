@@ -24,8 +24,8 @@ mount({
     ctx.fillStyle = T.n0;
     ctx.fillRect(0, 0, W, H);
     const bands = [
-      { name: 'raw dot', row: raw, y: H * 0.08 },
-      { name: 'QK-norm', row: fair, y: H * 0.5 },
+      { name: 'raw softmax', row: raw, y: H * 0.08 },
+      { name: 'QK-norm softmax', row: fair, y: H * 0.5 },
     ];
     const colors = [T.accent, T.teal];
     const pad = W * 0.06;
@@ -49,8 +49,9 @@ mount({
         ctx.fillText(NAMES[i], pad, y + H * 0.05);
       });
     });
-    const rawName = NAMES[raw.win];
-    const fairName = NAMES[fair.win];
+    const nameOf = (win) => (win === 'tie' ? 'tie' : NAMES[win]);
+    const rawName = nameOf(raw.win);
+    const fairName = nameOf(fair.win);
     page.setReadout(
       `raw scores ${raw.scores[0]} and ${raw.scores[1]}, mass ${raw.mass[0]} and ${raw.mass[1]}, winner ${rawName}. `
       + `QK-norm scores ${fair.scores[0]} and ${fair.scores[1]}, mass ${fair.mass[0]} and ${fair.mass[1]}, winner ${fairName}.`,

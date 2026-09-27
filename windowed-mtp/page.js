@@ -31,6 +31,8 @@ mount({
     const ctx = page.ctx;
     const a = acceptLabel(page.state.pos, page.state.length, page.state.sink, page.state.window, page.state.blind);
     if ((page.state.pos | 0) !== a.pos) page.controls.set('pos', a.pos, { silent: true });
+    if ((page.state.sink | 0) !== a.sink) page.controls.set('sink', a.sink, { silent: true });
+    if ((page.state.window | 0) !== a.window) page.controls.set('window', a.window, { silent: true });
     const W = page.W;
     const H = page.H;
     ctx.fillStyle = T.n0;
@@ -55,7 +57,7 @@ mount({
     ctx.textAlign = 'left';
     ctx.fillText('draft sees the teal tokens', pad, H * 0.08);
     const bars = [
-      ['full draft', a.length, T.n6],
+      ['full draft', a.length, T.accent],
       ['windowed draft', a.visible, T.teal],
     ];
     const max = a.length;

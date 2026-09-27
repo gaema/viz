@@ -11,11 +11,10 @@ function identity(row) {
   row.mass.forEach((m, i) => {
     ok(m === (exps[i] / z).toFixed(3), 'mass ' + i + ' is the softmax of the printed scores');
   });
-  let win = 0;
-  for (let i = 1; i < row.mass.length; i++) {
-    if (Number(row.mass[i]) > Number(row.mass[win])) win = i;
-  }
-  ok(row.win === win, 'the winner is the larger printed mass');
+  const a = Number(row.mass[0]);
+  const b = Number(row.mass[1]);
+  const win = a === b ? 'tie' : (a > b ? 0 : 1);
+  ok(row.win === win, 'the winner is the larger printed mass, or a tie when they match');
 }
 
 const loud = massLabel(3, false);
@@ -25,6 +24,10 @@ identity(fair);
 ok(loud.scores[0] === '3.000' && loud.scores[1] === '1.000', 'raw scores are the bare dots');
 ok(loud.win === 0, 'without the norm the long key wins');
 ok(fair.win === 1, 'with the norm the aligned key wins');
+const tied = massLabel(1, false);
+identity(tied);
+ok(tied.scores[0] === tied.scores[1] && tied.mass[0] === tied.mass[1], 'scale 1 prints equal raw scores and equal mass');
+ok(tied.win === 'tie', 'equal printed mass is a tie, not a win for the first key');
 ok(loud.win !== fair.win, 'the same keys pick different winners');
 
 const quiet = massLabel(0.5, false);
