@@ -82,6 +82,10 @@ export const ORDER = [
   // J -- Serving-time mechanisms
   { slug: 'paged-attention', family: 'J' },
   { slug: 'radix-attention', family: 'J' },
+  { slug: 'kv-fusion', family: 'J' },
+  { slug: 'rope-splice', family: 'J' },
+  { slug: 'unified-radix', family: 'J' },
+  { slug: 'kv-fabric', family: 'J' },
   { slug: 'continuous-batching', family: 'J' },
   { slug: 'chunked-prefill', family: 'J' },
   { slug: 'speculative-decoding', family: 'J' },
