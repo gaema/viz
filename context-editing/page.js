@@ -267,7 +267,7 @@ mount({
       hint: 'drop the cached prefix re-read cost toward 0 — a free prefix makes keeping everything nearly free, while every edit still pays full price for the tail.',
       check: (api) => ({
         solved: (api.probe.ratio ?? 0) > 1.0,
-        detail: `clear+summarise cumulative cost is ${(100 * (api.probe.ratio ?? 0)).toFixed(1)}% of never-compacting (lower is better; >100% = compaction lost)`,
+        detail: `active policy cumulative cost is ${(100 * (api.probe.ratio ?? 0)).toFixed(1)}% of never-compacting (lower is better; >100% = compaction lost)`,
       }),
     },
     {

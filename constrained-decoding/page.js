@@ -535,7 +535,7 @@ mount({
     const nLegal = S.nLegal != null ? S.nLegal : 0;
     r.label(skip
       ? (S.kind === 'jump' ? `vocabulary mask — NOT BUILT this step: jump-forward skipped the model, so there were no logits to mask` : 'vocabulary mask — sequence over')
-      : `vocabulary mask — ${nLegal} of ${V} tokens keep the string inside the grammar (${S.nCd || 0} of them context-dependent)`,
+      : `vocabulary mask — ${nLegal} of ${V} tokens keep the string inside the grammar · ${S.nCd || 0} context-dependent tokens re-checked across the whole vocabulary`,
     pad, y - 2, { color: skip ? T.warnDeep : T.n14, font: '11px ui-monospace, monospace' });
     y += 6;
     const legal = S.legal || new Uint8Array(V), cdArr = S.cd || new Uint8Array(V);

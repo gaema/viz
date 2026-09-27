@@ -212,7 +212,7 @@ mount({
     },
     {
       goal: 'Without leaving prefill, push the crossing past 8,000 query tokens per device.',
-      hint: 'the crossing moves with the KV-head count — fewer groups means a smaller KV payload, so pass-Q has further to climb.',
+      hint: 'the crossing moves with the KV-head count — fewer KV heads means a smaller KV payload, so the crossing moves left. More KV heads, or a longer sequence, push it past 8,000.',
       check: (api) => ({ solved: api.probe.phase === 'prefill' && (api.probe.cross ?? 0) > 8000, detail: api.probe.phase !== 'prefill' ? 'switch back to prefill' : `crossing at ${fmtN(api.probe.cross ?? 0)} query tokens/device` }),
     },
   ],

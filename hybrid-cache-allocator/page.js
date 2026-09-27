@@ -94,8 +94,10 @@ function shapeOf(st) {
   const nSlabs = Math.floor(slabBudget / slabMiB);
   // What the split could not spend on either shape: a page needs pageMiB and a
   // slab needs slabMiB, so the remainder is stranded whichever way you lean.
-  const residueMiB = POOL_MIB - nPages * pageMiB - nSlabs * slabMiB;
-  return { attnEvery, nAttn, nRec, pageTokens, pageMiB, slabMiB, split, nPages, nSlabs, residueMiB };
+  const pageLeft = pageBudget - nPages * pageMiB;
+  const slabLeft = slabBudget - nSlabs * slabMiB;
+  const residueMiB = pageLeft + slabLeft;
+  return { attnEvery, nAttn, nRec, pageTokens, pageMiB, slabMiB, split, nPages, nSlabs, residueMiB, pageLeft, slabLeft };
 }
 
 // Per-sequence target lengths: the `lens` control is a comma list; blanks and
@@ -525,7 +527,7 @@ format: (v) => String(snapTo(v, ATTN_EVERY)) });
     };
     plated(`${usedPages}/${sh.nPages} pages in use · ${mib(idlePage)} idle on the growing side`, stripX, gY + rows * chh + 13, freePages ? T.n12 : T.bad, sml);
     plated(`${usedSlabs}/${sh.nSlabs} slabs held · ${mib(idleSlab)} idle on the fixed side · each slab = ${tok(slabTokenEquiv)} tok of KV never bought`, stripX, sY + sH + 13, freeSlabs ? T.n12 : T.bad, sml);
-    if (sh.residueMiB > 0.01) plated(`${mib(sh.residueMiB)} stranded — too small for another ${mib(sh.pageMiB)} page or ${mib(sh.slabMiB)} slab`, stripX, cap.y + cap.h + 13, T.bad, sml);
+    if (sh.residueMiB > 0.01) plated(`${mib(sh.pageLeft)} left on the page side (a page is ${mib(sh.pageMiB)}) · ${mib(sh.slabLeft)} left on the slab side (a slab is ${mib(sh.slabMiB)})`, stripX, cap.y + cap.h + 13, T.bad, sml);
 
     geom = { cap, dSeq, dCtx, seqRows, seqBarX, seqBarW, pageRect, slabRect, cols, rows, cw, chh, gY, sY, sH, chart: { x: chX, y: chY, w: chW, h: chH } };
     // Everything reported is read off THIS snapshot, never off the end of the
