@@ -5,12 +5,12 @@
 // hover a gate cell or expert bar, step the transport to route token by token.
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
-import { softmax, seededRandn } from '../framework/tensor.js';
+import { seededRandn } from '../framework/tensor.js';
+import { route } from './route.js';
 import { T, alphaOf } from '../framework/theme.js';
 
 
 
-const M = (r, c) => ({ data: new Float32Array(r * c), rows: r, cols: c });
 const CAT = () => [T.accent, T.ok, T.warn, T.violet, T.bad, T.tealDeep, T.warn, T.violetDeep];
 let cur = null;
 let gateRect = null, barRects = null;   // captured in draw
@@ -22,30 +22,10 @@ function buildData(st) {
   return Array.from({ length: N }, (_, t) => ({ t, label: `route token ${t} to its top-${st.k} experts` }));
 }
 
-function route(logits, N, E, k, cap, upto) {
-  const g = M(N, E);
-  for (let i = 0; i < N; i++) g.data.set(softmax(logits.data.subarray(i * E, (i + 1) * E)), i * E);
-  const sel = [];
-  for (let i = 0; i < N; i++) sel.push(Array.from({ length: E }, (_, e) => e).sort((a, b) => g.data[i * E + b] - g.data[i * E + a]).slice(0, k));
-  const load = new Int32Array(E), drop = new Int32Array(E); let drops = 0, assigned = 0;
-  for (let i = 0; i <= upto && i < N; i++) for (const e of sel[i]) { if (load[e] < cap) { load[e]++; assigned++; } else { drop[e]++; drops++; } }
-  // P must cover the SAME tokens as f, or the Switch aux loss E·Σ fₑPₑ is not
-  // 1.0 at uniform and the readout's "1.0 = perfectly uniform" anchor is wrong
-  // for every step but the last. f is accumulated over the transport cursor
-  // (i ≤ upto), so P is too; it used to average over all N while f saw a
-  // prefix, and the page autoplays, so the mixed-population value is what a
-  // reader looks at most of the time.
-  const seen = Math.min(upto, N - 1) + 1;
-  const P = new Float32Array(E); for (let i = 0; i < seen; i++) for (let e = 0; e < E; e++) P[e] += g.data[i * E + e] / seen;
-  const f = new Float32Array(E); for (let e = 0; e < E; e++) f[e] = assigned > 0 ? load[e] / assigned : 0;
-  let aux = 0; for (let e = 0; e < E; e++) aux += f[e] * P[e]; aux *= E;
-  return { g, sel, load, drop, drops, P, aux, assigned };
-}
-
 mount({
   mount: 'body',
   title: 'moe-routing — router, top-k experts, load balance',
-  blurb: 'A Mixture-of-Experts layer replaces the dense MLP with many experts and a router that sends each token to just a few. The router scores token×expert (softmax gate); each token goes to its top-k experts (k=2), renormalized. Each expert has a capacity ≈ factor·N·k/E; tokens routed to a full expert are dropped (red). A lopsided router overloads a few experts and drops tokens — the load-balance aux loss E·Σ fₑ·Pₑ penalizes that. Drag any gate cell to re-score a token and watch the load + drops shift; hover a cell or bar; step to route token by token.',
+  blurb: 'A Mixture-of-Experts layer replaces the dense MLP with many experts and a router that sends each token to just a few. The router scores token×expert (softmax gate); each token goes to its top-k experts (k=2). The drawn gate is the softmax, not a second normalization of those k. Each expert has a capacity ≈ factor·N·k/E; tokens routed to a full expert are dropped (red). A lopsided router overloads a few experts and drops tokens — the load-balance aux loss E·Σ fₑ·Pₑ penalizes that. Drag any gate cell to re-score a token and watch the load + drops shift; hover a cell or bar; step to route token by token.',
   prefer: 'webgl2',
   aspect: '2 / 1',
   autoplay: true,
@@ -139,7 +119,7 @@ mount({
     }
 
     const counts = Array.from(R.load).join(' / ');
-    let o = `MoE: router → top-${k} of ${E} experts/token; capacity ${cap}; load-balance aux = E·Σ fₑ·Pₑ = ${R.aux.toFixed(3)} (1.0 = perfectly uniform).    tier:${r.name}\n`;
+    let o = `MoE: router → top-${k} of ${E} experts/token; capacity ${cap}; f counts every routed assignment, including capacity drops; load-balance aux = E·Σ fₑ·Pₑ = ${R.aux.toFixed(3)} (1.0 = perfectly uniform, no drops).    tier:${r.name}\n`;
     o += s ? `routing token ${tok}/${N - 1} → experts {${R.sel[tok].map((e) => 'e' + e).join(', ')}}.   loads [${counts}]${R.drops ? `,  DROPPED ${R.drops} (router imbalanced)` : ',  no drops'}.`
       : `all ${N} tokens routed.   loads [${counts}]${R.drops ? `,  DROPPED ${R.drops} — overloaded experts` : ',  balanced (no drops)'}.`;
     page.setReadout(o);

@@ -20,6 +20,7 @@
 import { mount } from '../framework/layout.js';
 import { cellAt } from '../framework/render.js';
 import { T, effectiveTheme, alphaOf, signedColor, inkOn } from '../framework/theme.js';
+import { orderDtypes } from './order.js';
 
 
 const FIELD = { sign: [214, 39, 40], exp: [31, 119, 180], mant: [44, 160, 44], mag: [44, 160, 44] };
@@ -126,7 +127,32 @@ const COL_FAMILIES = [
   { value: 'block', label: 'block-scaled' },
   { value: 'int', label: 'integers' },
 ];
-const visDtypes = (st) => ((st.cols || 'all') === 'all' ? DTYPES : DTYPES.filter((d) => d.family === st.cols));
+const visDtypes = (st) => {
+  const fam = (st.cols || 'all') === 'all' ? DTYPES : DTYPES.filter((d) => d.family === st.cols);
+  return orderDtypes(fam, st.order);
+};
+
+function focusSelect(root) {
+  for (const row of root.querySelectorAll('.vz-ctl')) {
+    const lab = row.querySelector('.vz-ctl-label');
+    if (lab && lab.textContent === 'focus dtype') return row.querySelector('select');
+  }
+  return null;
+}
+
+function syncFocusMenu(root, mode) {
+  const sel = focusSelect(root);
+  if (!sel) return;
+  const keep = sel.value;
+  while (sel.firstChild) sel.removeChild(sel.firstChild);
+  for (const d of orderDtypes(DTYPES, mode)) {
+    const o = document.createElement('option');
+    o.value = d.key;
+    o.textContent = d.label;
+    sel.appendChild(o);
+  }
+  if (keep) sel.value = keep;
+}
 
 // ---- hardware dtype-support matrix ----------------------------------------
 // The vendor/architecture capability catalogue lives in ../data/dtype-support.json
@@ -885,6 +911,11 @@ mount({
       { value: 'bits', label: 'bit layout' }, { value: 'block', label: 'block-scaled' }, { value: 'hardware', label: 'hardware support' },
     ] });
     c.select('dtype', { label: 'focus dtype', value: 'fp16', rebuild: true, options: DTYPES.map((d) => ({ value: d.key, label: d.label })) });
+    c.select('order', {
+      label: 'dtype order', value: 'family', rebuild: true,
+      options: [{ value: 'family', label: 'by family' }, { value: 'bits', label: 'by bits' }],
+      onInput: (mode) => syncFocusMenu(page.controls.root, mode),
+    });
     c.select('cols', { label: 'column family', value: 'all', rebuild: true, options: COL_FAMILIES });
     c.select('engines', { label: 'engine class (hardware view)', value: 'all', rebuild: true, options: ENGINE_CLASSES });
     c.slider('value', { label: 'value', min: -4, max: 4, step: 0.01, value: 1.3, rebuild: true, format: (v) => (+v).toFixed(2) });
@@ -996,6 +1027,8 @@ mount({
   if (['bits', 'block', 'hardware'].includes(q.get('view'))) page.controls.set('view', q.get('view'), { rebuild: true });
   if (q.has('engines')) page.controls.set('engines', q.get('engines'), { rebuild: true });
   if (q.has('cols')) page.controls.set('cols', q.get('cols'), { rebuild: true });
+  if (q.get('order') === 'bits' || q.get('order') === 'family') page.controls.set('order', q.get('order'), { rebuild: true });
+  syncFocusMenu(page.controls.root, page.state.order);
   if (q.has('dtype')) page.controls.set('dtype', q.get('dtype'), { rebuild: true });
   if (q.has('hwscroll')) { hwScroll = Math.max(0, +q.get('hwscroll') || 0); }
   // ?flip=i  (or comma-separated) toggles bit index i -- headless stand-in for

@@ -21,6 +21,7 @@ export const ORDER = [
   { slug: 'flash-attention', family: 'B' },
   { slug: 'sparse-attention-select', family: 'B' },
   { slug: 'attention-sinks', family: 'B' },
+  { slug: 'sage-attention', family: 'B' },
   // C -- Transformer block
   { slug: 'tokenization', family: 'C' },
   { slug: 'embedding', family: 'C' },
@@ -33,6 +34,7 @@ export const ORDER = [
   { slug: 'prefill-vs-decode', family: 'C' },
   { slug: 'sampling', family: 'C' },
   { slug: 'hyper-connections', family: 'C' },
+  { slug: 'sequence-packing', family: 'C' },
   // D -- Mixture of Experts
   { slug: 'moe-routing', family: 'D' },
   { slug: 'moe-balance', family: 'D' },
@@ -58,9 +60,15 @@ export const ORDER = [
   { slug: 'vram-budget', family: 'G' },
   { slug: 'multimodal-inject', family: 'G' },
   { slug: 'vlm-connector', family: 'G' },
+  { slug: 'rotation-quant', family: 'G' },
   // H -- End-to-end (capstone) + training
   { slug: 'forward-pass', family: 'H' },
   { slug: 'backprop', family: 'H' },
+  { slug: 'lora', family: 'H' },
+  { slug: 'muon', family: 'H' },
+  { slug: 'activation-recompute', family: 'H' },
+  { slug: 'training-numerics', family: 'H' },
+  { slug: 'distillation', family: 'H' },
   // I -- Real-model grounding: real weights, fetched at runtime
   { slug: 'real-embeddings', family: 'I' },
   { slug: 'real-attention', family: 'I' },
@@ -77,6 +85,7 @@ export const ORDER = [
   { slug: 'continuous-batching', family: 'J' },
   { slug: 'chunked-prefill', family: 'J' },
   { slug: 'speculative-decoding', family: 'J' },
+  { slug: 'block-diffusion', family: 'J' },
   { slug: 'kv-eviction', family: 'J' },
   { slug: 'disaggregation', family: 'J' },
   { slug: 'kv-quant', family: 'J' },
@@ -100,6 +109,7 @@ export const ORDER = [
   { slug: 'dit', family: 'K' },
   { slug: 'latent-space', family: 'K' },
   { slug: 'few-step-distillation', family: 'K' },
+  { slug: 'teacache', family: 'K' },
   { slug: 'video-time', family: 'K' },
   { slug: 'audio-tokens', family: 'K' },
   { slug: 'ar-vs-diffusion-images', family: 'K' },

@@ -37,19 +37,10 @@
 //   - URL hooks for all of it, plus ?step=N.
 import { mount } from '../framework/layout.js';
 import { T, alphaOf, rgbaToken, inkOn } from '../framework/theme.js';
+import { attentionPairs, fmtN, fmtPct, latentAxes, shareOf } from './pairs.js';
 
 // --- formatting --------------------------------------------------------------
-const UNITS = [[1e18, 'E'], [1e15, 'P'], [1e12, 'T'], [1e9, 'G'], [1e6, 'M'], [1e3, 'k']];
-function fmtN(v) {
-  if (!isFinite(v)) return '∞';
-  for (const [m, s] of UNITS) if (v >= m) { const q = v / m; return (q < 10 ? q.toFixed(2) : q < 100 ? q.toFixed(1) : q.toFixed(0)) + ' ' + s; }
-  return String(Math.round(v));
-}
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
-// A ratio is reported as a PERCENT OF a named baseline. Attention cost is a
-// LOWER-is-better quantity, so >100% is WORSE -- the caller says so in words.
-const pctOf = (v, b) => (b > 0 ? (v / b) * 100 : 0);
-const fmtPct = (p) => (p >= 1e6 ? fmtN(p) : p >= 1000 ? p.toFixed(0) : p >= 10 ? p.toFixed(0) : p >= 1 ? p.toFixed(1) : p >= 0.01 ? p.toFixed(2) : p > 0 ? '<0.01' : '0') + '%';
 
 // A long text context to hold the video figures against. 128 K tokens is a
 // context length ordinary chat models are routinely asked for.
@@ -65,7 +56,7 @@ function base(st) {
   const W0 = st.width | 0;
   const H0 = Math.round((W0 * 9 / 16) / 8) * 8;          // 16:9, kept a multiple of 8
   const sw = +st.sw, tc = +st.tc, lp = +st.lp;
-  const latW = Math.floor(W0 / sw), latH = Math.floor(H0 / sw);
+  const { latW, latH } = latentAxes(W0, H0, sw);
   const gw = Math.max(1, Math.floor(latW / lp)), gh = Math.max(1, Math.floor(latH / lp));
   const S = gw * gh;                                      // spatial tokens per latent frame
   const win = st.win | 0;
@@ -78,11 +69,8 @@ function costsAt(b, sec) {
   // single image (F = 1) is still representable.
   const Tt = 1 + Math.floor((F - 1) / b.tc);
   const N = b.S * Tt;
-  const full = N * N;                                     // every space-time pair
-  const fact = N * (b.S + Tt);                            // Tt*S^2 (spatial) + S*Tt^2 (temporal)
-  const k = Math.min(b.S, b.wsp) * Math.min(Tt, b.wt);    // neighbours inside a local 3-D window
-  const win = N * k;
-  return { F, Tt, N, full, fact, win, k };
+  const pairs = attentionPairs({ N, S: b.S, Tt, win: b.win });
+  return { F, Tt, N, full: pairs.full, fact: pairs.factorised, win: pairs.windowed, k: pairs.k };
 }
 
 const SHAPES = ['full', 'factorised', 'windowed'];
@@ -139,12 +127,12 @@ mount({
     {
       goal: 'Find a setting where one 4-second clip needs more attention work than a 128 K-token text context.',
       hint: 'raise the resolution, or weaken the spatial / temporal compression — both raise the token count, and cost is its square.',
-      check: (api) => ({ solved: (api.probe.cost ?? 0) > TEXT_COST, detail: `attention cost ${fmtPct(pctOf(api.probe.cost ?? 0, TEXT_COST))} of the 128 K text context (lower is better; 100% = parity)` }),
+      check: (api) => ({ solved: (api.probe.cost ?? 0) > TEXT_COST, detail: `attention cost ${shareOf(api.probe.cost ?? 0, TEXT_COST).pct} of the 128 K text context (lower is better; 100% = parity)` }),
     },
     {
       goal: 'Now bring that same clip back under the text context WITHOUT touching resolution, frame rate or duration.',
       hint: 'stronger compression, a bigger latent patch, or a cheaper attention shape — and read what the shape gives up.',
-      check: (api) => ({ solved: (api.probe.cost ?? 1e99) <= TEXT_COST, detail: (api.probe.cost ?? 0) <= TEXT_COST ? `${fmtPct(pctOf(api.probe.cost ?? 0, TEXT_COST))} of the text context — under it` : 'still over the text context' }),
+      check: (api) => ({ solved: (api.probe.cost ?? 1e99) <= TEXT_COST, detail: (api.probe.cost ?? 0) <= TEXT_COST ? `${shareOf(api.probe.cost ?? 0, TEXT_COST).pct} of the text context — under it` : 'still over the text context' }),
     },
   ],
   controls: (c, page) => {
@@ -262,16 +250,16 @@ mount({
     r.label(`patch (${selR},${selC}) of latent frame ${lf}  ↔ drag`, ax, aBot + 30, { color: T.warn, font: mono(10, true) });
     r.label(`covers ${pxSpan}×${pxSpan} px`, ax, aBot + 44, { color: T.n12, font: mono(9.5) });
     r.label(`× frames ${f0}–${f1} × 3 channels`, ax, aBot + 56, { color: T.n12, font: mono(9.5) });
-    r.label(`= ${fmtN(perTok)} raw values → 1 token`, ax, aBot + 68, { color: T.n13, font: mono(9.5, true) });
+    r.label(`= ${perTok} raw values → 1 token`, ax, aBot + 68, { color: T.n13, font: mono(9.5, true) });
 
     // ===================== B. the arithmetic ladder ==========================
     const bx = ax + plateW + 34, bw = Math.max(210, Math.round(W * 0.33));
     const rows = [
-      { minRev: 0, k: 'raw pixel values', val: v.rawValues, col: T.n11, f: `${b.W0}×${b.H0}×3 × ${c.F} frames`, tip: `Every sample the camera produced.\n${b.W0} × ${b.H0} × 3 channels × ${c.F} frames = ${fmtN(v.rawValues)}` },
-      { minRev: 0, k: '2-D patching only', val: v.raw2d, col: T.n9, f: `${VIT_PATCH}×${VIT_PATCH} per frame, no compression`, tip: `Patch each frame on its own, as an image model would.\n⌊${b.H0}/${VIT_PATCH}⌋ × ⌊${b.W0}/${VIT_PATCH}⌋ × ${c.F} = ${fmtN(v.raw2d)} tokens.\nThis is the sequence a video model would face with no temporal compression at all.` },
-      { minRev: 1, k: 'latent volume', val: b.latW * b.latH * c.Tt, col: T.teal, f: `${b.latW}×${b.latH}×${c.Tt}  (÷${b.sw} space, ÷${b.tc} time)`, tip: `Causal 3-D autoencoder.\nspace: ${b.W0}/${b.sw} × ${b.H0}/${b.sw} = ${b.latW}×${b.latH}\ntime:  1 + ⌊(${c.F}−1)/${b.tc}⌋ = ${c.Tt} latent frames\nThe leading 1 is the causal first frame — it is why a single image (F=1) is still representable.` },
-      { minRev: 2, k: 'space-time tokens', val: c.N, col: T.violet, f: `${b.gw}×${b.gh}×${c.Tt}  (patch ${b.lp}×${b.lp})`, tip: `Patchify the latent: ${b.gw} × ${b.gh} = ${fmtN(b.S)} spatial tokens per latent frame, × ${c.Tt} latent frames = ${fmtN(c.N)} tokens.\nThat is ${fmtPct(pctOf(c.N, v.raw2d))} of the 2-D-patching-only count (lower is better here; 100% = no saving).` },
-      { minRev: 3, k: `attention (${v.shape})`, val: v.cost, col: shapeColor(v.shape), f: v.shape === 'full' ? `N² = ${fmtN(c.N)}²` : v.shape === 'factorised' ? `N·(S+T) = ${fmtN(c.N)}·(${fmtN(b.S)}+${c.Tt})` : `N·k = ${fmtN(c.N)}·${fmtN(c.k)}`, tip: `Attention scores PAIRS of tokens, so its cost is counted in score entries, per head, per layer.\nfull 3-D:     N² = ${fmtN(c.full)}\nfactorised:   N·(S+T) = ${fmtN(c.fact)}\nwindowed:     N·k, k = ${fmtN(c.k)} → ${fmtN(c.win)}` },
+      { minRev: 0, k: 'raw pixel values', val: v.rawValues, col: T.n11, f: `${b.W0}×${b.H0}×3 × ${c.F} frames`, tip: `Every sample the camera produced.\n${b.W0} × ${b.H0} × 3 channels × ${c.F} frames = ${v.rawValues}` },
+      { minRev: 0, k: '2-D patching only', val: v.raw2d, col: T.n9, f: `${VIT_PATCH}×${VIT_PATCH} per frame, no compression`, tip: `Patch each frame on its own, as an image model would.\n⌊${b.H0}/${VIT_PATCH}⌋ × ⌊${b.W0}/${VIT_PATCH}⌋ × ${c.F} = ${v.raw2d} tokens.\nThis is the sequence a video model would face with no temporal compression at all.` },
+      { minRev: 1, k: 'latent volume', val: b.latW * b.latH * c.Tt, col: T.teal, f: `${b.latW}×${b.latH}×${c.Tt}  (÷${b.sw} space, ÷${b.tc} time)`, tip: `Causal 3-D autoencoder.\nspace: ⌊${b.W0}/${b.sw}⌋ × ⌊${b.H0}/${b.sw}⌋ = ${b.latW}×${b.latH}\ntime:  1 + ⌊(${c.F}−1)/${b.tc}⌋ = ${c.Tt} latent frames\nThe leading 1 is the causal first frame — it is why a single image (F=1) is still representable.` },
+      { minRev: 2, k: 'space-time tokens', val: c.N, col: T.violet, f: `${b.gw}×${b.gh}×${c.Tt}  (patch ${b.lp}×${b.lp})`, tip: `Patchify the latent: ${b.gw} × ${b.gh} = ${b.S} spatial tokens per latent frame, × ${c.Tt} latent frames = ${c.N} tokens.\nThat is ${fmtPct(v.raw2d > 0 ? 100 * c.N / v.raw2d : 0)} of the 2-D-patching-only count (lower is better here; 100% = no saving).` },
+      { minRev: 3, k: `attention (${v.shape})`, val: v.cost, col: shapeColor(v.shape), f: v.shape === 'full' ? `N² = ${c.N}×${c.N}` : v.shape === 'factorised' ? `N·(S+T) = ${c.N}×(${b.S}+${c.Tt})` : `N·k = ${c.N}×${c.k}`, tip: `Attention scores PAIRS of tokens, so its cost is counted in score entries, per head, per layer.\nfull 3-D:     N² = ${c.full}\nfactorised:   N·(S+T) = ${c.fact}\nwindowed:     N·k, k = ${c.k} → ${c.win}` },
     ];
     r.label('the arithmetic, counted live', bx, ay - 8, { color: T.n14, font: mono(11, true) });
     const rowH = 42;
@@ -297,8 +285,8 @@ mount({
     if (rev >= 3 && cwid > 130) {
       r.label('vs a 128 K-token text context', cx, ay - 8, { color: T.n14, font: mono(11, true) });
       const pairs = [
-        { k: 'tokens', a: c.N, bl: TEXT_CTX, col: T.violet, tip: `${fmtN(c.N)} space-time tokens vs a ${fmtN(TEXT_CTX)}-token text context = ${fmtPct(pctOf(c.N, TEXT_CTX))} of it.` },
-        { k: 'attention score entries', a: v.cost, bl: TEXT_COST, col: shapeColor(v.shape), tip: `${fmtN(v.cost)} vs ${fmtN(TEXT_COST)} = ${fmtPct(pctOf(v.cost, TEXT_COST))} of the text context's full attention (lower is better; 100% = parity).` },
+        { k: 'tokens', a: c.N, bl: TEXT_CTX, col: T.violet, share: shareOf(c.N, TEXT_CTX), tipTail: 'of it.' },
+        { k: 'attention score entries', a: v.cost, bl: TEXT_COST, col: shapeColor(v.shape), share: shareOf(v.cost, TEXT_COST), tipTail: "of the text context's full attention (lower is better; 100% = parity)." },
       ];
       let byy = ay - 2;
       for (const p of pairs) {
@@ -308,10 +296,10 @@ mount({
         ctx.fillStyle = alphaOf(p.col, 0.55); ctx.fillRect(cx, byy + 14, Math.max(1, cwid * p.a / m), 10);
         ctx.fillStyle = alphaOf(T.n9, 0.55); ctx.fillRect(cx, byy + 27, Math.max(1, cwid * p.bl / m), 10);
         ctx.restore();
-        r.label(`video ${fmtN(p.a)}`, cx + 3, byy + 23, { color: inkOn(T.n0), font: mono(9) });
-        r.label(`text  ${fmtN(p.bl)}`, cx + 3, byy + 36, { color: T.n11, font: mono(9) });
-        r.label(`${fmtPct(pctOf(p.a, p.bl))} of the text context`, cx, byy + 50, { color: p.a > p.bl ? T.bad : T.ok, font: mono(9.5, true) });
-        barRows.push({ x: cx, y: byy, w: cwid, h: 52, tip: p.tip });
+        r.label(`video ${p.share.a}`, cx + 3, byy + 23, { color: inkOn(T.n0), font: mono(9) });
+        r.label(`text  ${p.share.b}`, cx + 3, byy + 36, { color: T.n11, font: mono(9) });
+        r.label(`${p.share.pct} of the text context`, cx, byy + 50, { color: p.a > p.bl ? T.bad : T.ok, font: mono(9.5, true) });
+        barRows.push({ x: cx, y: byy, w: cwid, h: 52, tip: `${p.share.text} ${p.tipTail}` });
         byy += 60;
       }
 
@@ -396,10 +384,10 @@ mount({
       ctx.fillStyle = shapeColor(sh); ctx.fillRect(ex + 5, ry + 7, 7, 7);
       ctx.restore();
       r.label(SHAPE_LABEL[sh], ex + 17, ry + 14, { color: on ? shapeColor(sh) : T.n12, font: mono(9.5, true) });
-      r.label(`${fmtN(q)}  ·  ${fmtPct(pctOf(q, c.full))} of full 3-D`, ex + 17, ry + 26, { color: on ? T.n13 : T.n10, font: mono(9) });
+      r.label(`${shareOf(q, c.full).a}  ·  ${shareOf(q, c.full).pct} of full 3-D`, ex + 17, ry + 26, { color: on ? T.n13 : T.n10, font: mono(9) });
       const give = SHAPE_GIVES_UP[sh];
       wrap('gives up: ' + give, giveCols, 3).forEach((ln, k) => r.label(ln, ex + 17, ry + 37 + k * 10, { color: T.n10, font: mono(8.5) }));
-      tableRows.push({ x: ex, y: ry, w: ewid, h: erh - 6, shape: sh, tip: `${SHAPE_LABEL[sh]}\ncost ${fmtN(q)} score entries = ${fmtPct(pctOf(q, c.full))} of full 3-D (lower is better; 100% = parity)\ngives up: ${give}` });
+      tableRows.push({ x: ex, y: ry, w: ewid, h: erh - 6, shape: sh, tip: `${SHAPE_LABEL[sh]}\ncost ${shareOf(q, c.full).text} of full 3-D (lower is better; 100% = parity)\ngives up: ${give}` });
     });
 
     // ===================== hover =============================================
@@ -411,7 +399,7 @@ mount({
       else if (frameRect && p.x >= frameRect.x && p.x <= frameRect.x + frameRect.w && p.y >= frameRect.y && p.y <= frameRect.y + frameRect.h) {
         const hc = clamp(Math.floor((p.x - frameRect.x) / frameRect.w * b.gw), 0, b.gw - 1);
         const hr = clamp(Math.floor((p.y - frameRect.y) / frameRect.h * b.gh), 0, b.gh - 1);
-        page.setTip(`space-time patch (${hr},${hc})\n${pxSpan}×${pxSpan} px × ${nGroup} frame${nGroup === 1 ? '' : 's'} × 3 = ${fmtN(pxSpan * pxSpan * nGroup * 3)} raw values\n→ exactly 1 token  ·  drag to move`);
+        page.setTip(`space-time patch (${hr},${hc})\n${pxSpan}×${pxSpan} px × ${nGroup} frame${nGroup === 1 ? '' : 's'} × 3 = ${pxSpan * pxSpan * nGroup * 3} raw values\n→ exactly 1 token  ·  drag to move`);
       } else if (curveRect && p.x >= curveRect.x && p.x <= curveRect.x + curveRect.w && p.y >= curveRect.y && p.y <= curveRect.y + curveRect.h) {
         const s = clamp(SECMIN * Math.pow(SECMAX / SECMIN, (p.x - curveRect.x) / curveRect.w), SECMIN, SECMAX);
         const cc = costsAt(b, s);
@@ -422,8 +410,8 @@ mount({
     // ===================== readout ===========================================
     let o = `stage ${rev + 1}/4 — ${STAGES[rev].label}.   tier:${r.name}\n`;
     o += `${b.W0}×${b.H0} @ ${b.fps} fps for ${(+st.seconds).toFixed(1)} s = ${c.F} frames · 3-D causal autoencoder ÷${b.sw} space ÷${b.tc} time · latent patch ${b.lp}×${b.lp}.\n`;
-    o += `raw pixel values ${fmtN(v.rawValues)} → 2-D patching alone would give ${fmtN(v.raw2d)} tokens → latent ${b.latW}×${b.latH}×${c.Tt} → ${fmtN(c.N)} space-time tokens (${b.gw}×${b.gh}×${c.Tt}) = ${fmtPct(pctOf(c.N, v.raw2d))} of the 2-D-only count.\n`;
-    o += `${SHAPE_LABEL[v.shape]}: ${fmtN(v.cost)} attention score entries per head per layer = ${fmtPct(pctOf(v.cost, c.full))} of full 3-D and ${fmtPct(pctOf(v.cost, TEXT_COST))} of a 128 K-token text context (both lower-is-better; 100% = parity). Gives up: ${SHAPE_GIVES_UP[v.shape]}`;
+    o += `raw pixel values ${v.rawValues} → 2-D patching alone would give ${v.raw2d} tokens → latent ${b.latW}×${b.latH}×${c.Tt} → ${c.N} space-time tokens (${b.gw}×${b.gh}×${c.Tt}) = ${fmtPct(v.raw2d > 0 ? 100 * c.N / v.raw2d : 0)} of the 2-D-only count.\n`;
+    o += `${SHAPE_LABEL[v.shape]}: ${shareOf(v.cost, c.full).a} attention score entries per head per layer = ${shareOf(v.cost, c.full).pct} of full 3-D and ${shareOf(v.cost, TEXT_COST).pct} of a 128 K-token text context (both lower-is-better; 100% = parity). Windowed pairs ${fmtN(c.win)} versus full ${fmtN(c.full)}${c.win < c.full ? ' (the window attends fewer pairs)' : ''}. Gives up: ${SHAPE_GIVES_UP[v.shape]}`;
     page.setReadout(o);
   },
 }).then((page) => {

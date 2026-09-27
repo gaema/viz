@@ -9,6 +9,7 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { rope, ropeAngles, seededRandn } from '../framework/tensor.js';
+import { angleEquation, applyPosition, rotateLabel, spinRatio } from './position.js';
 import { T, alphaOf } from '../framework/theme.js';
 
 
@@ -54,6 +55,7 @@ mount({
     c.stepper('d', { label: 'head_dim', min: 4, max: 12, step: 2, value: 8, rebuild: false });
     c.stepper('N', { label: 'positions', min: 8, max: 32, value: 16 });
     c.slider('base', { label: 'rotary base θ', min: 1000, max: 20000, step: 1000, value: 10000, rebuild: false, format: (v) => String(v | 0) });
+    c.toggle('nope', { label: 'no position (leave the vector unchanged)', value: false });
     c.slider('seed', { label: 'seed', min: 0, max: 99, step: 1, value: 4, rebuild: false });
     c.transport({ compute: () => buildData(page.state), speed: 2 });
   },
@@ -93,7 +95,8 @@ mount({
     syncTransport(page);
 
     const vec = seededRandn(seed, d);
-    const ang = ropeAngles(d, p, { theta: base });    // per-pair Δ = p·θᵢ (fractional p)
+    const nope = !!st.nope;
+    const ang = nope ? new Float32Array(d >> 1) : ropeAngles(d, p, { theta: base });
 
     // --- per-pair rotation planes ---
     const pad = 16, np = d / 2, planeRowY = 70;
@@ -147,13 +150,16 @@ mount({
 
     // --- [N×d] heatmap: rotated components across all positions (the RoPE wave) ---
     const comp = { data: new Float32Array(N * d), rows: N, cols: d };
-    for (let pp = 0; pp < N; pp++) { const rv = rope(vec, pp, { theta: base }); for (let k = 0; k < d; k++) comp.data[pp * d + k] = rv[k]; }
+    for (let pp = 0; pp < N; pp++) {
+      const rv = nope ? applyPosition(Array.from(vec), pp, base, true) : rope(vec, pp, { theta: base });
+      for (let k = 0; k < d; k++) comp.data[pp * d + k] = rv[k];
+    }
     let dom = 1e-9; for (let i = 0; i < comp.data.length; i++) dom = Math.max(dom, Math.abs(comp.data[i]));
     const hy = planeRowY + planeSize + 64;
     const cw = Math.max(8, Math.min(26, (page.W - 2 * pad - 150) / d)), ch = Math.max(6, Math.min(11, (page.H - hy - 22) / N));
     const hxh = pad + 130, hRect = { x: hxh, y: hy, w: d * cw, h: N * ch };
     hmRect = hRect;
-    r.label('rotated components across positions (RoPE wave):', pad, hy - 8, { color: T.n11, font: '11px ui-monospace, monospace' });
+    r.label(nope ? 'position off — the same vector on every row:' : 'rotated components across positions (RoPE wave):', pad, hy - 8, { color: T.n11, font: '11px ui-monospace, monospace' });
     r.label('positions ↓ / dims →', pad, hy + 12, { color: T.n9, font: '10px ui-monospace, monospace' });
     r.heatmap(comp, { rows: N, cols: d, rect: hRect, ramp: ramps.diverging, domain: [-dom, dom] });
     const prow = Math.round(p);
@@ -169,12 +175,14 @@ mount({
       for (const pl of planes) {
         const dxp = pt.x - pl.cx, dyp = pt.y - pl.cy;
         if (dxp * dxp + dyp * dyp <= (pl.R + 10) * (pl.R + 10)) {
-          const c = Math.cos(pl.delta), s = Math.sin(pl.delta);
-          const rx = pl.a * c - pl.b * s, ry = pl.a * s + pl.b * c;
-          tip = `pair ${pl.i}   θ${pl.i} = ${fmt(pl.theta)}\n` +
-                `Δ = p·θ = ${fmt(p)}·${fmt(pl.theta)} = ${fmt(pl.delta)} rad\n` +
-                `(cos Δ, sin Δ) = (${c.toFixed(3)}, ${s.toFixed(3)})\n` +
-                `(${pl.a.toFixed(2)}, ${pl.b.toFixed(2)}) → (${rx.toFixed(3)}, ${ry.toFixed(3)})`;
+          const turned = rotateLabel(pl.a, pl.b, pl.delta);
+          tip = nope
+            ? `pair ${pl.i}: position is off, so this pair is not rotated. Δ = 0.\n` +
+              `(${turned.a}, ${turned.b}) stays (${turned.a}, ${turned.b}).`
+            : `pair ${pl.i}   θ${pl.i} = ${fmt(pl.theta)}\n` +
+              `${angleEquation(pl.delta)}\n` +
+              `(cos Δ, sin Δ) = (${turned.c}, ${turned.s})\n` +
+              `(${turned.a}, ${turned.b}) → (${turned.rx}, ${turned.ry})`;
           break;
         }
       }
@@ -182,15 +190,25 @@ mount({
         const hit = cellAt(hmRect, N, d, pt.x, pt.y);
         if (hit) {
           const v = comp.data[hit.r * d + hit.c];
-          tip = `rotated[pos ${hit.r}, dim ${hit.c}] = ${v.toFixed(3)}\n(pair ${hit.c >> 1}, ${(hit.c & 1) ? 'sin' : 'cos'} component)`;
+          tip = nope
+            ? `unrotated[pos ${hit.r}, dim ${hit.c}] = ${v.toFixed(3)}\nposition is off, so every row is the input vector`
+            : `rotated[pos ${hit.r}, dim ${hit.c}] = ${v.toFixed(3)}\n(pair ${hit.c >> 1}, ${(hit.c & 1) ? 'sin' : 'cos'} component)`;
         }
       }
       if (tip) page.setTip(tip);
     }
 
-    let o = `RoPE: pair i rotated by Δ = p·θᵢ,  θᵢ = ${base}^(−2i/${d}).  Low pairs spin fast, high pairs slow.  pos=${fmt(p)}  ${posState.frozen ? '(frozen — drag/sweep)' : '(sweeping)'}  tier:${r.name}\n`;
-    o += `pair 0: Δ=${fmt(ang[0])} rad   pair ${np - 1}: Δ=${fmt(ang[np - 1])} rad   (ratio ${fmt(ang[0] / (ang[np - 1] || 1e-9))}× faster)`;
-    o += '   ·   rotations compose: q·k depends only on relative position (m−n).';
+    const plain = applyPosition(Array.from(vec), p, base, true);
+    const ident = plain.every((x, i) => x === vec[i]);
+    let o = nope
+      ? `no position: the vector is not rotated. θᵢ = ${base}^(−2i/${d}) is not applied. pos=${fmt(p)}  tier:${r.name}\n`
+      : `RoPE: pair i rotated by Δ = p·θᵢ,  θᵢ = ${base}^(−2i/${d}).  Low pairs spin fast, high pairs slow.  pos=${fmt(p)}  ${posState.frozen ? '(frozen — drag/sweep)' : '(sweeping)'}  position on  tier:${r.name}\n`;
+    if (nope) {
+      o += `applied angles are 0, so there is no spin ratio. output equals input (${ident}).`;
+    } else {
+      o += spinRatio(ang[0], ang[np - 1], np - 1).text;
+      o += '   ·   rotations compose: q·k depends only on relative position (m−n).';
+    }
     page.setReadout(o);
   },
 }).then((page) => {

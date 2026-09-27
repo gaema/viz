@@ -19,14 +19,16 @@ spends that idle width instead:
  tokens.
 - **verify** -- the target runs **ONE** forward over all `k+1` positions. They
  batch exactly the way a prompt does, so the extra positions are close to free;
- the pass yields the target's own distribution `p` at every one of them.
+ the pass yields a target distribution `p` at every position, and that
+ distribution is conditioned on the tokens already kept earlier in the round.
 - **accept test** -- walk the proposals left to right and accept proposal `x`
  with probability `min(1, p(x)/q(x))` against a drawn uniform, where `q` is the
  draft's own probability for the same token. Stop at the **first**
  disagreement.
 - **commit** -- keep the accepted prefix. At the rejection, the target emits its
- **own** token, drawn from the residual `normalize(max(0, p − q))` -- which is
- what makes the whole scheme produce exactly the target's distribution. If
+ **own** token, drawn from the residual `normalize(max(0, p − q))`. That
+ correction samples from the position's own target; the next position's target
+ is then rebuilt from the tokens kept so far, so the round is one chain. If
  every proposal survived, the extra position the same forward already covered
  yields one **free bonus** token.
 

@@ -44,9 +44,9 @@ page prices both sides per token per layer:
 | Side | Formula | At the defaults |
 |---|---|---|
 | MHA projections | `4 · d · n_h · d_h` (Q, K, V, output) | 469.8M MAC |
-| MLA projections | `2 · d · n_h · d_c + d · (d_c + d_R)` (absorbed Q and output at latent width, plus the two down-projections) | 943.7M MAC |
+| MLA projections | `2 · d · n_h · d_c + d · n_h · d_R + d · (d_c + d_R)` (absorbed Q and output at latent width, the per-head RoPE query, and the two down-projections) | 1.00G MAC |
 
-That is **201% of MHA's projection arithmetic** (lower is better; 100% =
+That is **213% of MHA's projection arithmetic** (lower is better; 100% =
 parity) bought with **1.76% of its cache**. The "the trade" panel shows both
 bars, and dragging the latent dimension moves them in opposite directions under
 one hand -- which is the actual shape of the design decision. Note that `d_c` is

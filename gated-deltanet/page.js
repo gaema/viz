@@ -11,6 +11,7 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { seededRandn } from '../framework/tensor.js';
+import { assocCost, cheaper } from './assoc.js';
 import { T, alphaOf, effectiveTheme } from '../framework/theme.js';
 
 // --- theme fixups the mechanical hex migration could not make. A wash, a scrim
@@ -155,7 +156,9 @@ mount({
         if (oRect && p.x >= oRect.x && p.x <= oRect.x + oRect.w && p.y >= oRect.y && p.y <= oRect.y + d * (oRect.h / d)) { const i = Math.floor((p.y - oRect.y) / (oRect.h / d)); if (i >= 0 && i < d) page.setTip(`o[${i}] = (S·q)[${i}] = ${cs.o[i].toFixed(3)}\noutput = read the memory with q`); } }
     }
 
+    const qk = assocCost('qk', L, d), kv = assocCost('kv', L, d);
     let o = `linear attention: a [${d}×${d}] matrix memory S (constant size, no KV cache) updated by the gated delta rule; read with o=Sq.   α=${st.alpha.toFixed(2)} β=${st.beta.toFixed(2)} ${st.delta ? 'delta-ON' : 'delta-OFF'}    tier:${r.name}\n`;
+    o += `(QK)V costs ${qk} MACs, Q(KV) costs ${kv}. At L=${L} d=${d} the cheaper form is ${cheaper(L, d)} (they tie when L = d).\n`;
     o += s ? `step ${t}/${L - 1}: ${st.delta ? 'erase the old value at key kₜ, then' : 'accumulate'} write βvₜkₜᵀ (decayed by α); o=Sqₜ.`
       : `${L} steps. ${st.delta ? 'Delta rule overwrites a repeated key — bounded memory.' : 'Delta OFF: associations just accumulate; the memory saturates.'}`;
     page.setReadout(o);

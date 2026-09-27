@@ -28,14 +28,10 @@
 //  - URL hooks for every handle plus ?step=N (see the loader at the bottom).
 import { mount } from '../framework/layout.js';
 import { T, alphaOf, rgbaToken, inkOn } from '../framework/theme.js';
-
-// Bytes per cached element, by KV dtype.
-const DT = { fp16: 2, fp8: 1 };
+import { byteCompare, derive, fmtBytes, macPrice } from './cost.js';
 
 const fmtInt = (n) => Math.round(n).toLocaleString('en-US');
-const fmtBytes = (b) => (b >= 1073741824 ? (b / 1073741824).toFixed(2) + ' GB'
-  : b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB'
-  : b >= 1024 ? (b / 1024).toFixed(1) + ' KB' : Math.round(b) + ' B');
+
 const fmtMac = (m) => (m >= 1e9 ? (m / 1e9).toFixed(2) + 'G' : m >= 1e6 ? (m / 1e6).toFixed(1) + 'M' : fmtInt(m));
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -61,37 +57,6 @@ function block(ctx, x, y, w, h, label, col, filled, font) {
 // The math. Everything the page draws is derived here, so a hover tooltip can
 // quote the same formula with the current numbers substituted.
 // ---------------------------------------------------------------------------
-function derive(st) {
-  const heads = st.heads | 0, hdim = st.hdim | 0, dc = st.dc | 0, dR = st.dR | 0;
-  const d = st.hidden | 0, L = st.layers | 0, B = DT[st.kvdtype] || 2;
-  const ctx = (st.ctxk | 0) * 1024;
-
-  // Cached elements per token per layer.
-  const mhaElem = 2 * heads * hdim;   // K and V, for every head
-  const mlaElem = dc + dR;            // one latent + the decoupled RoPE key
-
-  const mhaTok = mhaElem * L * B;     // bytes / token, all layers
-  const mlaTok = mlaElem * L * B;
-  const mhaAll = mhaTok * ctx;        // bytes at the full context
-  const mlaAll = mlaTok * ctx;
-
-  // Attention-side projection arithmetic, MACs / token / layer.
-  //   MHA: Q, K, V and the output projection, each d x (heads*hdim).
-  //   MLA: the absorbed query and output projections run at LATENT width
-  //        (heads*dc, not heads*hdim), plus the two small down-projections
-  //        that produce the latent and the RoPE key.
-  const macMHA = 4 * d * heads * hdim;
-  const macMLA = 2 * d * heads * dc + d * (dc + dR);
-
-  return {
-    heads, hdim, dc, dR, d, L, B, ctx, mhaElem, mlaElem, mhaTok, mlaTok, mhaAll, mlaAll,
-    macMHA, macMLA,
-    shrink: mhaElem / mlaElem,                 // x smaller cache
-    cachePct: 100 * mlaElem / mhaElem,         // MLA cache as % of MHA's
-    macPct: 100 * macMLA / macMHA,             // MLA arithmetic as % of MHA's
-  };
-}
-
 // One transport step = one decoded token appended to both caches.
 function buildSteps(st) {
   const v = derive(st), n = st.ntok | 0, out = [];
@@ -330,7 +295,7 @@ mount({
     lab(`${v.dc}`, railX + railW + 8, railY + 12, T.accent, '11px ui-monospace, monospace');
     lab('↔ drag: cache shrinks, projection matmul grows', railX, railY + 30, T.accent, '9.5px ui-monospace, monospace');
     hit(railX - 12, railY - 12, railW + 24, 30,
-      `latent dimension d_c = ${v.dc}\ncached elem/token/layer = d_c + d_R = ${v.dc} + ${v.dR} = ${fmtInt(v.mlaElem)}\nabsorbed projection MACs = 2 · d · n_h · d_c + d · (d_c + d_R)\n= 2 · ${v.d} · ${v.heads} · ${v.dc} + ${v.d} · ${fmtInt(v.mlaElem)} = ${fmtMac(v.macMLA)}\nd_c is a RANK BUDGET, not a free knob: it is how much of K and V the\nlatent can still represent, so a very small d_c buys cheap arithmetic\nby giving up capacity. The published production configuration is 512.`);
+      `latent dimension d_c = ${v.dc}\ncached elem/token/layer = d_c + d_R = ${v.dc} + ${v.dR} = ${fmtInt(v.mlaElem)}\nabsorbed projection MACs = 2 · d · n_h · d_c + d · n_h · d_R + d · (d_c + d_R)\n= 2 · ${v.d} · ${v.heads} · ${v.dc} + ${v.d} · ${v.heads} · ${v.dR} + ${v.d} · ${fmtInt(v.mlaElem)} = ${fmtMac(v.macMLA)}\nd_c is a RANK BUDGET, not a free knob: it is how much of K and V the\nlatent can still represent, so a very small d_c buys cheap arithmetic\nby giving up capacity. The published production configuration is 512.`);
 
     // two opposed bars
     const bx = pad + 92, bw = p4w - 104;
@@ -347,17 +312,19 @@ mount({
       lab('MLA', bx + bw + 6, y + 24, T.accent, '9px ui-monospace, monospace');
     };
     const cacheY = railY + 42;
+    const bytes = byteCompare(v.mlaTok, v.mhaTok);
     bar(cacheY, 'cached bytes', 1, v.mlaElem / v.mhaElem,
-      `${fmtBytes(v.mlaTok)} vs ${fmtBytes(v.mhaTok)} /token — ${v.cachePct.toFixed(2)}% of MHA (lower=better)`);
+      `${bytes.text} (lower=better)`);
     hit(bx, cacheY, bw, 26,
       `cached bytes / token (all ${v.L} layers)\nMHA: 2 · ${v.heads} · ${v.hdim} · ${v.L} · ${v.B} B = ${fmtBytes(v.mhaTok)}\nMLA: (${v.dc} + ${v.dR}) · ${v.L} · ${v.B} B = ${fmtBytes(v.mlaTok)}`);
     const macY = cacheY + 52;
     const macMax = Math.max(v.macMHA, v.macMLA);
+    const price = macPrice(v.macMHA, v.macMLA);
     bar(macY, 'projection MACs', v.macMHA / macMax, v.macMLA / macMax,
-      `${fmtMac(v.macMLA)} vs ${fmtMac(v.macMHA)} MAC/tok/layer — ${v.macPct.toFixed(0)}% of MHA (lower=better)`);
+      `${price.mla} vs ${price.mha} MAC/tok/layer — ${price.pct}% of MHA (lower=better)`);
     lab('d_c is a rank budget — lowering it also gives up latent capacity', bx, macY + 52, T.n10, '9px ui-monospace, monospace');
     hit(bx, macY, bw, 26,
-      `attention projection MACs / token / layer\nMHA: 4 · d · n_h · d_h = 4 · ${v.d} · ${v.heads} · ${v.hdim} = ${fmtMac(v.macMHA)}\n   (Q, K, V and the output projection)\nMLA: 2 · d · n_h · d_c + d · (d_c + d_R) = ${fmtMac(v.macMLA)}\n   (absorbed query + output run at LATENT width, plus the\n    two small down-projections) — this is the price of the cache win`);
+      `attention projection MACs / token / layer\nMHA: 4 · d · n_h · d_h = 4 · ${v.d} · ${v.heads} · ${v.hdim} = ${fmtMac(v.macMHA)}\n   (Q, K, V and the output projection)\nMLA: 2 · d · n_h · d_c + d · n_h · d_R + d · (d_c + d_R) = ${fmtMac(v.macMLA)}\n   (absorbed query + output at latent width, the per-head RoPE\n    query, and the two down-projections) — the price of the cache win`);
 
     // ---- panel 5: growth with context -------------------------------------
     const p5x = pad + p4w + 28, p5w = W - p5x - pad, p5y = p4y;
@@ -411,7 +378,7 @@ mount({
       + `(${v.cachePct.toFixed(2)}% of MHA, ${v.shrink.toFixed(1)}× smaller)    tier:${r.name}\n`;
     o += s ? `${s.label}\n` : '(plays on load; scrub or step to append tokens)\n';
     o += `at ${fmtInt(v.ctx)} tokens · ${v.L} layers · ${st.kvdtype}: MHA ${fmtBytes(v.mhaAll)} vs MLA ${fmtBytes(v.mlaAll)}. `
-      + `The price: projection MACs/token/layer go ${fmtMac(v.macMHA)} → ${fmtMac(v.macMLA)} = ${v.macPct.toFixed(0)}% of MHA (lower is better; 100% = parity), `
+      + `The price: projection MACs/token/layer go ${price.text} (lower is better; 100% = parity), `
       + 'because the absorbed query and output projections run at latent width d_c instead of head width d_h. '
       + 'KV is the only term that grows with context — weights do not — which is why shrinking it is what makes long context affordable.';
     page.setReadout(o);

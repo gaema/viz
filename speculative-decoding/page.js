@@ -21,10 +21,9 @@
 // draft-cost handles on the canvas; k and rounds are steppers; hover any
 // proposal for the comparison that decided it.
 import { mount } from '../framework/layout.js';
-import { softmax, seededRandn, rng } from '../framework/tensor.js';
 import { T, alphaOf, inkOn } from '../framework/theme.js';
+import { VOCAB, acceptCaption, buildRun as computeRun, netLabel, ratioLabel } from './sample.js';
 
-const VOCAB = ['the', 'cat', 'sat', 'on', 'a', 'mat', 'and', 'dog', 'ran', 'far', 'then', 'slept'];
 const V = VOCAB.length;
 const PHASES = ['propose', 'verify', 'accept test', 'commit'];
 const PHASE_TEXT = [
@@ -34,15 +33,10 @@ const PHASE_TEXT = [
   'COMMIT — keep the accepted prefix plus the target’s own token; discard the rejected tail.',
 ];
 
-// --- the toy two-model setup ------------------------------------------------
-// Both "models" are deterministic functions of (seed, round, slot), so a URL
-// replays a run exactly. The draft is the target blended with its own
-// idiosyncratic beliefs: agreement=1 makes it the target (every proposal is
-// accepted), agreement=0 makes it a different model that agrees only by luck.
-const targetDist = (seed, r, j) => softmax(seededRandn(seed * 7919 + r * 97 + j * 13 + 1, V, { std: 1.35 }));
-const draftBias = (seed, r, j) => softmax(seededRandn(seed * 7919 + r * 97 + j * 13 + 500003, V, { std: 1.35 }));
-const sampleIdx = (dist, u) => { let c = 0; for (let i = 0; i < dist.length; i++) { c += dist[i]; if (u <= c) return i; } return dist.length - 1; };
-
+// Both models are deterministic functions of (seed, round, slot, tokens kept
+// so far). Agreement 1 makes the draft the target. A position's distribution
+// changes when an earlier kept token changes, so the round is a chain, not
+// a row of independent draws.
 let run = null, runSig = '';
 let geom = null;                  // rects captured in draw() for hit-testing
 let grab = null;                  // 'quality' | 'cost' while dragging a handle
@@ -52,42 +46,7 @@ let grab = null;                  // 'quality' | 'cost' while dragging a handle
 // re-tests the SAME luck (common random numbers) instead of reshuffling the
 // run -- which is what makes sweeping the handle read as a clean cause-effect.
 function buildRun(st) {
-  const K = st.k | 0, R = st.rounds | 0, a = st.quality, seed = st.seed | 0;
-  const rounds = [];
-  let tokens = 0, wasted = 0;
-  for (let r = 0; r < R; r++) {
-    const next = rng(seed * 131071 + r * 7 + 3);
-    const slots = [];
-    for (let j = 0; j < K; j++) {
-      const p = targetDist(seed, r, j), b = draftBias(seed, r, j);
-      const q = new Float32Array(V);
-      for (let i = 0; i < V; i++) q[i] = a * p[i] + (1 - a) * b[i];
-      const u1 = next(), u2 = next(), u3 = next();
-      const x = sampleIdx(q, u1);
-      const ratio = q[x] > 1e-12 ? p[x] / q[x] : 0;
-      const acc = u2 <= Math.min(1, ratio);
-      // On a rejection the target does NOT just take its argmax: it draws from
-      // the residual normalize(max(0, p - q)). That is the detail which makes
-      // the whole scheme produce exactly the target's own distribution.
-      const res = new Float32Array(V); let s = 0;
-      for (let i = 0; i < V; i++) { const d = Math.max(0, p[i] - q[i]); res[i] = d; s += d; }
-      if (s > 1e-9) { for (let i = 0; i < V; i++) res[i] /= s; } else res.set(p);
-      slots.push({ p, q, x, ratio, acc, u: u2, fix: sampleIdx(res, u3) });
-    }
-    let firstRej = -1;
-    for (let j = 0; j < K; j++) if (!slots[j].acc) { firstRej = j; break; }
-    const nAcc = firstRej < 0 ? K : firstRej;
-    const pBonus = targetDist(seed, r, K), u4 = next();
-    const out = [];
-    for (let j = 0; j < nAcc; j++) out.push({ tok: slots[j].x, kind: 'accept' });
-    // Every round ends with one token the TARGET produced: either the correction
-    // at the first disagreement, or -- when the whole draft survived -- the free
-    // bonus token from the extra position the same forward already covered.
-    out.push(firstRej >= 0 ? { tok: slots[firstRej].fix, kind: 'fix' } : { tok: sampleIdx(pBonus, u4), kind: 'bonus' });
-    tokens += out.length; wasted += K - nAcc;
-    rounds.push({ slots, firstRej, nAcc, out });
-  }
-  run = { rounds, K, R, tokens, wasted };
+  run = computeRun(st);
   return run;
 }
 
@@ -190,7 +149,8 @@ mount({
 
     // ---- the economics of the whole configured run -------------------------
     const tpf = data.tokens / R;                     // tokens per TARGET forward
-    const net = tpf / (1 + K * st.cost);             // ... once the draft passes are paid for
+    const net = tpf / (1 + K * st.cost);             // bar length stays on this unrounded rate
+    const priced = netLabel(tpf, K, st.cost);
     const soFar = data.rounds.slice(0, done).reduce((s, x) => s + x.out.length, 0);
     page.probe = { tpf, net, meanAcc: data.rounds.reduce((s, x) => s + x.nAcc, 0) / R };
 
@@ -263,20 +223,21 @@ mount({
       // row 2: the two probabilities the accept test compares
       if (!isFree) {
         const pv = slot.p[slot.x], qv = slot.q[slot.x], bw = Math.min(18, cw / 7), gap = Math.max(bw + 8, Math.min(26, cw / 5));
-        const pairs = [[qv, T.warn, 'q'], [pv, T.accent, 'p']];
+        const shown = ratioLabel(pv, qv, 2);
+        const pairs = [[qv, T.warn, 'q', shown.q], [pv, T.accent, 'p', shown.p]];
         ctx.save(); ctx.textAlign = 'center'; ctx.font = '9px ui-monospace, monospace';
         for (let i = 0; i < 2; i++) {
-          const [val, hue, nm] = pairs[i], bx = cxm + (i === 0 ? -gap : gap) - bw / 2;
+          const [val, hue, nm, text] = pairs[i], bx = cxm + (i === 0 ? -gap : gap) - bw / 2;
           ctx.fillStyle = T.n3; ctx.fillRect(bx, by, bw, bh);
           ctx.fillStyle = alphaOf(hue, 0.8); ctx.fillRect(bx, by + bh * (1 - val), bw, bh * val);
-          ctx.fillStyle = T.n11; ctx.fillText(`${nm} ${val.toFixed(2)}`, bx + bw / 2, by + bh + 12);
+          ctx.fillStyle = T.n11; ctx.fillText(`${nm} ${text}`, bx + bw / 2, by + bh + 12);
         }
         ctx.restore();
-        r.label(`p/q = ${slot.ratio.toFixed(2)}`, cxm, by + bh + 27, { color: T.n12, font: '10px ui-monospace, monospace', align: 'center' });
+        r.label(shown.text, cxm, by + bh + 27, { color: T.n12, font: '10px ui-monospace, monospace', align: 'center' });
         if (phase >= 2) {
           const vc = accepted ? T.ok : rejected ? T.bad : T.n9;
           r.label(accepted ? '✓ accepted' : rejected ? '✗ rejected' : 'discarded', cxm, by + bh + 43, { color: vc, font: '11px ui-monospace, monospace', align: 'center' });
-          r.label(discarded ? '(after the stop)' : `draw ${slot.u.toFixed(2)} ${slot.u <= Math.min(1, slot.ratio) ? '≤' : '>'} min(1, p/q)`, cxm, by + bh + 57, { color: T.n10, font: '9px ui-monospace, monospace', align: 'center' });
+          r.label(discarded ? '(after the stop)' : acceptCaption(slot.u, pv, qv, slot.ratio, 2), cxm, by + bh + 57, { color: T.n10, font: '9px ui-monospace, monospace', align: 'center' });
         }
       } else if (phase >= 2) {
         const lines = rd.firstRej < 0 ? ['already covered by the', 'same forward — free token'] : ['not reached this round —', 'the run stopped earlier'];
@@ -330,9 +291,9 @@ mount({
     ctx.fillStyle = T.n11; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center';
     ctx.fillText('1.00 — plain decode', bx1, gy + 32);
     ctx.textAlign = 'left'; ctx.fillStyle = T.n14; ctx.font = '12px ui-monospace, monospace';
-    ctx.fillText(`${tpf.toFixed(2)} tokens per target forward`, gx, gy - 10);
-    ctx.fillStyle = net >= 1 ? T.okDeep : T.bad; ctx.font = '12px ui-monospace, monospace';
-    ctx.fillText(`net ${(net * 100).toFixed(0)}% of plain decode ${net >= 1 ? '— worth it' : '— SLOWER than not speculating'}`, gx, gy + 50);
+    ctx.fillText(`${priced.rate} tokens per target forward`, gx, gy - 10);
+    ctx.fillStyle = priced.worth ? T.okDeep : T.bad; ctx.font = '12px ui-monospace, monospace';
+    ctx.fillText(priced.gauge, gx, gy + 50);
     ctx.restore();
 
     // ---- hover-to-inspect ---------------------------------------------------
@@ -347,19 +308,20 @@ mount({
           break;
         }
         const sl = rd.slots[s.j], thr = Math.min(1, sl.ratio);
+        const shown = ratioLabel(sl.p[sl.x], sl.q[sl.x], 3);
         const verdict = rd.firstRej === s.j ? 'REJECTED' : (rd.firstRej >= 0 && s.j > rd.firstRej) ? 'DISCARDED' : 'ACCEPTED';
         const why = verdict === 'DISCARDED'
-          ? `proposal ${rd.firstRej + 1} was rejected first, so everything after it is\nthrown away untested — that is the wasted draft compute`
-          : `draw ${sl.u.toFixed(3)} ${sl.u <= thr ? '≤' : '>'} min(1, p/q) = ${thr.toFixed(3)}  →  ${verdict.toLowerCase()}`;
+          ? `proposal ${rd.firstRej + 1} was rejected first. That drafted token is discarded,\nand every proposal after it is thrown away untested. The wasted count is both.`
+          : `${acceptCaption(sl.u, sl.p[sl.x], sl.q[sl.x], sl.ratio, 3)}  →  ${verdict.toLowerCase()}`;
         const tail = verdict === 'REJECTED' ? `\nthe target emits its own "${VOCAB[sl.fix]}" here, drawn from the\nresidual normalize(max(0, p − q))` : '';
-        page.setTip(`proposal ${s.j + 1}: "${VOCAB[sl.x]}"\ndraft q = ${sl.q[sl.x].toFixed(3)} · target p = ${sl.p[sl.x].toFixed(3)} · p/q = ${sl.ratio.toFixed(3)}\n${why}${tail}`);
+        page.setTip(`proposal ${s.j + 1}: "${VOCAB[sl.x]}"\ndraft q = ${shown.q} · target p = ${shown.p} · ${shown.text}\n${why}${tail}`);
         break;
       }
     }
 
-    let o = `k=${K} · draft agreement ${(+st.quality).toFixed(2)} · draft cost ${(+st.cost).toFixed(2)} → mean accepted ${page.probe.meanAcc.toFixed(2)} of ${K}, so ${tpf.toFixed(2)} tokens per target forward (plain decode = 1.00).    tier:${r.name}\n`;
+    let o = `k=${K} · draft agreement ${(+st.quality).toFixed(2)} · draft cost ${priced.cost} → mean accepted ${page.probe.meanAcc.toFixed(2)} of ${K}, plus one correction or bonus, so ${priced.rate} tokens per target forward (plain decode = 1.00).    tier:${r.name}\n`;
     o += `${R} rounds: ${data.tokens} tokens for ${R} target forwards + ${R * K} draft forwards; ${data.wasted} drafted tokens discarded. `;
-    o += `Charging each drafted token ${(+st.cost).toFixed(2)} of a target forward: net ${(net * 100).toFixed(0)}% of plain decode${net >= 1 ? '.' : ' — the draft is not earning its keep.'}`;
+    o += priced.charge;
     page.setReadout(o);
   },
 }).then((page) => {

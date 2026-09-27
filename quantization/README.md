@@ -14,14 +14,17 @@ Weights are chopped into **groups** of `G`. Per group:
 ```
 s = (max − min) / (2^bits − 1) scale
 z = round(−min / s) integer zero-point
-q = clamp(round((x − min)/s), 0, 2^bits−1) the stored code
-x′ = min + s·q dequantized value (what the GPU uses)
+q = clamp(round(x/s) + z, 0, 2^bits−1) the stored code
+x′ = (q − z) · s dequantized value
 ```
+
+`z` is an integer, so `x′ = (q − z)·s` is not the same reconstruction as
+`min + s·q` on a group where `−min/s` is not already an integer. The bars, the readout, and the level lines all use `(q − z)·s`.
 
 The weights panel draws, per weight, the **dequantized bar** `x′` with a **black
 tick** at the **original** `x` -- the gap between them is the quantization error.
-Faint horizontal lines mark each group's `2^bits` reconstruction **levels**, so
-you can see the weights snapping onto them. Two knobs trade off:
+Faint horizontal lines mark each group's `2^bits` reconstruction **levels**,
+`(k − z)·s` for every code `k`, so you can see the weights snapping onto them. Two knobs trade off:
 
 - **bits** -- more bits = more levels = finer steps = **less error** (but a bigger
  file). The **RMSE-vs-bits curve** (bottom-right) plots this, with the current

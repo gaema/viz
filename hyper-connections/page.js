@@ -23,8 +23,10 @@
 // configuration; hover any handle, stream node or bar for its value and what it
 // does.
 import { mount } from '../framework/layout.js';
-import { seededRandn, seededRand } from '../framework/tensor.js';
+import { seededRandn } from '../framework/tensor.js';
 import { T, alphaOf, mixColor } from '../framework/theme.js';
+import { colSums, contribLabel, depthLabel, rowSums } from './mhc.js';
+import { forward, presetWeights, rmsOf } from './stack.js';
 
 const PRESETS = [
   { value: 'classic', label: 'classic residual (n=1)' },
@@ -35,7 +37,6 @@ const PRESETS = [
   { value: 'custom', label: 'custom (dragged)' },
 ];
 
-const rmsOf = (v) => { let s = 0; for (let i = 0; i < v.length; i++) s += v[i] * v[i]; return Math.sqrt(s / v.length); };
 const clampW = (v) => Math.max(-2, Math.min(2, v));
 const f3 = (v) => (Math.abs(v) < 1e-12 ? '0.000' : v.toFixed(3));
 
@@ -57,68 +58,6 @@ let grab = null;         // the handle being dragged
 // matrix, so any difference between the two readouts comes from the WIRING and
 // from nothing else. Pre-norm read, SiLU, one dense projection -- a stand-in
 // for attention or an MLP, whose internals are the `transformer-block` page.
-function sublayer(x, Wb, D) {
-  let ms = 0; for (let j = 0; j < D; j++) ms += x[j] * x[j];
-  const inv = 1 / Math.sqrt(ms / D + 1e-6);
-  const g = new Float32Array(D);
-  for (let j = 0; j < D; j++) { const u = x[j] * inv; g[j] = u / (1 + Math.exp(-u)); }
-  const y = new Float32Array(D);
-  for (let i = 0; i < D; i++) { let s = 0; for (let j = 0; j < D; j++) s += Wb[i * D + j] * g[j]; y[i] = s * 0.6; }
-  return y;
-}
-
-function eye(n, diag) { return Array.from({ length: n }, (_, k) => Array.from({ length: n }, (_, m) => (k === m ? diag : 0))); }
-
-// Connection weights per preset. Three groups per block b:
-//   A[b][m]     read weight  -- how much of stream m the block reads
-//   Bw[b][k]    write weight -- how much of the block output lands in stream k
-//   M[b][k][m]  width connection -- how much of stream m carries into stream k
-// Classic residual is n=1 with A=[1], Bw=[1], M=[[1]].
-function presetWeights(preset, n, L, seed) {
-  // NOTE: a one-element shape returns the raw Float32Array, not a {data} matrix.
-  const noise = seededRand(seed * 31 + 7, [L * n * (n + 2)]);
-  let p = 0; const nx = () => noise[(p++) % noise.length];
-  const A = [], Bw = [], M = [];
-  for (let b = 0; b < L; b++) {
-    let a, w, m;
-    if (preset === 'classic' || preset === 'wide-id') {
-      // Read the average of the streams, write the whole output into every
-      // stream, carry each stream straight through. With n=1 that IS the plain
-      // residual; with n>1 the streams stay exact copies of each other, which
-      // is the point -- widening alone changes nothing until the weights move.
-      a = new Array(n).fill(1 / n); w = new Array(n).fill(1); m = eye(n, 1);
-    } else if (preset === 'strong') {
-      // The identity path is damped (width diagonal < 1) while the write stays
-      // full strength, so each block's own output keeps a large share of the
-      // stream all the way down -- the post-norm side of the tradeoff: strong
-      // late blocks, a weaker carried-through signal.
-      a = new Array(n).fill(1 / n); w = new Array(n).fill(1); m = eye(n, 0.72);
-    } else if (preset === 'collapsed') {
-      // The write weights decay with depth while the identity path stays at 1,
-      // so the stream grows and later blocks add a vanishing share of it --
-      // representation collapse, drawn.
-      const f = Math.pow(0.42, b + 1);
-      a = new Array(n).fill(1 / n); w = new Array(n).fill(f); m = eye(n, 1);
-    } else {
-      // 'learned' / 'custom' base: each block leans on a different stream to
-      // read from and a different one to write into, and the streams exchange a
-      // little content between blocks. This is what a trained connection matrix
-      // is free to do and a single highway structurally cannot.
-      const rd = b % n, wr = (b + 1) % n;
-      a = Array.from({ length: n }, (_, k) => +( (k === rd ? 0.72 : 0.10) + 0.18 * nx() ).toFixed(3));
-      w = Array.from({ length: n }, (_, k) => +( (k === wr ? 0.95 : 0.22) + 0.30 * nx() ).toFixed(3));
-      // Off-diagonal only to the NEXT stream, and no wrap-around: a k = n-1 → 0
-      // edge would span the whole width of the picture and cross every lane.
-      m = Array.from({ length: n }, (_, k) => Array.from({ length: n }, (_, mm) => (
-        k === mm ? +(0.86 + 0.12 * nx()).toFixed(3)
-          : (mm === k + 1 ? +(0.10 + 0.16 * nx()).toFixed(3) : 0)
-      )));
-    }
-    A.push(a); Bw.push(w); M.push(m);
-  }
-  return { A, Bw, M };
-}
-
 function buildData(st, page) {
   let n = Math.max(1, Math.min(5, st.n | 0));
   if (st.preset === 'classic' && n !== 1) { n = 1; if (page) page.controls.set('n', 1, { silent: true }); }
@@ -144,56 +83,6 @@ function resync(page) {
   t.scrub.max = Math.max(0, t.steps.length - 1);
   if (t.index > t.steps.length - 1) t.index = t.steps.length - 1;
   t._sync();
-}
-
-// ---------------------------------------------------------------------------
-// The whole stack, run for real, twice: once through the n hyper-connected
-// streams and once through a plain single residual stream using the SAME
-// sublayer matrices. Everything the page reports is read off this.
-function forward(c) {
-  const { n, L, D, A, Bw, M, W, x0 } = c;
-
-  // Streams start as n copies of the embedding; the readout averages them, so
-  // for n = 1 both ends of the widening are the identity.
-  let Hs = Array.from({ length: n }, () => Float32Array.from(x0));
-  const levels = [Hs.map((h) => Float32Array.from(h))];
-  const readouts = [], blocks = [];
-  const reduce = (S) => { const o = new Float32Array(D); for (let m = 0; m < n; m++) for (let j = 0; j < D; j++) o[j] += S[m][j]; for (let j = 0; j < D; j++) o[j] /= n; return o; };
-  readouts.push(reduce(Hs));
-
-  for (let b = 0; b < L; b++) {
-    const x = new Float32Array(D);
-    for (let m = 0; m < n; m++) { const a = A[b][m], h = Hs[m]; for (let j = 0; j < D; j++) x[j] += a * h[j]; }
-    const y = sublayer(x, W[b], D);
-    const Hn = Array.from({ length: n }, () => new Float32Array(D));
-    for (let k = 0; k < n; k++) {
-      const out = Hn[k], bw = Bw[b][k];
-      for (let j = 0; j < D; j++) out[j] = bw * y[j];
-      for (let m = 0; m < n; m++) { const w = M[b][k][m]; if (!w) continue; const h = Hs[m]; for (let j = 0; j < D; j++) out[j] += w * h[j]; }
-    }
-    Hs = Hn;
-    levels.push(Hs.map((h) => Float32Array.from(h)));
-    const ro = reduce(Hs); readouts.push(ro);
-    // What this block actually put into the readout: the mean write weight
-    // times its output. c = that magnitude as a share of the readout's.
-    let mw = 0; for (let k = 0; k < n; k++) mw += Bw[b][k]; mw /= n;
-    const add = Float32Array.from(y, (v) => mw * v);
-    blocks.push({ x, y, add, rIn: rmsOf(x), rY: rmsOf(y), c: rmsOf(add) / (rmsOf(ro) + 1e-9) });
-  }
-
-  // Plain single-stream residual reference, same sublayer, same matrices.
-  let r = Float32Array.from(x0);
-  const plain = [Float32Array.from(r)];
-  for (let b = 0; b < L; b++) { const y = sublayer(r, W[b], D); for (let j = 0; j < D; j++) r[j] = r[j] + y[j]; plain.push(Float32Array.from(r)); }
-
-  const hcOut = readouts[L], plOut = plain[L];
-  let diff = 0; for (let j = 0; j < D; j++) diff = Math.max(diff, Math.abs(hcOut[j] - plOut[j]));
-
-  const cs = blocks.map((x2) => x2.c);
-  const s1 = cs.reduce((a, v) => a + v, 0), s2 = cs.reduce((a, v) => a + v * v, 0);
-  const eff = s2 > 1e-12 ? (s1 * s1) / s2 : 0;
-
-  return { levels, readouts, plain, blocks, diff, eff, hcOut, plOut };
 }
 
 // ---------------------------------------------------------------------------
@@ -253,6 +142,7 @@ mount({
     c.stepper('L', { label: 'blocks (L)', min: 2, max: 6, value: 4 });
     c.stepper('D', { label: 'features (D)', min: 4, max: 10, value: 8 });
     c.slider('seed', { label: 'seed', min: 0, max: 99, step: 1, value: 7, rebuild: true });
+    c.toggle('mhc', { label: 'doubly-stochastic mix (Sinkhorn)', value: false });
     c.transport({ compute: () => buildData(page.state, page), speed: 1.4, loop: true });
   },
 
@@ -279,7 +169,8 @@ mount({
     if (!cur) return;
     r.clear(T.n0);
     const { n, L, D } = cur;
-    const F = forward(cur);
+    const F = forward(cur, !!st.mhc);
+    const depth = depthLabel(F.blocks.map((b) => b.c));
     const s = page.step(), cb = s ? s.b : -1;
 
     const pad = 14, topY = 74;
@@ -403,13 +294,13 @@ mount({
       ctx.fillStyle = b === cb ? T.accent : alphaOf(T.accent, 0.45);
       ctx.fillRect(rect.x, rect.y, rect.w * Math.min(1, F.blocks[b].c / cMax), rect.h);
       ctx.fillStyle = T.n13; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.fillText(F.blocks[b].c.toFixed(3), rect.x + rect.w + 6, cy);
+      ctx.fillText(depth.shown[b], rect.x + rect.w + 6, cy);
       ctx.restore();
       barRects.push({ ...rect, b });
     }
 
     const fy = levelY(L) + 22;
-    r.label(`effective depth  (Σc)²/Σc²  =  ${F.eff.toFixed(2)} of ${L}`, RX, fy, { color: T.n14, font: '10px ui-monospace, monospace' });
+    r.label(`effective depth  (Σc)²/Σc²  =  ${depth.eff} of ${L}`, RX, fy, { color: T.n14, font: '10px ui-monospace, monospace' });
 
     // The identity check, always live: the plain single-stream residual next to
     // the hyper-connection readout, and the largest gap between them.
@@ -442,20 +333,28 @@ mount({
           const br = barRects.find((q) => p.x >= q.x && p.x <= q.x + q.w && p.y >= q.y && p.y <= q.y + q.h);
           if (br) {
             const B = F.blocks[br.b];
-            tip = `block ${br.b} contribution c = ${B.c.toFixed(4)}\n‖written‖ = ${rmsOf(B.add).toFixed(4)}, ‖readout after‖ = ${rmsOf(F.readouts[br.b + 1]).toFixed(4)}\nsmall c late in the stack = that block barely changes the answer`;
+            const share = contribLabel(rmsOf(B.add), rmsOf(F.readouts[br.b + 1]));
+            tip = `block ${br.b} contribution c = ${share.c}\n‖written‖ = ${share.w}, ‖readout after‖ = ${share.r}\nsmall c late in the stack = that block barely changes the answer`;
           }
         }
       }
       if (tip) page.setTip(tip);
     }
 
-    page.probe = { diff: F.diff, eff: F.eff, cLast: F.blocks[L - 1].c, n, preset: st.preset, rms: F.readouts.map(rmsOf) };
+    page.probe = { diff: F.diff, eff: F.eff, effText: depth.eff, cLast: F.blocks[L - 1].c, n, preset: st.preset, mhc: !!st.mhc, rms: F.readouts.map(rmsOf) };
 
-    const cList = F.blocks.map((x2, i) => `c${i}=${x2.c.toFixed(3)}`).join('  ');
+    const cList = depth.shown.map((c, i) => `c${i}=${c}`).join('  ');
     let o = `hyper-connections: ${n} stream${n > 1 ? 's' : ''} × ${L} blocks, D=${D}, preset "${st.preset}".  Each block reads Σ A[m]·s[m], transforms, writes B[k]·y into stream k, then M mixes the streams.    tier:${r.name}\n`;
-    o += `${cList}   effective depth (Σc)²/Σc² = ${F.eff.toFixed(2)} of ${L}\n`;
+    o += `${cList}   effective depth (Σc)²/Σc² = ${depth.eff} of ${L}\n`;
+    // The mix matrix the forward actually used, with its row and column sums.
+    // With the mhc toggle on this is the Sinkhorn projection of the dragged
+    // M[b], so BOTH sums read 1: the exchange between streams can neither
+    // amplify nor shrink the carried signal, however the handles were dragged.
+    const mb = cb >= 0 ? Math.min(cb, L - 1) : 0;
+    const sums = (v) => v.map((q) => q.toFixed(3)).join(' ');
+    o += `mix M[${mb}]${st.mhc ? ' (Sinkhorn-projected)' : ' (as dragged)'}: row sum = ${sums(rowSums(F.mixes[mb]))}   col sum = ${sums(colSums(F.mixes[mb]))}\n`;
     o += `n=1 identity check — plain residual out[0]=${F.plOut[0].toFixed(6)}, hyper-connection out[0]=${F.hcOut[0].toFixed(6)}, max|Δ| over all ${D} features = ${F.diff === 0 ? '0 (exact)' : F.diff.toExponential(3)}${n === 1 && st.preset !== 'custom' ? '  ← the classic residual is the n=1 unit-weight case' : ''}`;
-    if (cb >= 0) o += `\nblock ${cb}: ‖read‖=${F.blocks[cb].rIn.toFixed(3)} → ‖output‖=${F.blocks[cb].rY.toFixed(3)} → contribution c=${F.blocks[cb].c.toFixed(3)}   (drag a handle ↕ to change a weight; every level below recomputes)`;
+    if (cb >= 0) o += `\nblock ${cb}: ‖read‖=${F.blocks[cb].rIn.toFixed(3)} → ‖output‖=${F.blocks[cb].rY.toFixed(3)} → contribution c=${depth.shown[cb]}   (drag a handle ↕ to change a weight; every level below recomputes)`;
     page.setReadout(o);
   },
 
@@ -473,7 +372,7 @@ mount({
     {
       goal: 'Spread the work evenly: get the effective depth above 3.5 with L = 4 blocks.',
       hint: 'Effective depth peaks when every block contributes the same share — the collapsed preset is the opposite of this.',
-      check: (api) => ({ solved: api.probe.eff > 3.5, detail: `effective depth = ${api.probe.eff == null ? '?' : api.probe.eff.toFixed(2)}` }),
+      check: (api) => ({ solved: api.probe.eff > 3.5, detail: `effective depth = ${api.probe.effText == null ? '?' : api.probe.effText}` }),
     },
   ],
 }).then((page) => {
@@ -485,6 +384,7 @@ mount({
   if (q.has('L')) page.controls.set('L', Math.max(2, Math.min(6, +q.get('L') | 0)), { rebuild: true });
   if (q.has('D')) page.controls.set('D', Math.max(4, Math.min(10, +q.get('D') | 0)), { rebuild: true });
   if (q.has('seed')) page.controls.set('seed', +q.get('seed') | 0, { rebuild: true });
+  if (q.has('mhc')) page.controls.set('mhc', q.get('mhc') !== '0');
   if (t) t.rebuildIfDirty();
   // ?w=KIND,b,i[,j],value edits ONE connection weight -- the headless stand-in
   // for a vertical drag, since a screenshot has no pointer.

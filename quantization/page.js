@@ -1,13 +1,15 @@
 // quantization concept page -- group-wise affine quantization of fp16 weights to
 // low-bit integers (the int4/int3 weight-quant used by GPTQ/AWQ/GGUF k-quants).
 // Split the weights into groups of G; per group find [min,max], pick a scale
-// s=(max-min)/(2^bits-1) and an integer zero-point z, store each weight as a
-// small code q=clamp(round((x-min)/s),0,2^bits-1). Dequantize x'=min+s·q. The
-// gap x-x' is the quantization error: more bits -> finer levels -> less error;
+// s=(max-min)/(2^bits-1) and an integer zero-point z = round(-min/s), store each
+// weight as a code q=clamp(round(x/s)+z, 0, 2^bits-1). Dequantize x'=(q-z)*s.
+// That is not min+s*q when -min/s is not an integer. The gap x-x' is the
+// quantization error: more bits -> finer levels -> less error;
 // smaller groups adapt to the local range (less error) but cost more scale/zp
 // overhead (less compression). Drag a weight into an outlier and watch its
 // group's scale blow up, coarsening every other weight in that group.
 import { mount } from '../framework/layout.js';
+import { compressionLabel, qGroup, reconLevels, weightTip } from './quant.js';
 import { seededRandn } from '../framework/tensor.js';
 import { T } from '../framework/theme.js';
 
@@ -28,13 +30,6 @@ function build(preset, seed, N) {
   return { x };
 }
 
-// quantize one group's values -> {s, lo, z, q[], deq[]}
-function qGroup(vals, bits) {
-  let lo = Infinity, hi = -Infinity; for (const v of vals) { if (v < lo) lo = v; if (v > hi) hi = v; }
-  const levels = (1 << bits) - 1, s = (hi - lo) / levels || 1e-9, z = Math.round(-lo / s);
-  const q = vals.map((v) => Math.max(0, Math.min(levels, Math.round((v - lo) / s)))), deq = q.map((c) => lo + s * c);
-  return { s, lo, hi, z, levels, q, deq };
-}
 function rmseAt(x, N, G, bits) {
   let se = 0; for (let g0 = 0; g0 < N; g0 += G) { const grp = Array.from(x.slice(g0, g0 + G)), { deq } = qGroup(grp, bits); for (let i = 0; i < grp.length; i++) se += (grp[i] - deq[i]) ** 2; }
   return Math.sqrt(se / N);
@@ -43,7 +38,7 @@ function rmseAt(x, N, G, bits) {
 mount({
   mount: 'body',
   title: 'quantization — fp16 → int4, group-wise',
-  blurb: 'Large-model weights ship as low-bit integers (int4, even int3/int2) instead of fp16 — that is how a 70B model fits in 24 GB. The scheme is group-wise affine quantization: chop the weights into groups of G, and per group store a scale s and an integer zero-point z so each weight becomes a tiny code q = round((x − min)/s) in [0, 2^bits−1]. To use a weight you DEQUANTIZE: x′ = min + s·q. The error is the gap x − x′. Two knobs trade off: more BITS = more levels = finer steps = less error (but bigger files); smaller GROUPS adapt s to the local range so outliers hurt fewer weights (less error) but the per-group scale/zp overhead grows, lowering the compression ratio. Drag a weight to an outlier and watch its whole group’s scale stretch and every neighbour get coarser. The error-vs-bits curve plots RMSE as you’d add bits; the level lines show each group snapping to its 2^bits reconstruction levels.',
+  blurb: 'Large-model weights ship as low-bit integers (int4, even int3/int2) instead of fp16 — that is how a 70B model fits in 24 GB. The scheme is group-wise affine quantization: chop the weights into groups of G, and per group store a scale s and an integer zero-point z = round(−min/s) so each weight becomes a code q = clamp(round(x/s) + z, 0, 2^bits−1). To use a weight you DEQUANTIZE: x′ = (q − z)·s. The error is the gap x − x′. Two knobs trade off: more BITS = more levels = finer steps = less error (but bigger files); smaller GROUPS adapt s to the local range so outliers hurt fewer weights (less error) but the per-group scale/zp overhead grows, lowering the compression ratio. Drag a weight to an outlier and watch its whole group’s scale stretch and every neighbour get coarser. The error-vs-bits curve plots RMSE as you’d add bits; the level lines show each group snapping to its 2^bits reconstruction levels.',
   prefer: 'canvas2d',
   aspect: '2 / 1',
   animate: true,
@@ -70,7 +65,8 @@ mount({
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state, W = page.W, H = page.H, N = 64;
     if (`${st.preset}|${st.seed}` !== bsig) { cur = build(st.preset, st.seed | 0, N); bsig = `${st.preset}|${st.seed}`; }
-    r.clear(T.n0);
+    page.ctx.fillStyle = T.n3;
+    page.ctx.fillRect(0, 0, page.W, page.H);
     const bits = st.bits | 0, G = st.G | 0, levels = (1 << bits) - 1, nG = N / G, x = cur.x;
 
     // ===== weights panel: original tick + dequant bar, per group =====
@@ -86,7 +82,7 @@ mount({
       const gx0 = bx + g0 * barW, gxw = G * barW;
       if (g === swG) { ctx.save(); ctx.fillStyle = 'rgba(255,193,7,0.10)'; ctx.fillRect(gx0, by, gxw, bh); ctx.restore(); }
       // reconstruction level lines (only when few enough to read)
-      if (levels <= 31) { ctx.save(); ctx.strokeStyle = 'rgba(130,80,223,0.18)'; ctx.lineWidth = 0.5; for (let k = 0; k <= levels; k++) { const yv = Y(Q.lo + Q.s * k); ctx.beginPath(); ctx.moveTo(gx0, yv); ctx.lineTo(gx0 + gxw, yv); ctx.stroke(); } ctx.restore(); }
+      if (levels <= 31) { ctx.save(); ctx.strokeStyle = 'rgba(130,80,223,0.18)'; ctx.lineWidth = 0.5; for (const lv of reconLevels(Q)) { const yv = Y(lv); ctx.beginPath(); ctx.moveTo(gx0, yv); ctx.lineTo(gx0 + gxw, yv); ctx.stroke(); } ctx.restore(); }
       for (let i = 0; i < grp.length; i++) {
         const xi = bx + (g0 + i) * barW, e = Math.abs(grp[i] - Q.deq[i]); totSE += (grp[i] - Q.deq[i]) ** 2; if (e > maxE) maxE = e;
         ctx.fillStyle = (g0 + i) === dragI ? T.bad : col; ctx.globalAlpha = 0.85;
@@ -102,11 +98,11 @@ mount({
 
     // ===== metrics (bottom-left) =====
     const my = by + bh + 48;
-    const effBits = bits + (16 + 8) / G, ratio = 16 / effBits;
-    page.probe = { rmse, ratio };
+    const comp = compressionLabel(bits, G);
+    page.probe = { rmse, ratio: Number(comp.times) };
     r.label(`reconstruction error   RMSE = ${rmse.toFixed(4)}   max|err| = ${maxE.toFixed(4)}`, bx, my, { color: T.n14, font: '11px ui-monospace, monospace' });
-    r.label(`storage: ${bits} bits/weight + (16-bit scale + 8-bit zp)/${G} = ${effBits.toFixed(2)} eff. bits/weight`, bx, my + 16, { color: T.n11, font: '10px ui-monospace, monospace' });
-    r.label(`compression vs fp16:  16 / ${effBits.toFixed(2)} = ${ratio.toFixed(2)}×   ${st.preset === 'outlier' ? '(note: outliers stretch s → coarser neighbours; smaller G limits the damage)' : ''}`, bx, my + 32, { color: T.ok, font: '10px ui-monospace, monospace' });
+    r.label(`storage: ${bits} bits/weight + (16-bit scale + 8-bit zp)/${G} = ${comp.shown} eff. bits/weight`, bx, my + 16, { color: T.n11, font: '10px ui-monospace, monospace' });
+    r.label(`compression vs fp16:  ${comp.text}   ${st.preset === 'outlier' ? '(note: outliers stretch s → coarser neighbours; smaller G limits the damage)' : ''}`, bx, my + 32, { color: T.ok, font: '10px ui-monospace, monospace' });
 
     // ===== error-vs-bits curve (bottom-right) =====
     const cwW = 250, chx = W - cwW - 24, chy = my - 10, chh = 84;
@@ -125,12 +121,12 @@ mount({
     if (page.pointer.over && dragI < 0) {
       const p = page.pointer;
       if (p.x >= bx && p.x <= bx + bw && p.y >= by && p.y <= by + bh) {
-        const i = Math.floor((p.x - bx) / barW); if (i >= 0 && i < N) { const g = (i / G) | 0, Q = qGroup(Array.from(x.slice(g * G, g * G + G)), bits), li = i - g * G; page.setTip(`weight ${i} (group ${g})\nx = ${x[i].toFixed(3)} fp16\nq = ${Q.q[li]} (of 0..${levels})  →  x′ = ${Q.deq[li].toFixed(3)}\nerr = ${(x[i] - Q.deq[li]).toFixed(4)}   [s=${Q.s.toFixed(3)} z=${Q.z}]\ndrag ↕`); }
+        const i = Math.floor((p.x - bx) / barW); if (i >= 0 && i < N) { const g = (i / G) | 0, Q = qGroup(Array.from(x.slice(g * G, g * G + G)), bits), li = i - g * G; page.setTip(`weight ${i} (group ${g})\n${weightTip(x[i], Q, li, levels).text}\ndrag ↕`); }
       }
     }
 
-    let o = `group-wise affine quant: fp16 → ${bits}-bit, group size ${G}.  per group: s=(max−min)/${levels}, z=round(−min/s), q=clamp(round((x−min)/s),0,${levels}), x′=min+s·q.   tier:${r.name}\n`;
-    o += `RMSE=${rmse.toFixed(4)}, max|err|=${maxE.toFixed(4)} at ${bits} bits / G=${G}. Effective ${effBits.toFixed(2)} bits/weight → ${ratio.toFixed(2)}× vs fp16. ${st.preset === 'outlier' ? 'Outlier preset: a few large weights stretch their group scale, coarsening the rest — exactly why small groups (or outlier-aware methods) help.' : 'More bits → finer levels → lower error; smaller G → lower error but more scale/zp overhead.'}`;
+    let o = `group-wise affine quant: fp16 → ${bits}-bit, group size ${G}.  per group: s=(max−min)/${levels}, z=round(−min/s), q=clamp(round(x/s)+z,0,${levels}), x′=(q−z)·s.   tier:${r.name}\n`;
+    o += `RMSE=${rmse.toFixed(4)}, max|err|=${maxE.toFixed(4)} at ${bits} bits / G=${G}. Effective ${comp.shown} bits/weight → ${comp.times}× vs fp16. ${st.preset === 'outlier' ? 'Outlier preset: a few large weights stretch their group scale, coarsening the rest — exactly why small groups (or outlier-aware methods) help.' : 'More bits → finer levels → lower error; smaller G → lower error but more scale/zp overhead.'}`;
     page.setReadout(o);
   },
 }).then((page) => {

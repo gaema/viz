@@ -12,8 +12,8 @@ MoE).
 
 A small **router** (gating network) scores every token against every expert:
 `router_logits [N × E]` → `softmax` per token → gate weights. Each token is sent
-to its **top-k** experts (usually k=2); those k gate weights are renormalized
-and the expert outputs are combined by them.
+to its **top-k** experts (usually k=2). The heatmap is that softmax; the top-k
+choice outlines experts and does not renormalize their gates.
 
 - **Token distribution**: the `[N × E]` gate heatmap with each token's chosen
  experts outlined; arrows from the current token to its experts.
@@ -22,8 +22,8 @@ and the expert outputs are combined by them.
  a full expert are **dropped** (shown red). A lopsided router overloads a few
  experts and drops tokens.
 - **Load balance**: the Switch-Transformer auxiliary loss
- `aux = E · Σₑ fₑ·Pₑ` (`fₑ` = fraction of tokens to expert e, `Pₑ` = mean router
- prob for e) -- minimized when load is uniform. The readout shows the per-expert
+ `aux = E · Σₑ fₑ·Pₑ` (`fₑ` = fraction of routed assignments to expert e, including
+ capacity drops, `Pₑ` = mean router prob for e) -- minimized when load is uniform. The readout shows the per-expert
  counts, the imbalance, and the drop count.
 
 **Drag** any router-gate cell to re-score a token and watch the load (and drops)
