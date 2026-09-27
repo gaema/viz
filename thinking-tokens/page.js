@@ -626,10 +626,12 @@ function tipFor(s, bias, isReal) {
   const lines = [`step ${s.L}  "${nm}"${s.injected ? '   ← INJECTED by the decoder' : ''}`, ''];
   for (let i = 0; i < cands.length; i++) {
     const c = cands[i], l = c.l + (c.stop ? bias : 0);
-    lines.push(`${c.stop ? '»' : ' '} "${String(c.t)}"  logit ${c.l.toFixed(2)}${c.stop && bias ? ` ${bias < 0 ? '−' : '+'} ${Math.abs(bias).toFixed(2)}` : ''} → ${l.toFixed(2)}   p ${(S.ps[i] * 100).toFixed(2)} %`);
+    lines.push(`${c.stop ? '»' : ' '} "${String(c.t)}"  logit ${c.l.toFixed(2)}${c.stop && bias ? ` ${bias < 0 ? '−' : '+'} ${Math.abs(bias).toFixed(2)}` : ''} → ${l.toFixed(2)}   share of these rows ${(S.ps[i] * 100).toFixed(2)} %`);
   }
   const pS = isReal && s.pStop != null ? s.pStop : S.p;
-  lines.push('', `p(stop) = exp(l_stop) / Σ exp(l_i) = ${(pS * 100).toFixed(pS < 0.001 ? 4 : 2)} %   ${isReal ? '(Σ over all 50 257 tokens)' : '(Σ over the 4 candidates above)'}`);
+  lines.push('', isReal
+    ? `p(stop) over all 50 257 tokens = ${(pS * 100).toFixed(pS < 0.001 ? 4 : 2)} %. The shares above cover only the rows listed.`
+    : `p(stop) over these rows = ${(pS * 100).toFixed(pS < 0.001 ? 4 : 2)} %.`);
   lines.push((cands.find((c) => c.stop) || {}).l + bias > ((cands.find((c) => !c.stop) || {}).l || 0) ? 'the boundary wins here' : 'the boundary loses here — generation continues');
   return lines.join('\n');
 }

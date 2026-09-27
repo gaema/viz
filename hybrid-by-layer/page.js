@@ -20,7 +20,7 @@ const isAttn = (i, P) => { const base = (i + 1) % P === 0; return overrides.has(
 mount({
   mount: 'body',
   title: 'hybrid-by-layer — interleaved SSM + periodic attention',
-  blurb: 'Hybrid models (Jamba, Zamba, Qwen3-Next) stack mostly cheap SSM / linear-attention layers (recurrent constant-size state, O(L) per token, NO KV cache) and insert a full-attention layer every P layers (O(L²), a KV cache [L×2d]). The interleave ratio is the whole knob: more attention = better exact long-range recall but more KV memory + O(L²) compute; fewer = cheaper, leaning on the SSM state to summarise the past. The KV cache lives ONLY in the attention layers, so total KV is a fraction (#attn / N) of a full-attention model. Drag the attention-period slider to steer the pattern + KV memory; click any layer to flip SSM↔attention; hover to inspect.',
+  blurb: 'Hybrid models (Jamba, Zamba, Qwen3-Next) stack mostly cheap SSM / linear-attention layers (recurrent constant-size state, O(L) per sequence, O(1) per token, NO KV cache) and insert a full-attention layer every P layers (O(L²) per sequence, a KV cache [L×2d]). The interleave ratio is the whole knob: more attention = better exact long-range recall but more KV memory + O(L²) compute; fewer = cheaper, leaning on the SSM state to summarise the past. The KV cache lives ONLY in the attention layers, so total KV is a fraction (#attn / N) of a full-attention model. Drag the attention-period slider to steer the pattern + KV memory; click any layer to flip SSM↔attention; hover to inspect.',
   prefer: 'canvas2d',
   aspect: '2 / 1',
   animate: true,

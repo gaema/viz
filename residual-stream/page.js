@@ -195,7 +195,7 @@ mount({
           else {
             const dm = mag[mi] - mag[mi - 1], pct = mag[mi - 1] > 1e-6 ? (dm / mag[mi - 1] * 100) : 0;
             const how = pre
-              ? `${dm >= 0 ? 'grew' : 'shrank'} ${Math.abs(dm).toFixed(3)} (${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%) from ${DEPTHS[mi - 1]} (${mag[mi - 1].toFixed(3)}) — the add ${mi === ND - 1 ? 'then final-norm rescales' : 'pushed magnitude up'}`
+              ? `${dm >= 0 ? 'grew' : 'shrank'} ${Math.abs(dm).toFixed(3)} (${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%) from ${DEPTHS[mi - 1]} (${mag[mi - 1].toFixed(3)}) — the add ${mi === ND - 1 ? 'then final-norm rescales' : (dm >= 0 ? 'pushed magnitude up' : 'lowered the magnitude')}`
               : `held ~1 vs ${DEPTHS[mi - 1]} (${mag[mi - 1].toFixed(3)}) — post-norm re-normalizes after every add`;
             tip = `‖stream‖_rms at ${DEPTHS[mi]} = ${mag[mi].toFixed(3)}\n${how}`;
           }

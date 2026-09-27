@@ -305,7 +305,7 @@ mount({
     const textMin = CTX * WORDS_PER_TOKEN / WORDS_PER_MIN;
     // `curve` is the whole error-vs-depth ladder (index = codebooks applied), so
     // the staircase can be read off the page rather than re-derived.
-    page.probe = { rmse: rmse[Math.min(k, rmse.length - 1)], kbps, tokMin, floor, curve: rmse.slice() };
+    page.probe = { rmse: rmse[Math.min(k, rmse.length - 1)], kbps: kbpsNow, tokMin, floor, curve: rmse.slice() };
 
     const cx = W - 262, cy = 46, cw = 240, ch = 170;
     r.label('error vs bitrate — the staircase (log)', cx, cy - 8, { color: T.n14, font: '10px ui-monospace, monospace' });

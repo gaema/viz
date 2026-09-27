@@ -13,7 +13,7 @@ import { T, alphaOf } from '../framework/theme.js';
 
 const ACTS = [
   { key: 'gelu-erf', name: 'GELU (erf)', color: T.accent, formula: '0.5·x·(1+erf(x/√2))', fn: (xs) => gelu(xs, { approx: 'erf' }) },
-  { key: 'gelu-tanh', name: 'GELU (tanh)', color: T.teal, formula: '0.5·x·(1+tanh(√(2/π)(x+0.0447x³)))', fn: (xs) => gelu(xs) },
+  { key: 'gelu-tanh', name: 'GELU (tanh)', color: T.teal, formula: '0.5·x·(1+tanh(√(2/π)(x+0.044715x³)))', fn: (xs) => gelu(xs) },
   { key: 'silu', name: 'SiLU / Swish', color: T.warn, formula: 'x·σ(x)', fn: (xs) => silu(xs) },
   { key: 'mish', name: 'Mish', color: T.violet, formula: 'x·tanh(softplus(x))', fn: (xs) => Float32Array.from(xs, (x) => x * Math.tanh(Math.log1p(Math.exp(Math.min(x, 30))))) },
 ];

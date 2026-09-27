@@ -132,7 +132,7 @@ mount({
   challenges: [
     {
       goal: 'Make the gradient signal exactly 0.000 — a group that agrees teaches nothing.',
-      hint: 'click each ✓/✗ tag (or drag every reward bar) until all rollouts carry the same reward. Setting the solved fraction to 1 with partial-credit spread at 0 does it in two moves.',
+      hint: 'click each ✓/✗ tag (or drag every reward bar) until all rollouts carry the same reward. Setting the per-rollout correct probability to 1 with partial-credit spread at 0 does it in two moves.',
       check: (api) => {
         const s = api.probe.signal ?? 1;
         return { solved: s === 0, detail: s === 0 ? 'signal = 0.000 — this group contributes nothing' : `signal = ${f3(s)} — the group still disagrees` };
@@ -150,7 +150,7 @@ mount({
 
   controls: (c) => {
     c.stepper('g', { label: 'group size G — rollouts sampled for this one prompt', min: 2, max: MAXG, value: 8 });
-    c.slider('pass', { label: 'fraction of rollouts the verifier marks correct', min: 0, max: 1, step: 0.05, value: 0.5, format: (v) => f2(v) });
+    c.slider('pass', { label: 'probability each rollout is marked correct', min: 0, max: 1, step: 0.05, value: 0.5, format: (v) => f2(v) });
     c.slider('spread', { label: 'partial-credit spread inside each verdict (0 = pure pass/fail)', min: 0, max: 0.4, step: 0.01, value: 0.12, format: (v) => f2(v) });
     c.toggle('norm', { label: 'divide by the group std  (A = (r − μ) / (σ + 1e−4))', value: false });
     c.slider('eps', { label: 'clip window ε  — the trust region on the policy ratio', min: 0.02, max: 0.6, step: 0.01, value: 0.2, format: (v) => f2(v) });

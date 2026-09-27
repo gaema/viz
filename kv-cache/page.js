@@ -222,7 +222,7 @@ mount({
 
     let o = `decode token ${t} — q attends over ${seq} cached key${seq > 1 ? 's' : ''} (softmax) → out = Σ wᵢ·vᵢ    layer ℓ${layer}    tier:${r.name}\n`;
     o += s ? `${s.label}\n` : '(plays on load; scrub or DRAG the ◂▸ handle to set how many tokens are decoded; the cache fills column by column)\n';
-    o += `KV cache  2·L=${L}·H_kv=${Hkv}·head_dim=${dr}·${st.kvdtype}(${db}B)·seq=${seq} = ${fmtMB(bytesNow)}  (full ctx ${N}: ${fmtMB(bytesFull)}) — grows linearly; without the cache each step recomputes K,V for all ${seq} tokens`;
+    o += `KV cache  2·L=${L}·H_kv=${Hkv}·head_dim=${dr}·${st.kvdtype}(${db}B)·seq=${seq} = ${fmtMB(bytesNow)}  (full ctx ${N}: ${fmtMB(bytesFull)}). The byte count uses a ${dr}-wide model head. The grid's head_dim (vis) is ${st.d} and does not change this number. Without the cache each step recomputes K,V for all ${seq} tokens`;
     page.setReadout(o);
   },
 }).then((page) => {

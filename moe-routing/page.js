@@ -98,7 +98,7 @@ mount({
       barRects.push(rect);
       ctx.fillStyle = CAT()[e % CAT().length]; ctx.globalAlpha = 0.8; ctx.fillRect(x, baseY - lh, bw, lh); ctx.globalAlpha = 1;       // load
       if (dh > 0) { ctx.fillStyle = T.bad; ctx.fillRect(x, baseY - lh - dh, bw, dh); }                                              // dropped (over capacity)
-      ctx.fillStyle = T.n14; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(String(R.load[e]), x + bw / 2, baseY - lh - dh - 3);
+      ctx.fillStyle = T.n14; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(R.drop[e] ? `${R.load[e]}+${R.drop[e]} drop` : String(R.load[e]), x + bw / 2, baseY - lh - dh - 3);
       ctx.fillStyle = CAT()[e % CAT().length]; ctx.textBaseline = 'top'; ctx.fillText(`e${e}`, x + bw / 2, baseY + 4);
       ctx.fillStyle = T.n11; ctx.fillText(`P${R.P[e].toFixed(2)}`, x + bw / 2, baseY + 16);
     }

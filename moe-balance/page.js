@@ -127,7 +127,7 @@ mount({
     const lamState = lam < 0.2 ? 'COLLAPSED' : lam < 0.7 ? 'partial' : 'BALANCED';
     const lines = [
       ['balance λ', `${lam.toFixed(2)}  (${lamState})`, lam < 0.2 ? T.bad : lam > 0.7 ? T.ok : T.warn],
-      ['aux loss  E·Σfₑ·Pₑ', `${aux.toFixed(3)}`, aux > 1.4 ? T.bad : aux > 1.12 ? T.warn : T.ok],
+      ['aux loss  E·Σfₑ·Pₑ (f = kept/total, drops out)', `${aux.toFixed(3)}`, aux > 1.4 ? T.bad : aux > 1.12 ? T.warn : T.ok],
       ['  (1.0 = uniform)', '', T.n9],
       ['load CV', `${cv.toFixed(3)}`, cv > 0.5 ? T.bad : T.n12],
       ['starved experts', `${starved.length} / ${E}`, starved.length ? T.bad : T.ok],
@@ -149,7 +149,7 @@ mount({
       }
     }
 
-    let o = `MoE balance: λ=${lam.toFixed(2)} (${lamState}).  aux=${aux.toFixed(3)} (1.0=uniform), CV=${cv.toFixed(2)}, ${starved.length} starved, ${drops} dropped.    tier:${r.name}\n`;
+    let o = `MoE balance: λ=${lam.toFixed(2)} (${lamState}).  aux=${aux.toFixed(3)} (1.0=uniform; f counts kept tokens only, drops are out), CV=${cv.toFixed(2)}, ${starved.length} starved, ${drops} dropped.    tier:${r.name}\n`;
     o += lam < 0.2
       ? `no balance loss → the router collapses onto its favorites; ${starved.length} expert${starved.length === 1 ? '' : 's'} starve (no tokens, no gradient). Raise λ or drag a starved bar up.`
       : lam > 0.7 ? `strong balance loss → load near uniform (${Math.round(TOKENS / E)}/expert); no starvation.`

@@ -387,7 +387,7 @@ mount({
     });
     c.slider('K', { label: 'student jumps (drag the rail too)', min: 1, max: 8, step: 1, value: 1 });
     c.slider('bw', { label: 'distillation strength', min: 0, max: 1, step: 0.01, value: 0.88 });
-    c.slider('tsteps', { label: 'teacher steps', min: 10, max: 80, step: 1, value: 50, rebuild: true });
+    c.slider('tsteps', { label: 'teacher path steps (the reference endpoints stay at 120)', min: 10, max: 80, step: 1, value: 50, rebuild: true });
     c.stepper('P', { label: 'trajectories shown', min: 3, max: 12, value: 6 });
     c.toggle('signal', { label: 'draw the training signal', value: true });
     c.slider('seed', { label: 'seed', min: 0, max: 99, step: 1, value: 4, rebuild: true });
@@ -575,7 +575,7 @@ mount({
       pad, sy - 8, { color: T.n11, font: '10px ui-monospace, monospace' });
     stripCells = [];
     const rows = [
-      { key: 'teacher', pts: S.tEnd, y: sy, tag: `teacher ${N}` },
+      { key: 'teacher', pts: S.tEnd, y: sy, tag: `teacher ${TEACHER_REF}` },
       { key: 'student', pts: U.strip.map((x) => x.end), y: sy + rowH + 4, tag: `student ${K}` },
     ];
     for (const row of rows) {
@@ -661,7 +661,7 @@ mount({
     }
 
     // ---- readout ------------------------------------------------------------
-    let o = `${st.mode} student · ${K} jump${K === 1 ? '' : 's'} vs a ${N}-step teacher · distillation strength ${st.bw.toFixed(2)} (kernel h₀ = ${U.bw.toFixed(3)}, h(t) = h₀·(σ(t)+0.06)) · ${NTRAIN} distilled pairs · seed ${st.seed}    tier:${r.name}\n`;
+    let o = `${st.mode} student · ${K} jump${K === 1 ? '' : 's'} vs the ${TEACHER_REF}-step reference teacher · the drawn path uses ${N} steps · distillation strength ${st.bw.toFixed(2)} (kernel h₀ = ${U.bw.toFixed(3)}, h(t) = h₀·(σ(t)+0.06)) · ${NTRAIN} distilled pairs · seed ${st.seed}    tier:${r.name}\n`;
     o += `step ${si}/${N}  t=${tcur.toFixed(3)}  ${s ? s.label : ''}\n`;
     o += `COST — sample spread ${m.spS.toFixed(4)} = ${m.spPct.toFixed(1)}% of the teacher's ${m.spT.toFixed(4)} (lower is worse here; 100% = teacher parity) · `
       + `${(100 * m.dupS).toFixed(0)}% of student samples have a near-identical twin vs ${(100 * m.dupT).toFixed(0)}% of the teacher's · `

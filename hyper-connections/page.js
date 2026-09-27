@@ -344,7 +344,7 @@ mount({
     page.probe = { diff: F.diff, eff: F.eff, effText: depth.eff, cLast: F.blocks[L - 1].c, n, preset: st.preset, mhc: !!st.mhc, rms: F.readouts.map(rmsOf) };
 
     const cList = depth.shown.map((c, i) => `c${i}=${c}`).join('  ');
-    let o = `hyper-connections: ${n} stream${n > 1 ? 's' : ''} × ${L} blocks, D=${D}, preset "${st.preset}".  Each block reads Σ A[m]·s[m], transforms, writes B[k]·y into stream k, then M mixes the streams.    tier:${r.name}\n`;
+    let o = `hyper-connections: ${n} stream${n > 1 ? 's' : ''} × ${L} blocks, D=${D}, preset "${st.preset}".  Each block reads Σ A[m]·s[m], transforms, then adds B[k]·y onto stream k together with M applied to the streams from before that write.    tier:${r.name}\n`;
     o += `${cList}   effective depth (Σc)²/Σc² = ${depth.eff} of ${L}\n`;
     // The mix matrix the forward actually used, with its row and column sums.
     // With the mhc toggle on this is the Sinkhorn projection of the dragged

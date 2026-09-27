@@ -60,6 +60,7 @@ const mv = (W, v) => {                      // W (rows x cols) · v (cols) -> ro
 };
 const scaled = (M, s) => { const d = Float32Array.from(M.data); for (let i = 0; i < d.length; i++) d[i] *= s; return { data: d, rows: M.rows, cols: M.cols }; };
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
+const trueMax = (a) => { let m = 0; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 const norm2 = (a) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * a[i]; return Math.sqrt(s); };
 
 // Frozen 2-D sin-cos position embedding: half the dims encode the patch row,
@@ -186,7 +187,7 @@ function compute(st) {
     d, G, p, side, N, tok, cls, Z, patchOf, X, H1, A, X2, H2, MO, OUT, delta, attnRow,
     tEmb, yEmb, c, mod, g1, b1, a1, g2, b2, a2,
     stages: { x: vecAt(X), h1: vecAt(H1), a: vecAt(A), x2: vecAt(X2), h2: vecAt(H2), m: vecAt(MO), out: vecAt(OUT) },
-    maxDelta: maxAbs(delta),
+    maxDelta: trueMax(delta),
   };
 }
 
@@ -376,7 +377,7 @@ mount({
     r.label(`class “${CLASSES[m.cls]}” × ${st.cscale.toFixed(2)}`, cx + 9, r1y + 128, { color: T.n11, font: '9px ui-monospace, monospace' });
     const yScaled = Float32Array.from(m.yEmb, (v) => v * st.cscale);
     R.yEmb = vecRow(ctx, yScaled, cx + 9, r1y + 132, cW - 18, 12, Math.max(1, maxAbs(yScaled)));
-    r.label('c = t-embed + class', cx + 9, r1y + 156, { color: T.violetDeep, font: '9px ui-monospace, monospace' });
+    r.label('c = SiLU(W·t-embed) + class×strength', cx + 9, r1y + 156, { color: T.violetDeep, font: '9px ui-monospace, monospace' });
     R.cVec = vecRow(ctx, m.c, cx + 9, r1y + 160, cW - 18, 13, Math.max(1, maxAbs(m.c)));
 
     // (d) the six modulation vectors adaLN emits
@@ -449,7 +450,8 @@ mount({
     const r3y = r2y + r2h + 14, r3h = Math.max(96, H - r3y - PAD);
     const cw3 = (W - 2 * PAD - 12) * 0.56;
     panel(ctx, PAD, r3y, cw3, r3h, 'the trade: patch size is the whole cost story');
-    const dm = Math.round(st.dm), C = costs(N, dm), Ch = costs(N * 4, dm), Cl = costs(Math.max(1, N / 4), dm);
+    const dm = Math.round(st.dm), nCoarse = Math.max(1, Math.round(N / 4));
+    const C = costs(N, dm), Ch = costs(N * 4, dm), Cl = costs(nCoarse, dm);
     const lines = [
       [`N = (G/p)² = (${G}/${p})² = ${N} tokens`, T.n13],
       [`N² = ${fmtN(N * N)} attention pairs · 4·N²·d = ${fmtN(C.attn)} FLOP`, T.n12],
@@ -457,7 +459,7 @@ mount({
       [`p → p/2:  N ×4 = ${N * 4},  N² term ×16 = ${fmtN(Ch.attn)},`, T.warnDeep],
       [`          block ${fmtN(C.total)} → ${fmtN(Ch.total)} = ${(Ch.total / C.total * 100).toFixed(0)}% of here. Finer detail,`, T.warnDeep],
       [`          quadratically dearer. That is the whole dial.`, T.warnDeep],
-      [`p → 2p:  N = ${Math.round(N / 4)}, block → ${fmtN(Cl.total)} = ${(Cl.total / C.total * 100).toFixed(0)}% of here`, T.n11],
+      [`p → 2p:  N = ${nCoarse}, block → ${fmtN(Cl.total)} = ${(Cl.total / C.total * 100).toFixed(0)}% of here`, T.n11],
       ['', T.n11],
       [`adaLN is not free either: 6·d² + 6·d = ${fmtN(C.pAda)} params/block,`, T.n13],
       [`vs attention + MLP 12·d² = ${fmtN(C.pCore)} — so adaLN is`, T.goldDeep],
@@ -543,7 +545,7 @@ mount({
     // ---------------- readout ------------------------------------------------
     const stg = STAGES[si] || STAGES[STAGES.length - 1];
     let o = `${s ? `stage ${si + 1}/${nS}` : '(whole block)'}  ${stg.name}:  ${stg.expr}    token ${tok} of ${N}    tier:${r.name}\n`;
-    o += `adaLN from c = t-embed(${Math.round(st.t)}) + ${st.cscale.toFixed(2)}·“${CLASSES[m.cls]}”  →  `;
+    o += `adaLN from c = SiLU(W·t-embed(${Math.round(st.t)})) + ${st.cscale.toFixed(2)}·“${CLASSES[m.cls]}”  →  `;
     o += `α₁[0]=${m.a1[0].toFixed(3)}  α₂[0]=${m.a2[0].toFixed(3)}  γ₁[0]=${m.g1[0].toFixed(3)}  β₁[0]=${m.b1[0].toFixed(3)}\n`;
     o += zeroed
       ? `GATES ARE ZERO: out = x + 0·a + 0·m = x exactly. max‖out−in‖ over all ${N} tokens = ${m.maxDelta.toFixed(6)}. Every block is an identity at initialisation, so a 28-block DiT starts as a clean residual pass-through and each block learns its way in.\n`
@@ -556,7 +558,10 @@ mount({
     {
       goal: 'Make the block an exact identity — ‖out − in‖ = 0 for every token.',
       hint: 'The gate is what multiplies each branch before it is added back.',
-      check: (api) => ({ solved: api.probe.maxDelta === 0, detail: `max‖out−in‖ = ${(api.probe.maxDelta || 0).toFixed(4)} — not zero yet` }),
+      check: (api) => {
+        const d = api.probe.maxDelta || 0;
+        return { solved: d === 0, detail: d === 0 ? 'max‖out−in‖ = 0' : `max‖out−in‖ = ${d.toFixed(4)} — not zero yet` };
+      },
     },
     {
       goal: 'Push attention\'s quadratic N² term past 10% of the block\'s FLOPs.',
