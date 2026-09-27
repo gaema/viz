@@ -178,7 +178,7 @@ const STOPS = [
   ['J','continuous-batching','Why a busy server still feels responsive: instead of waiting for a whole group of requests to finish together, it slots each new one in the moment any earlier one is done.'],
   ['J','chunked-prefill','Why one person pasting a huge document does not freeze everyone else: the big prompt is processed in slices that take turns with everybody’s next word, instead of hogging the machine in one go.'],
   ['J','speculative-decoding','How a model can emit several words for the price of about one: a small fast model guesses ahead, the big model checks all the guesses in a single pass, and whatever it agrees with is kept.'],
-  ['J','windowed-mtp','The draft that guesses ahead only needs the opening and a recent stretch. The big model still checks the full text, so a guess that needed the missing middle is thrown away.'],
+  ['J','windowed-mtp','The draft that guesses ahead only needs the opening and a recent stretch. The big model still checks the full text, so a guess that needed the missing middle is kept only as often as a blind guess.'],
   ['J','block-diffusion','A block drafter proposes several tokens at once. Later positions in the block are accepted less often, so a wider block has a weaker tail.'],
   ['J','kv-eviction','How a chat can run far past the length the cache can hold. The naive fix — keep only the most recent tokens — fails badly, and the repair is startlingly small: keep the first couple of tokens too.'],
   ['J','disaggregation','Reading your prompt and writing the answer stress a machine in completely different ways. Big services often split them across different machines and ship the intermediate state between — which helps, until the link between them becomes the problem.'],
