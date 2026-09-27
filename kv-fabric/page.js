@@ -79,7 +79,7 @@ mount({
     const barY = H * 0.78;
     const barH = H * 0.1;
     const bars = [
-      ['private', priv, T.accent],
+      ['private', priv, T.teal],
       ['shared pool', shared, T.teal],
     ];
     bars.forEach((item, i) => {

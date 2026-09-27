@@ -3,7 +3,7 @@
 // fraction of its tokens, and leaves a residual on the rest.
 import { mount } from '../framework/layout.js';
 import { T, rgbaToken } from '../framework/theme.js';
-import { fusionBill } from './math.js';
+import { fusionBill, fusionCompare } from './math.js';
 
 function paintRun(ctx, x, y, w, h, n, paid, paidColor, freeColor) {
   if (n <= 0 || w <= 0) return;
@@ -80,7 +80,7 @@ mount({
     const barTop = top + 3 * (rowH + gap) + H * 0.02;
     const barH = H - barTop - H * 0.08;
     const labels = [
-      ['cold', b.coldText, T.n6],
+      ['no cache', b.coldText, T.n6],
       ['prefix cache', b.prefixText, T.accent],
       ['fusion', b.fusionText, T.teal],
     ];
@@ -96,12 +96,10 @@ mount({
       ctx.fillText(`${item[0]} ${item[1]}`, x + bw / 2, barTop + barH + H * 0.04);
     });
 
-    const where = b.header === 0
-      ? 'The chunk starts the request, so the prefix cache pays less.'
-      : 'The chunk is not a prefix, so fusion pays fewer of its tokens.';
     page.setReadout(
       `header ${b.header}, chunk ${b.tokens}, fraction ${b.frac}, mismatch ${b.mismatch}: `
-      + `prefix cache pays ${b.prefixText} tokens, fusion pays ${b.fusionText} tokens, residual error ${b.error}. ${where}`,
+      + `no cache ${b.coldText}, prefix cache ${b.prefixText}, fusion ${b.fusionText}, residual error ${b.error}. `
+      + fusionCompare(b),
     );
     page.probe = b;
   },

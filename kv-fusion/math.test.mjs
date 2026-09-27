@@ -1,4 +1,4 @@
-import { fusionBill } from './math.js';
+import { fusionBill, fusionCompare } from './math.js';
 
 let fail = 0;
 const ok = (c, m) => { if (c) console.log('ok ' + m); else { fail++; console.error('FAIL ' + m); } };
@@ -31,6 +31,11 @@ const clean = fusionBill(8, 4, 0, 0);
 identity(clean);
 ok(clean.fusionText === '4', 'a zero fraction recomputes only the new header');
 ok(clean.error === '0.00', 'a chunk that still matches has no residual even when nothing is recomputed');
+
+ok(fusionCompare(mid) === 'Fusion pays fewer tokens than the prefix cache.', 'a partial recompute of a non-prefix chunk pays fewer tokens');
+ok(fusionCompare(exact) === 'The prefix cache pays fewer tokens than fusion.', 'a true prefix is cheaper for the prefix cache when fusion still recomputes');
+ok(fusionCompare(full) === 'Fusion and the prefix cache pay the same number of tokens.', 'a full recompute ties');
+ok(fusionCompare(fusionBill(8, 0, 0, 1)) === 'Fusion and the prefix cache pay the same number of tokens.', 'a zero fraction on a true prefix also ties');
 
 const half = fusionBill(7, 0, 0.5, 0.5);
 identity(half);

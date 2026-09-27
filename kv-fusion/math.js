@@ -37,3 +37,14 @@ export function fusionBill(tokens, header, frac, mismatch) {
     error,
   };
 }
+
+// The sentence compares the two printed totals. It does not assume that a
+// non-prefix chunk is always cheaper to fuse: a full recompute ties, and a
+// true prefix with a zero fraction also ties.
+export function fusionCompare(bill) {
+  const pre = Number(bill.prefixText);
+  const fus = Number(bill.fusionText);
+  if (fus < pre) return 'Fusion pays fewer tokens than the prefix cache.';
+  if (fus > pre) return 'The prefix cache pays fewer tokens than fusion.';
+  return 'Fusion and the prefix cache pay the same number of tokens.';
+}
