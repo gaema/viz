@@ -20,6 +20,13 @@ export function shipLabel(layers, seq, batch) {
   return { layers: L, seq: S, batch: B, hidden: H, kv: K, bytes: D, pd: String(pd), afd: String(afd) };
 }
 
+export function shipSentence(row) {
+  return {
+    kv: `2 × layers ${row.layers} × kv ${row.kv} × seq ${row.seq} × bytes ${row.bytes} = ${row.pd}`,
+    hidden: `2 × layers ${row.layers} × batch ${row.batch} × hidden ${row.hidden} × bytes ${row.bytes} = ${row.afd}`,
+  };
+}
+
 export function shipCompare(row) {
   const pd = Number(row.pd);
   const afd = Number(row.afd);

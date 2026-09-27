@@ -2,7 +2,7 @@
 // per layer, and grow with the batch. The printed totals are those products.
 import { mount } from '../framework/layout.js';
 import { T } from '../framework/theme.js';
-import { shipCompare, shipLabel } from './math.js';
+import { shipCompare, shipLabel, shipSentence } from './math.js';
 
 mount({
   mount: 'body',
@@ -46,8 +46,8 @@ mount({
       ctx.fillText(`${item[0]} ${item[1]}`, x + bw / 2, base + H * 0.06);
     });
     page.setReadout(
-      `KV once is 2 × ${row.layers} × ${row.kv} × ${row.seq} × ${row.bytes} = ${row.pd}. `
-      + `Per step is 2 × ${row.layers} × ${row.batch} × ${row.hidden} × ${row.bytes} = ${row.afd}. `
+      `KV once is ${shipSentence(row).kv}. `
+      + `Per step is ${shipSentence(row).hidden}. `
       + shipCompare(row),
     );
     page.probe = row;

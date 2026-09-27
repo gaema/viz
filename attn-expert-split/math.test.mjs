@@ -1,4 +1,4 @@
-import { shipCompare, shipLabel } from './math.js';
+import { shipCompare, shipLabel, shipSentence } from './math.js';
 
 let fail = 0;
 const ok = (c, m) => { if (c) console.log('ok ' + m); else { fail++; console.error('FAIL ' + m); } };
@@ -24,6 +24,15 @@ const tie = shipLabel(2, 8, 4);
 identity(tie);
 ok(Number(tie.pd) === Number(tie.afd), 'the two ships can tie');
 ok(shipCompare(tie) === 'The two ships are the same size.', 'a tie is said as a tie');
+
+function product(sentence) {
+  const nums = sentence.split('=')[0].match(/\d+/g).map(Number);
+  return String(nums.reduce((acc, n) => acc * n, 1));
+}
+const said = shipSentence(long);
+ok(product(said.kv) === long.pd, 'the named KV factors multiply to the printed total');
+ok(product(said.hidden) === long.afd, 'the named hidden-state factors multiply to the printed total');
+ok(said.kv.includes(`kv ${long.kv} × seq ${long.seq}`), 'the two equal 4s are named kv and seq');
 
 if (fail) { console.error(fail + ' failed'); process.exit(1); }
 console.log('PASS attn-expert-split');

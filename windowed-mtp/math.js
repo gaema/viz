@@ -25,3 +25,10 @@ export function acceptLabel(pos, length, sink, window, blind) {
     accept: seen ? '1.00' : blindText,
   };
 }
+
+// The readout prints sink, window, overlap, and the visible count. The
+// visible count is those three integers, not sink plus window.
+export function readSentence(span) {
+  return `length ${span.length}, sink ${span.sink}, window ${span.window}, overlap ${span.overlap}: `
+    + `draft reads ${span.visible} of ${span.length} (${span.sink} + ${span.window} - ${span.overlap})`;
+}

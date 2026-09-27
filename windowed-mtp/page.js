@@ -2,7 +2,7 @@
 // fact sits in that span, and the blind rate when it sits in the gap.
 import { mount } from '../framework/layout.js';
 import { T } from '../framework/theme.js';
-import { acceptLabel } from './math.js';
+import { acceptLabel, readSentence } from './math.js';
 
 mount({
   mount: 'body',
@@ -74,7 +74,7 @@ mount({
       ctx.fillText(`${item[0]} ${item[1]}`, pad + 8, yy + barH / 2);
     });
     page.setReadout(
-      `length ${a.length}, sink ${a.sink}, window ${a.window}: draft reads ${a.visible} of ${a.length}. `
+      `${readSentence(a)}. `
       + `fact at ${a.pos} is ${a.seen ? 'visible' : 'dropped'}. acceptance ${a.accept}.`,
     );
     page.probe = a;
