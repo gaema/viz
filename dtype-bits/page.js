@@ -114,7 +114,7 @@ const DTYPES = [
   { key: 'uint8',   label: 'uint8 (zp+scale)', kind: 'int', family: 'int', bits: 8, signed: false, zp: 128, range: 8 },
   { key: 'int4',    label: 'int4 (×scale)',   kind: 'int', family: 'int', bits: 4,  signed: true,  range: 8 },
   { key: 'int2',    label: 'int2 (×scale)',   kind: 'int', family: 'int', bits: 2,  signed: true,  range: 8 },
-  { key: 'int1',    label: 'int1 (±scale)',   kind: 'int', family: 'int', bits: 1,  binary: true,  range: 8 },
+  { key: 'int1',    label: 'int1 (×scale)',   kind: 'int', family: 'int', bits: 1,  signed: false, range: 8 },
 ];
 // Fill in the block rows' amortised width from BLOCKS, so the number on screen
 // and the number in the accounting bar can never disagree.
@@ -265,12 +265,10 @@ const emaxOf = (dt) => Math.floor(Math.log2(maxFinite(dt)));
 // scale is fitted to, so every int row on the page represents the same span and
 // the comparison is about CODE COUNT, not about who got a friendlier scale.
 function intSpan(dt) {
-  if (dt.binary) return { qmin: 0, qmax: 1 };
   if (dt.signed === false) return { qmin: 0, qmax: P2(dt.bits) - 1 };
   return { qmin: -P2(dt.bits - 1), qmax: P2(dt.bits - 1) - 1 };
 }
 function intScale(dt) {
-  if (dt.binary) return dt.range;                       // one code, ± the scale
   if (dt.signed === false) return dt.range / (dt.zp || 1);
   const { qmax } = intSpan(dt);
   return dt.range / Math.max(1, qmax);
@@ -280,19 +278,17 @@ function intScale(dt) {
 // span absmax `range`, and it is not stored in the strip.
 function intScaleText(dt) {
   const sc = fmt(intScale(dt));
-  if (dt.binary) return `×scale = ${sc}: the bit is only a sign, 0 → +${sc} and 1 → −${sc}. It is fitted to absmax ${dt.range} and is not stored in the bit.`;
   if (dt.zp) return `×scale = ${sc}: these bits are a code, value = (code − ${dt.zp}) × ${sc}. The scale is fitted to absmax ${dt.range} and is not one of these bits.`;
+  if (dt.signed === false) return `×scale = ${sc}: these bits are a code, value = code × ${sc}. 0 stays 0 and 1 is ${dt.range}. The scale is not stored in the strip.`;
   return `×scale = ${sc}: these bits are a code, value = code × ${sc}. The scale is fitted so the largest code is ±${dt.range}, and it is not stored in the strip.`;
 }
 function encodeInt(v, dt) {
   const scale = intScale(dt), { qmin, qmax } = intSpan(dt);
-  if (dt.binary) return { kind: 'int', code: v < 0 ? 1 : 0, scale };
   const zp = dt.zp || 0;
   const code = Math.max(qmin, Math.min(qmax, rne(v / scale) + zp));
   return { kind: 'int', code, scale };
 }
 function decodeInt(raw, dt) {
-  if (dt.binary) return (raw.code ? -1 : 1) * raw.scale;
   return (raw.code - (dt.zp || 0)) * raw.scale;
 }
 const encode = (dt, v) => (dt.kind === 'float' ? encodeFloat(v, dt) : encodeInt(v, dt));
@@ -300,7 +296,7 @@ const encode = (dt, v) => (dt.kind === 'float' ? encodeFloat(v, dt) : encodeInt(
 // Two's-complement bit pattern <-> signed code, at any width (int32 included).
 const patternOf = (dt, code) => (code < 0 ? code + P2(dt.bits) : code);
 function codeOf(dt, pattern) {
-  if (dt.binary || dt.signed === false) return pattern;
+  if (dt.signed === false) return pattern;
   return pattern >= P2(dt.bits - 1) ? pattern - P2(dt.bits) : pattern;
 }
 
@@ -313,8 +309,8 @@ function bitcellsOf(dt, raw) {
     return cells;
   }
   const N = dt.bits, pattern = patternOf(dt, raw.code), cells = [];
-  const signed = !!dt.signed && !dt.binary;
-  for (let j = 0; j < N; j++) cells.push({ v: bitOf(pattern, N - 1 - j), field: (signed && j === 0) || dt.binary ? 'sign' : 'mag' });
+  const signed = !!dt.signed;
+  for (let j = 0; j < N; j++) cells.push({ v: bitOf(pattern, N - 1 - j), field: signed && j === 0 ? 'sign' : 'mag' });
   return cells;
 }
 
@@ -443,15 +439,10 @@ function buildSteps() {
       steps.push({ rev: 1 + dt.E + i, partial, label: `mantissa bit ${i} = ${bit}${bit ? ` → +${fmt(sgn * scale * P2(-i))}` : ''} → ${fmt(partial)}` });
     }
   } else {
-    const N = dt.bits, pattern = patternOf(dt, raw.code), signed = !!dt.signed && !dt.binary;
+    const N = dt.bits, pattern = patternOf(dt, raw.code), signed = !!dt.signed;
     let partial = 0;
     for (let j = 0; j < N; j++) {
       const bit = bitOf(pattern, N - 1 - j);
-      if (dt.binary) {
-        partial = (bit ? -1 : 1) * raw.scale;
-        steps.push({ rev: j + 1, partial, label: `the only bit = ${bit} → ${bit ? '−' : '+'}scale = ${fmt(partial)}` });
-        continue;
-      }
       const place = signed && j === 0 ? -P2(N - 1) : P2(N - 1 - j);
       partial += bit * place * raw.scale;
       const shown = partial - (dt.zp || 0) * raw.scale;
@@ -499,7 +490,6 @@ function bitInfo(dt, i) {
     return { field: 'mantissa', line: `mantissa bit ${mi} → 2^-${mi} = ${fmt(P2(-mi))}` };
   }
   const N = dt.bits;
-  if (dt.binary) return { field: 'sign', line: 'the single bit → + or − the scale' };
   if (i === 0 && dt.signed) return { field: 'sign', line: `sign bit → −2^${N - 1} = −${fmt(P2(N - 1))}, then × scale ${fmt(intScale(dt))}` };
   const w = N - 1 - i;
   return { field: 'magnitude', line: `bit ${i} → weight 2^${w} = ${fmt(P2(w))}, then × scale ${fmt(intScale(dt))}` };
@@ -516,9 +506,9 @@ function drawBitRow(page, dt, bitcells, rev, activeIdx, rect) {
   bitRowRect = { x: x0, y: y0, w: N * cw, h: ch };
   const groups = dt.kind === 'float'
     ? [['sign', 0, 1], ['exponent', 1, 1 + dt.E], ['mantissa', 1 + dt.E, N]]
-    : (dt.binary ? [[`sign only (±${fmt(intScale(dt))})`, 0, N]]
-      : (dt.signed === false ? [[`magnitude, zero-point ${dt.zp}, ×${fmt(intScale(dt))}`, 0, N]]
-        : [['sign', 0, 1], [`magnitude ×${fmt(intScale(dt))}`, 1, N]]));
+    : (dt.signed === false
+      ? [[`${dt.zp ? `magnitude, zero-point ${dt.zp}, ` : 'magnitude '}×${fmt(intScale(dt))}`, 0, N]]
+      : [['sign', 0, 1], [`magnitude ×${fmt(intScale(dt))}`, 1, N]]);
   if (ghost) groups.push([`unused container bits (${ghost})`, N, total]);
   groupRects = [];
   ctx.save();
@@ -1014,8 +1004,7 @@ mount({
             if (lab.name === 'sign') tip = `sign s = ${cur.raw.sign} → ${cur.raw.sign ? '−' : '+'}`;
             else if (lab.name === 'exponent') tip = `exponent e = ${cur.raw.ef}, bias ${dt.bias} → 2^(e−bias) = 2^${cur.raw.ef - dt.bias} = ${fmt(P2(cur.raw.ef - dt.bias))}\nmax finite ${fmt(maxFinite(dt))} · ${dt.nan === 'none' ? 'no Inf, no NaN (every code is a number)' : dt.nan === 'e4m3' ? 'only mantissa-all-ones at max exponent is NaN — no Inf' : 'all-ones exponent = Inf / NaN'}`;
             else tip = `mantissa m = ${cur.raw.mant}/${fmt(P2(dt.M))}\nvalue = (−1)^s · 2^(e−bias) · 1.m = ${fmt(decoded)}`;
-          } else if (dt.binary) tip = `one bit: 0 → +scale, 1 → −scale (scale ${fmt(cur.raw.scale)})`;
-          else if (lab.name === 'sign') tip = `sign bit → two's-complement code ${cur.raw.code}`;
+          } else if (lab.name === 'sign') tip = `sign bit → two's-complement code ${cur.raw.code}`;
           else tip = `(code ${cur.raw.code}${dt.zp ? ` − zero-point ${dt.zp}` : ''}) × scale ${fmt(cur.raw.scale)} → ${fmt(decoded)}`;
         }
       }

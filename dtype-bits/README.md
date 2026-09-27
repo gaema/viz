@@ -36,11 +36,11 @@ is amortised over its block.
 | block | `bfp4` | **4.5** | 16 × (sign + 3-bit magnitude) + one shared 8-bit exponent |
 | int | `int32` `int16` `int8` `int4` `int2` | 32/16/8/4/2 | two's complement, × a per-tensor scale |
 | int | `uint8` | 8 | unsigned, × scale with a **zero-point** (128 here) |
-| int | `int1` | 1 | the bit *is* the sign: 0 → +scale, 1 → −scale |
+| int | `int1` | 1 | unsigned codes 0 and 1, × scale. 0 stays 0; 1 is the absmax |
 
 All integer rows share one absmax of 8. The bits hold a **code**,
 **×scale** is a separate number fitted so those codes reach that absmax
-(`8 / 127` for int8, `8 / 7` for int4, `±8` for int1). The scale is not
+(`8 / 127` for int8, `8 / 7` for int4, `8` for int1, so its codes are 0 and 8). The scale is not
 stored in the bit strip. The comparison is about **code count**: fewer bits
 means a coarser scale, not a friendlier one.
 
