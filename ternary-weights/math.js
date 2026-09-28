@@ -1,6 +1,6 @@
 // Each weight becomes -1, 0, or +1 by rounding value/scale into that set.
 // The reconstruction printed for a code is that code times the printed scale.
-// The two dots are the sums of the printed weights and the printed reconstructions.
+// The two sums are the printed weights and the printed reconstructions.
 
 export const WEIGHTS = [0.9, 0.2, -0.8, 0.1, -0.4];
 
@@ -29,4 +29,9 @@ export function ternaryBill(scale) {
     nonzero,
     count: codes.length,
   };
+}
+
+export function ternarySentence(row) {
+  return `scale ${row.scale}: ${row.nonzero} of ${row.count} weights survive. `
+    + `sum ${row.full} becomes ${row.tern}. absolute error ${row.abs}.`;
 }

@@ -1,5 +1,5 @@
-// Every share-th layer writes keys and values. The layers after it reuse
-// that cache. The readout is writers plus readers.
+// Every share-th layer writes keys and values. The layers until the next
+// writer reuse that cache. The readout is writers plus readers, and the cache.
 import { mount } from '../framework/layout.js';
 import { T } from '../framework/theme.js';
 import { kvShare, shareSentence, writesAt } from './math.js';
@@ -7,7 +7,7 @@ import { kvShare, shareSentence, writesAt } from './math.js';
 mount({
   mount: 'body',
   title: 'cross-layer KV — later layers reuse an earlier cache',
-  blurb: 'Only some layers write keys and values. The layers after a writer reuse that cache and compute a new query, so they can still look at different places. The cache count is the number of writers.',
+  blurb: 'Every share-th layer writes keys and values, and the tail still gets a writer. The layers until the next writer reuse that cache and compute a new query. A share of 1 means every layer writes its own cache. The cache count is the number of writers.',
   prefer: 'canvas2d',
   aspect: '16 / 10',
   controls: (c) => {

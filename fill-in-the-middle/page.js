@@ -7,7 +7,7 @@ import { fimLabel, fimSentence } from './math.js';
 mount({
   mount: 'body',
   title: 'fill-in-the-middle — the middle can see the ending',
-  blurb: 'The example is ordered prefix, then suffix, then the missing middle, so a causal mask lets the middle read the ending. Two examples under that same mask let the second read the first.',
+  blurb: 'The example is ordered prefix, then suffix, then the missing middle, so a causal mask lets the middle read the ending. Two examples under that same mask let the second read the first. Isolate them and those pairs drop to zero, while each middle token still sees its own suffix.',
   prefer: 'canvas2d',
   aspect: '16 / 10',
   controls: (c) => {

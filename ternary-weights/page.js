@@ -1,13 +1,14 @@
-// Each weight rounds to -1, 0, or +1. The drawn reconstruction is that code
-// times the printed scale. The dots are the sums of the printed numbers.
+// Each weight rounds to -1, 0, or +1. The number under the colored bar is the
+// reconstruction, the code times the printed scale. The readout sums those
+// printed numbers.
 import { mount } from '../framework/layout.js';
 import { T } from '../framework/theme.js';
-import { ternaryBill } from './math.js';
+import { ternaryBill, ternarySentence } from './math.js';
 
 mount({
   mount: 'body',
   title: 'ternary weights — a multiply becomes an add',
-  blurb: 'Each weight is rounded to −1, 0, or +1 and stored with one scale. Small weights become zero. Large ones clip to a sign. The reconstruction is the code times the scale.',
+  blurb: 'Each weight is rounded to −1, 0, or +1 by dividing by the scale, then clipped into that set. The reconstruction is the code times the printed scale. The readout sums the printed weights and the printed reconstructions.',
   prefer: 'canvas2d',
   aspect: '16 / 10',
   controls: (c) => {
@@ -42,18 +43,17 @@ mount({
       ctx.fillStyle = row.codes[i] === 0 ? T.n3 : (row.codes[i] > 0 ? T.teal : T.accent);
       ctx.fillRect(x + cw * 0.5, mid - (rv >= 0 ? rh : 0), cw * 0.42, rh);
       const labelY = mid + room + Math.max(14, H * 0.05);
+      const line = Math.max(14, H * 0.045);
       ctx.fillStyle = T.n12;
-      ctx.fillText(w, x + cw * 0.2, labelY);
-      ctx.fillText(String(row.codes[i]), x + cw * 0.7, labelY + Math.max(14, H * 0.045));
+      ctx.fillText(w, x + cw * 0.21, labelY);
+      ctx.fillText(row.recon[i], x + cw * 0.71, labelY);
+      ctx.fillText('code ' + row.codes[i], x + cw * 0.5, labelY + line);
     });
     ctx.fillStyle = T.n12;
     ctx.textAlign = 'left';
-    ctx.fillText('weight', pad, H * 0.08);
-    ctx.fillText('code × scale', pad + 90, H * 0.08);
-    page.setReadout(
-      `scale ${row.scale}: ${row.nonzero} of ${row.count} weights survive. `
-      + `dot ${row.full} becomes ${row.tern}. absolute error ${row.abs}.`,
-    );
+    ctx.fillText('weight', pad, H * 0.07);
+    ctx.fillText('code × scale', pad + W * 0.34, H * 0.07);
+    page.setReadout(ternarySentence(row));
     page.probe = row;
   },
 });

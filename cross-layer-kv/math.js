@@ -1,7 +1,7 @@
-// Some layers write keys and values. The next layers reuse that cache and
-// only compute a query. Writers are every `share`-th layer, rounded up so
-// the tail of the stack still has a cache. Writers plus readers is the
-// layer count.
+// Every share-th layer writes keys and values, rounded up so the tail of the
+// stack still has a writer. The layers until the next writer reuse that cache
+// and only compute a query. A share of 1 means every layer writes. Writers
+// plus readers is the layer count.
 
 export function kvShare(layers, share) {
   const L = Math.max(1, layers | 0);
