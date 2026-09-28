@@ -15,7 +15,9 @@ export const ORDER = [
   { slug: 'qk-norm', family: 'B' },
   { slug: 'multi-head', family: 'B' },
   { slug: 'gqa-mqa', family: 'B' },
+  { slug: 'cross-layer-kv', family: 'B' },
   { slug: 'causal-mask', family: 'B' },
+  { slug: 'fill-in-the-middle', family: 'B' },
   { slug: 'attention-patterns', family: 'B' },
   { slug: 'kv-cache', family: 'B' },
   { slug: 'rope', family: 'B' },
@@ -58,6 +60,7 @@ export const ORDER = [
   { slug: 'patch-embedding', family: 'F' },
   // G -- Quantization / multimodal
   { slug: 'quantization', family: 'G' },
+  { slug: 'ternary-weights', family: 'G' },
   { slug: 'vram-budget', family: 'G' },
   { slug: 'multimodal-inject', family: 'G' },
   { slug: 'vlm-connector', family: 'G' },
