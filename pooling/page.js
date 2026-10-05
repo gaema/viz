@@ -1,9 +1,9 @@
 // pooling concept page -- max / average pooling and downsampling. A k×k window
 // steps over the n×n input with stride s (s=k tiles without overlap); each
 // window -> one output cell: out = max(window) (argmax highlighted) or
-// mean(window). Output size = floor((n-k)/s)+1, so a 2×2/stride-2 pool halves
-// each dimension. Drag an input cell to change it; hover to inspect. cur is
-// built ONLY by the transport compute (no draw-side rebuild).
+// mean(window). Output size = floor((n-k)/s)+1. A 2×2/stride-2 pool halves an
+// even side and stays under half on an odd one. Drag an input cell to change
+// it; hover to inspect. cur is built ONLY by the transport compute (no draw-side rebuild).
 import { mount } from '../framework/layout.js';
 import { seededRandn } from '../framework/tensor.js';
 import { T, alphaOf, rgbOf, effectiveTheme, signedColor, mixColor } from '../framework/theme.js';
@@ -63,7 +63,7 @@ function pool(st) {
 mount({
   mount: 'body',
   title: 'pooling — max / avg, downsampling',
-  blurb: 'Pooling is the cheap, parameter-free downsampler in a CNN: a k×k window steps over the input (stride s, usually s=k so windows tile without overlap) and reduces each window to one number — its max (max pooling keeps the strongest activation, the argmax cell highlighted) or its mean (avg pooling smooths). Output size = ⌊(n−k)/s⌋+1, so a 2×2/stride-2 pool halves each spatial dimension. Drag an input cell to change it (for max-pool the output only moves if you change the window’s max); hover to inspect; toggle max↔avg to compare.',
+  blurb: 'Pooling is the cheap, parameter-free downsampler in a CNN: a k×k window steps over the input (stride s, usually s=k so windows tile without overlap) and reduces each window to one number — its max (max pooling keeps the strongest activation, the argmax cell highlighted) or its mean (avg pooling smooths). Output size = ⌊(n−k)/s⌋+1, so a 2×2/stride-2 pool halves an even side and keeps only the windows that fit on an odd one. Drag an input cell to change it (for max-pool the output only moves if you change the window’s max); hover to inspect; toggle max↔avg to compare.',
   prefer: 'canvas2d',
   aspect: '2 / 1',
   autoplay: true,
@@ -142,8 +142,11 @@ mount({
     }
 
     let o = `pooling (${type}): a ${k}×${k} window strides by ${s} over the ${n}×${n} input → ${out}×${out} output (downsampling, no weights).   out = ⌊(${n}−${k})/${s}⌋+1 = ${out}.    tier:${r.name}\n`;
+    const evenHalf = k === 2 && s === 2 && out * 2 === n;
     o += sp ? `window (${oy},${ox}): ${type === 'max' ? 'max keeps the strongest cell (red), drops the rest' : 'avg = mean of the window'} = ${res.toFixed(2)}.`
-      : `${type} pooling halves/2 the map per 2×2 stride-2; max → translation tolerance, avg → smoothing.`;
+      : evenHalf
+        ? `${type} pooling here: ${n} → ${out} on a side, half, so three quarters of the cells are gone.`
+        : `${type} pooling here keeps ${out}×${out} from ${n}×${n}. A 2×2 stride of 2 halves an even side and stays under half on an odd one.`;
     page.setReadout(o);
   },
 }).then((page) => {

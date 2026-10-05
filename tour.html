@@ -148,7 +148,7 @@ const STOPS = [
   ['F','feature-maps','What a CNN actually sees at each depth: edges → textures → parts.'],
   ['F','batchnorm','Normalizing activations during training, and the frozen running stats used at inference.'],
   ['F','residual-block','The ResNet skip connection — why adding the input back lets 100+ layer nets train at all.'],
-  ['F','depthwise-separable','MobileNet\'s trick: split a convolution into cheap parts to cut the compute ~8–9×.'],
+  ['F','depthwise-separable','Split one convolution into a per-channel filter and a 1×1 mix. The cost ratio grows with the output count and stays under the kernel area.'],
   ['F','patch-embedding','How a Vision Transformer turns an image into tokens — the CNN→transformer bridge.'],
   ['G','quantization','Squeezing fp16 weights into int4 (with a per-group scale) — how big models fit in small memory.'],
   ['G','ternary-weights','Round each weight to −1, 0, or +1 and keep one scale. The drawn reconstruction is that code times the scale.'],

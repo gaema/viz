@@ -28,11 +28,14 @@ MobileNet splits that into two cheap steps:
 So the cost becomes a **sum** instead of a product, and the ratio is
 
 ```
-full / dwsep = (k²·Cout) / (k² + Cout) = 1 / (1/Cout + 1/k²) ≈ 8–9× for 3×3
+full / dwsep = (k²·Cout) / (k² + Cout) = 1 / (1/Cout + 1/k²)
 ```
 
+The ratio climbs toward `k²` as `Cout` grows (just under 9 for a 3×3) and drops
+below 1 for a 1×1 kernel, where the split costs more than the full conv.
+
 The bottom bar compares `full` (one bar) vs `depthwise + pointwise` (two segments)
-to scale, with the live `×` reduction and the parameter-count ratio.
+to scale, with the live ratio and the parameter-count ratio.
 
 **Drag** the input or output channel stack (↕) to change `Cin`/`Cout` and watch the
 bar and ratio update; sliders for `k`, `Cin`, `Cout`, and the feature-map size; the

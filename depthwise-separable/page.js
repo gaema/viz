@@ -2,7 +2,8 @@
 // a DEPTHWISE conv (one k×k filter per input channel, NO channel mixing) followed
 // by a POINTWISE 1×1 conv (mixes channels, NO spatial extent). A full conv does
 // spatial + channel jointly; the factorization does them separately, which is
-// why the MAC count drops by ~k²·Cout/(k²+Cout) ≈ 8-9× for 3×3.
+// why the MAC ratio is (k²·Cout)/(k²+Cout). It climbs toward k² (just under
+// 9 for a 3×3) and drops below 1 for a 1×1 kernel, where the split costs more.
 //   full  MACs = H·W·Cin·Cout·k²
 //   dwsep MACs = H·W·Cin·k²  (depthwise)  +  H·W·Cin·Cout  (pointwise)
 //   ratio = full/dwsep = (k²·Cout)/(k² + Cout) = 1 / (1/Cout + 1/k²)
@@ -31,7 +32,7 @@ function col(ctx, cx, yc, n, sz, glow) {
 mount({
   mount: 'body',
   title: 'depthwise-separable — MobileNet conv, the FLOP cut',
-  blurb: 'A standard convolution mixes space AND channels in one shot: every output channel reads a k×k patch of every input channel, costing H·W·Cin·Cout·k² multiply-adds. MobileNet splits that into two cheap steps. DEPTHWISE: one k×k filter per input channel, applied independently — spatial filtering with NO channel mixing (Cin·k² · H·W). POINTWISE: a 1×1 conv that mixes channels — channel mixing with NO spatial extent (Cin·Cout · H·W). Same input→output shape, but the cost drops from a PRODUCT (Cin·Cout·k²) to a SUM (Cin·k² + Cin·Cout). The ratio is (k²·Cout)/(k²+Cout) ≈ 8–9× fewer MACs for a 3×3 conv into many channels — the trick behind on-phone CNNs. Drag the input or output channel stack (or use the sliders) to change Cin/Cout, k, and the feature-map size, and watch the MAC bar and the ratio update. The two stages animate in turn.',
+  blurb: 'A standard convolution mixes space AND channels in one shot: every output channel reads a k×k patch of every input channel, costing H·W·Cin·Cout·k² multiply-adds. MobileNet splits that into two cheap steps. DEPTHWISE: one k×k filter per input channel, applied independently — spatial filtering with NO channel mixing (Cin·k² · H·W). POINTWISE: a 1×1 conv that mixes channels — channel mixing with NO spatial extent (Cin·Cout · H·W). Same input→output shape, and the cost goes from a PRODUCT (Cin·Cout·k²) to a SUM (Cin·k² + Cin·Cout). The ratio full/separable is (k²·Cout)/(k²+Cout). It climbs toward k² as the output count rises — just under 9× for a 3×3 — and a 1×1 kernel makes the split cost more, not less. That climb is the trick behind on-phone CNNs. Drag the input or output channel stack (or use the sliders) to change Cin/Cout, k, and the feature-map size, and watch the MAC bar and the ratio update. The two stages animate in turn.',
   prefer: 'canvas2d',
   aspect: '2 / 1',
   animate: true,
@@ -59,7 +60,14 @@ mount({
     r.clear(T.n0);
     const k = st.k | 0, Cin = st.Cin | 0, Cout = st.Cout | 0, hw = st.HW | 0;
     const full = hw * hw * Cin * Cout * k * k, dw = hw * hw * Cin * k * k, pw = hw * hw * Cin * Cout, dwsep = dw + pw;
-    const ratio = full / dwsep;
+    const shown = (full / dwsep).toFixed(2);
+    const inv = (dwsep / full).toFixed(2);
+    const cmp = Number(shown) > 1 ? `full is ${shown}× the separable cost`
+      : Number(shown) < 1 ? `separable is ${inv}× the full conv`
+      : `full and separable cost the same`;
+    const barWord = Number(shown) > 1 ? `${shown}× fewer` : Number(shown) < 1 ? `${inv}× more` : `same cost`;
+    const pFull = Cin * Cout * k * k, pSep = Cin * k * k + Cin * Cout;
+    const pShown = (pFull / pSep).toFixed(2);
     const nIn = Math.min(Cin, 7), nOut = Math.min(Cout, 7), sz = 10, yc = 100;
     const stage = ((page.t || 0) % 3) < 1.5 ? 'dw' : 'pw';  // animate the two stages in turn
 
@@ -90,7 +98,7 @@ mount({
     r.label(`depthwise ${fmt(dw)}  +  pointwise ${fmt(pw)}  =  ${fmt(dwsep)} MACs`, x0, yc + di.h / 2 + 32, { color: T.n14, font: '10px ui-monospace, monospace' });
 
     // ===== MAC comparison bars (bottom) =====
-    const by = 206, bx = 20, bw = W - 40, maxv = full;
+    const by = 206, bx = 20, bw = W - 40, maxv = Math.max(full, dwsep);
     r.label('multiply-add (MAC) cost — drag a channel stack to rescale', bx, by - 8, { color: T.n14, font: '11px ui-monospace, monospace' });
     const barH = 20;
     // full
@@ -102,19 +110,22 @@ mount({
     r.label(`depthwise+pointwise: ${fmt(dwsep)}`, bx + 6, y2 + 14, { color: T.n0, font: '10px ui-monospace, monospace' });
     // ratio call-out
     ctx.save(); ctx.fillStyle = T.n14; ctx.font = 'bold 15px ui-monospace, monospace'; ctx.textAlign = 'left';
-    ctx.fillText(ratio >= 1 ? `${ratio.toFixed(2)}× fewer` : `${ratio.toFixed(2)}× the full conv`, bx + Math.max(wdw + wpw + 12, 160), y2 + 15); ctx.restore();
-    r.label(`ratio = (k²·Cout)/(k²+Cout) = (${k * k}·${Cout})/(${k * k}+${Cout}) = ${ratio.toFixed(2)}×   ·   params: ${fmt(Cin * Cout * k * k)} → ${fmt(Cin * k * k + Cin * Cout)} (${(Cin * Cout * k * k / (Cin * k * k + Cin * Cout)).toFixed(2)}×)`, bx, y2 + barH + 18, { color: T.n11, font: '10px ui-monospace, monospace' });
+    const barW = wdw + wpw, outside = barW + 12 < bw - 90;
+    ctx.fillStyle = outside ? T.n14 : T.n0;
+    ctx.textAlign = outside ? 'left' : 'right';
+    ctx.fillText(barWord, outside ? bx + barW + 12 : bx + bw - 6, y2 + 15); ctx.restore();
+    r.label(`ratio = (k²·Cout)/(k²+Cout) = (${k * k}·${Cout})/(${k * k}+${Cout}) = ${shown}×   ·   params ${pFull} full vs ${pSep} separable (${pShown}×)`, bx, y2 + barH + 18, { color: T.n11, font: '10px ui-monospace, monospace' });
 
     // hover
     if (page.pointer.over && !dragMode) {
       const p = page.pointer;
       if (stdInRect && p.x >= stdInRect.x - 14 && p.x <= stdInRect.x + stdInRect.w + 14 && p.y >= stdInRect.y && p.y <= stdInRect.y + stdInRect.h) page.setTip(`${Cin} input channels\ndrag ↕ to change Cin`);
       else if (stdOutRect && p.x >= stdOutRect.x - 14 && p.x <= stdOutRect.x + stdOutRect.w + 14 && p.y >= stdOutRect.y && p.y <= stdOutRect.y + stdOutRect.h) page.setTip(`${Cout} output channels\ndrag ↕ to change Cout`);
-      else if (p.y >= by && p.y <= y2 + barH) page.setTip(`full conv: ${fmt(full)} MACs\ndepthwise: ${fmt(dw)}\npointwise: ${fmt(pw)}\ndw-sep total: ${fmt(dwsep)}  →  ${ratio.toFixed(2)}× the full conv`);
+      else if (p.y >= by && p.y <= y2 + barH) page.setTip(`full conv: ${full} MACs\ndepthwise: ${dw}\npointwise: ${pw}\nseparable: ${dwsep}\n${cmp}`);
     }
 
     let o = `depthwise-separable conv: split a full conv (spatial+channel jointly) into depthwise (k×k per channel) + pointwise (1×1 mix).   tier:${r.name}\n`;
-    o += `H=W=${hw}, Cin=${Cin}, Cout=${Cout}, k=${k}:  full = ${fmt(full)} MACs vs depthwise ${fmt(dw)} + pointwise ${fmt(pw)} = ${fmt(dwsep)}  →  ${ratio.toFixed(2)}× the full conv (cost goes from a PRODUCT Cin·Cout·k² to a SUM Cin·k²+Cin·Cout).`;
+    o += `H=W=${hw}, Cin=${Cin}, Cout=${Cout}, k=${k}:  full = ${full} MACs vs depthwise ${dw} + pointwise ${pw} = ${dwsep}. ${cmp}.`;
     page.setReadout(o);
   },
 }).then((page) => {
