@@ -264,6 +264,11 @@ function floorPct(rmse, ref) {
   const refS = fE(ref), rmseS = fE(rmse);
   return Number(refS) > 0 ? (100 * Number(rmseS)) / Number(refS) : 0;
 }
+// The absolute error beside the two printed pixels is those two strings.
+function shownAbs(rec, x) {
+  const rS = rec.toFixed(4), sS = x.toFixed(4);
+  return { rS, sS, eS: Math.abs(Number(rS) - Number(sS)).toFixed(4) };
+}
 
 const STEPS = [
   { key: 'source', label: 'x — the image at full resolution' },
@@ -619,7 +624,10 @@ function tipFor(p, hit, ctxv) {
   const i = hit.r * p.grid.cols + hit.c;
   if (p.key === 'src') return `x  pixel (${hit.r}, ${hit.c})\nvalue = ${src[i].toFixed(4)}\nlives in block (${(hit.r / f) | 0}, ${(hit.c / f) | 0})\ndrag to paint detail in`;
   if (p.key === 'rec') return `x̂  pixel (${hit.r}, ${hit.c})\nvalue = ${rt.rec[i].toFixed(4)}   (x = ${src[i].toFixed(4)})\ninverse transform of ${C} kept channels${noise > 0 ? `, loop σ=${noise.toFixed(2)}` : ', no diffusion'}`;
-  if (p.key === 'err') return `|x̂ − x| at (${hit.r}, ${hit.c})\n= |${rtFloor.rec[i].toFixed(4)} − ${src[i].toFixed(4)}| = ${rtFloor.err[i].toFixed(4)}\nno diffusion ran — this is the FLOOR`;
+  if (p.key === 'err') {
+    const e = shownAbs(rtFloor.rec[i], src[i]);
+    return `|x̂ − x| at (${hit.r}, ${hit.c})\n= |${e.rS} − ${e.sS}| = ${e.eS}\nno diffusion ran — this is the FLOOR`;
+  }
   if (p.key === 'coef') {
     const k = rank[hit.r * f + hit.c], share = (eBasis[hit.r * f + hit.c] / eTot) * 100;
     return `basis (u,v) = (${hit.r}, ${hit.c})\nchannel ${k} in zig-zag order\ncarries ${share.toFixed(3)}% of the image energy\n${k < C ? '✓ KEPT' : '✗ DISCARDED — gone before diffusion'}`;

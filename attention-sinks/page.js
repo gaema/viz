@@ -97,6 +97,11 @@ function massGap(mass, share) {
   if (!(Number(ps) > 0)) return { pm, ps, ratio: null };
   return { pm, ps, ratio: (Number(pm) / Number(ps)).toFixed(1) };
 }
+// The logit beside the two printed addends is those two strings.
+function shownLogit(z, b) {
+  const zS = z.toFixed(3), bS = b.toFixed(3);
+  return { zS, bS, yS: (Number(zS) + Number(bS)).toFixed(3) };
+}
 const norm = (v) => { let s = 0; for (let i = 0; i < v.length; i++) s += v[i] * v[i]; return Math.sqrt(s); };
 
 // The whole subject of this page is an EXTRA TERM in the softmax denominator,
@@ -566,7 +571,8 @@ mount({
             : `EVICTED — outside the window W=${sim.Wn} (positions ${Math.max(0, q - sim.Wn + 1)}…${q}) and not pinned as a sink`);
         } else {
           const b = hd.bias[i], z = hd.logit[i] - b;
-          lines.push(`logit = content ${z.toFixed(3)} + learned bias ${b.toFixed(3)} = ${hd.logit[i].toFixed(3)}`);
+          const lg = shownLogit(z, b);
+          lines.push(`logit = content ${lg.zS} + learned bias ${lg.bS} = ${lg.yS}`);
           lines.push(`weight a[${q}][${i}] = exp(${hd.logit[i].toFixed(2)} − max) / denom = ${view.a[i].toFixed(4)}   (${pct(view.a[i])})`);
           lines.push(`value norm ‖v_${i}‖ = ${vn[i].toFixed(3)}`);
           lines.push(`contribution a·‖v‖ = ${view.contrib[i].toFixed(4)}  →  ${pct(view.share[i])} of the output`);

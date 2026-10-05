@@ -21,6 +21,14 @@ const DEPTHS = ['embed', '+ attn 0', '+ mlp 0', '+ attn 1', '+ mlp 1', 'final no
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 const rmsOf = (v) => { let s = 0; for (let i = 0; i < v.length; i++) s += v[i] * v[i]; return Math.sqrt(s / v.length); };
 const rmsNorm = (v) => { const r = rmsOf(v) + 1e-6; return Float32Array.from(v, (x) => x / r); };
+// Delta and percent are taken from the two magnitudes already printed.
+function shownGrowth(cur, prev) {
+  const cS = cur.toFixed(3), pS = prev.toFixed(3);
+  const d = Number(cS) - Number(pS);
+  const pct = Number(pS) > 0 ? (d / Number(pS) * 100) : 0;
+  const word = d > 0 ? 'grew' : d < 0 ? 'shrank' : 'held';
+  return { cS, pS, dS: Math.abs(d).toFixed(3), pctS: (pct >= 0 ? '+' : '') + pct.toFixed(0), word };
+}
 
 // Shared between buildData() (seeds embed + the 4 deltas), draw() (renders +
 // captures the rects), and onPointer() (hit-tests + edits). The transport
@@ -193,11 +201,14 @@ mount({
         if (mi >= 0) {
           if (mi === 0) tip = `‖stream‖_rms at ${DEPTHS[0]} = ${mag[0].toFixed(3)}\n(the embedding's own magnitude — the highway's starting point)`;
           else {
-            const dm = mag[mi] - mag[mi - 1], pct = mag[mi - 1] > 1e-6 ? (dm / mag[mi - 1] * 100) : 0;
+            const g = shownGrowth(mag[mi], mag[mi - 1]);
+            const tail = mi === ND - 1
+              ? 'then final-norm rescales'
+              : (g.word === 'grew' ? 'pushed magnitude up' : g.word === 'shrank' ? 'lowered the magnitude' : 'left the magnitude unchanged');
             const how = pre
-              ? `${dm >= 0 ? 'grew' : 'shrank'} ${Math.abs(dm).toFixed(3)} (${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%) from ${DEPTHS[mi - 1]} (${mag[mi - 1].toFixed(3)}) — the add ${mi === ND - 1 ? 'then final-norm rescales' : (dm >= 0 ? 'pushed magnitude up' : 'lowered the magnitude')}`
-              : `held ~1 vs ${DEPTHS[mi - 1]} (${mag[mi - 1].toFixed(3)}) — post-norm re-normalizes after every add`;
-            tip = `‖stream‖_rms at ${DEPTHS[mi]} = ${mag[mi].toFixed(3)}\n${how}`;
+              ? `${g.word} ${g.dS} (${g.pctS}%) from ${DEPTHS[mi - 1]} (${g.pS}) — the add ${tail}`
+              : `held ~1 vs ${DEPTHS[mi - 1]} (${g.pS}) — post-norm re-normalizes after every add`;
+            tip = `‖stream‖_rms at ${DEPTHS[mi]} = ${g.cS}\n${how}`;
           }
         } else if (flowRects) {
           // flow-diagram boxes
