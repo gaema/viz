@@ -21,6 +21,22 @@ let painted = 0;
 for (let i = 0; i < 8; i++) if (writesAt(i, 2)) painted++;
 ok(painted === half.writers, 'the drawn writer rows are the writer count');
 
+function cacheSizes(L, S) {
+  const sizes = [];
+  let run = 0;
+  for (let i = 0; i < L; i++) {
+    if (writesAt(i, S)) {
+      if (run) sizes.push(run);
+      run = 1;
+    } else run++;
+  }
+  if (run) sizes.push(run);
+  return sizes;
+}
+
+ok(cacheSizes(8, 3).join(',') === '3,3,2', 'share 3 on 8 layers leaves the last cache with 2 layers');
+ok(cacheSizes(5, 4).join(',') === '4,1', 'share 4 on 5 layers leaves the last cache with 1 layer');
+
 for (let L = 4; L <= 16; L++) {
   for (let S = 1; S <= 4; S++) {
     const row = kvShare(L, S);

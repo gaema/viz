@@ -1,6 +1,7 @@
 // One matched prefix feeds three stores. Full-attention KV keeps every
 // matched token. Sliding-window KV keeps the tail that fits the window.
 // A recurrent layer keeps one checkpoint, and only when the match exists.
+// Turning that layer off leaves the checkpoint at zero.
 import { mount } from '../framework/layout.js';
 import { T } from '../framework/theme.js';
 import { unifiedReuse } from './math.js';
@@ -10,7 +11,7 @@ const TAPE = 24;
 mount({
   mount: 'body',
   title: 'unified radix — one match, three kinds of state',
-  blurb: 'A single prefix match reuses full-attention KV for every matched token, sliding-window KV for only the tail that fits the window, and one recurrent checkpoint when the match is non-empty.',
+  blurb: 'A single prefix match reuses full-attention KV for every matched token and sliding-window KV for only the tail that fits the window. A recurrent layer adds one checkpoint when the match is non-empty, and turning that layer off leaves the checkpoint at zero.',
   prefer: 'canvas2d',
   aspect: '16 / 10',
   controls: (c) => {

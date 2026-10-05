@@ -12,7 +12,7 @@ mount({
   aspect: '16 / 10',
   controls: (c) => {
     c.stepper('layers', { label: 'layers', min: 4, max: 16, step: 1, value: 8 });
-    c.stepper('share', { label: 'layers per cache', min: 1, max: 4, step: 1, value: 2 });
+    c.stepper('share', { label: 'share', min: 1, max: 4, step: 1, value: 2 });
   },
   draw: (page) => {
     const ctx = page.ctx;
