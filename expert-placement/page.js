@@ -596,8 +596,8 @@ mount({
             why: `device ${a} → device ${c}\n` +
               `${v} of the ${m.N} tokens are copied across this link: they live on device ${a}\n` +
               `and chose at least one expert that is placed on device ${c}.\n` +
-              `dispatch ${v} × ${st.dmodel} × ${BPE} B = ${fmtB(v * m.copyBytes)} per layer, and the combine\n` +
-              `brings the same volume back, so this link carries ${fmtB((m.link[a][c] + m.link[c][a]) * m.copyBytes * m.L)} per step across ${m.L} layers.\n` +
+              `dispatch ${v} × ${st.dmodel} × ${BPE} = ${v * st.dmodel * BPE} B per layer. The combine returns that same ${v * st.dmodel * BPE} B.\n` +
+              `Both directions across ${m.L} layers are ${(m.link[a][c] + m.link[c][a]) * m.copyBytes * m.L} B.\n` +
               `the experts pulling them there: ${pulls || '—'}\n` +
               `move one of those onto device ${a} and this link's volume drops.`,
           });

@@ -760,19 +760,32 @@ mount({
     }
 
     // ---- readout ----------------------------------------------------------
-    const pc = (a, b) => (b > 0 ? (100 * a / b).toFixed(0) : '—');
+    // Percents are ratios of the millisecond and rate strings printed beside them.
+    const thrD = mD.thr.toFixed(2), thrS = mS.thr.toFixed(2);
+    const ttftD = mD.ttft.toFixed(0), ttftS = mS.ttft.toFixed(0);
+    const tpotD = mD.tpot.toFixed(1), tpotS = mS.tpot.toFixed(1);
+    const e2eD = mD.e2e.toFixed(0), e2eS = mS.e2e.toFixed(0);
+    const xferS = mD.xfer.toFixed(0), linkS = mD.linkq.toFixed(0);
+    const kvS = String(Number(xferS) + Number(linkS));
+    const pc = (aStr, bStr) => {
+      const b = Number(bStr);
+      return b > 0 ? (100 * Number(aStr) / b).toFixed(0) : '—';
+    };
     let o = `same ${reqs.length} requests, same prompts, same ${M} machines — only the DEPLOYMENT differs.    tier:${r.name}\n`;
-    o += `DISAGGREGATED  ${nP} prefill + ${nD} decode · ${mD.thr.toFixed(2)} req/s · TTFT ${mD.ttft.toFixed(0)} ms · TPOT ${mD.tpot.toFixed(1)} ms/tok · e2e ${mD.e2e.toFixed(0)} ms · KV transfer ${mD.mb.toFixed(0)} MB = ${mD.xfer.toFixed(0)} ms on the wire + ${mD.linkq.toFixed(0)} ms queued for it\n`;
-    o += `SHARED POOL    ${M} mixed         · ${mS.thr.toFixed(2)} req/s · TTFT ${mS.ttft.toFixed(0)} ms · TPOT ${mS.tpot.toFixed(1)} ms/tok · e2e ${mS.e2e.toFixed(0)} ms · blocked by a co-located prefill ${mS.stall.toFixed(0)} ms/req\n`;
-    o += `vs the shared pool: throughput ${pc(mD.thr, mS.thr)}% (higher is better) · TPOT ${pc(mD.tpot, mS.tpot)}% (lower is better; 100% = parity) · end-to-end ${pc(mD.e2e, mS.e2e)}% (lower is better)\n`;
-    const share = mD.e2e > 0 ? (100 * (mD.xfer + mD.linkq) / mD.e2e) : 0;
-    o += `The KV transfer costs ${(mD.xfer + mD.linkq).toFixed(0)} ms of the ${mD.e2e.toFixed(0)} ms end-to-end (${share.toFixed(0)}%) — ${mD.xfer.toFixed(0)} ms of wire time plus ${mD.linkq.toFixed(0)} ms waiting for the link to be free — and it grows with prompt length: ${KV_MB_PER_TOK} MB per token, K and V for every layer. `;
-    if (mD.e2e > mS.e2e) {
-      o += share > 20
-        ? `RIGHT NOW DISAGGREGATION IS A LOSS, and the link is why: ${share.toFixed(0)}% of every request's life goes to the KV transfer at ${bw} GB/s. Widen the link, shorten the prompts, or keep one pool.`
+    o += `DISAGGREGATED  ${nP} prefill + ${nD} decode · ${thrD} req/s · TTFT ${ttftD} ms · TPOT ${tpotD} ms/tok · e2e ${e2eD} ms · KV transfer ${mD.mb.toFixed(0)} MB. On the wire that is ${xferS} ms, plus ${linkS} ms queued for the link.\n`;
+    o += `SHARED POOL    ${M} mixed         · ${thrS} req/s · TTFT ${ttftS} ms · TPOT ${tpotS} ms/tok · e2e ${e2eS} ms · blocked by a co-located prefill ${mS.stall.toFixed(0)} ms/req\n`;
+    o += `vs the shared pool: throughput ${pc(thrD, thrS)}% (higher is better) · TPOT ${pc(tpotD, tpotS)}% (lower is better; 100% = parity) · end-to-end ${pc(e2eD, e2eS)}% (lower is better)\n`;
+    const shareS = Number(e2eD) > 0 ? (100 * Number(kvS) / Number(e2eD)).toFixed(0) : '0';
+    o += `The KV transfer costs ${kvS} ms of the ${e2eD} ms end-to-end (${shareS}%) — ${xferS} ms of wire time plus ${linkS} ms waiting for the link to be free — and it grows with prompt length: ${KV_MB_PER_TOK} MB per token, K and V for every layer. `;
+    const dN = Number(e2eD), sN = Number(e2eS);
+    if (dN > sN) {
+      o += Number(shareS) > 20
+        ? `RIGHT NOW DISAGGREGATION IS A LOSS, and the link is why: ${shareS}% of every request's life goes to the KV transfer at ${bw} GB/s. Widen the link, shorten the prompts, or keep one pool.`
         : `RIGHT NOW DISAGGREGATION IS A LOSS at this split (${nP} prefill + ${nD} decode); the sweep says ${best.k} + ${M - best.k} reaches ${best.e2e.toFixed(0)} ms. Drag the divider there before blaming the idea.`;
-    } else {
+    } else if (dN < sN) {
       o += `The win is inter-token latency: no prefill can ever land on a decode machine, so nothing stalls mid-generation. That is what disaggregation buys — the first-token target and the per-token target stop being one number — and it is not automatically raw throughput, since the shared pool can put every machine on whichever phase is short of capacity.`;
+    } else {
+      o += `End-to-end the two deployments take the same ${e2eD} ms. What disaggregation separates is inter-token latency: no prefill can ever land on a decode machine, so nothing stalls mid-generation. The first-token target and the per-token target stop being one number, and that is not automatically raw throughput, since the shared pool can put every machine on whichever phase is short of capacity.`;
     }
     if (nP !== best.k) o += `  (Best split for this workload: ${best.k} prefill + ${M - best.k} decode → ${best.e2e.toFixed(0)} ms end-to-end.)`;
     page.setReadout(o);

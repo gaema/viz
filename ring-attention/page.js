@@ -52,6 +52,33 @@ let acc = { x: 0, y: 0 };             // drag accumulators (pixels -> discrete s
 const fmtB = (b) => (b >= 1e9 ? (b / 1e9).toFixed(2) + ' GB' : b >= 1e6 ? (b / 1e6).toFixed(1) + ' MB' : (b / 1e3).toFixed(1) + ' kB');
 const fmtMs = (x) => (x >= 100 ? x.toFixed(0) + ' ms' : x >= 10 ? x.toFixed(1) + ' ms' : x.toFixed(2) + ' ms');
 const fmtTok = (t) => (t >= 1024 ? (t / 1024).toFixed(t % 1024 ? 1 : 0) + 'K' : String(Math.round(t)));
+// Products and differences of numbers already printed as milliseconds. The
+// scale comes from the printed text, so 2 × 26.8 stays 53.6.
+function scaledMs(body) {
+  const neg = body.startsWith('-');
+  const t = neg ? body.slice(1) : body;
+  const [a, frac = ''] = t.split('.');
+  const scale = frac.length;
+  const ip = Number(a) * 10 ** scale + (frac ? Number(frac) : 0);
+  return { ip: neg ? -ip : ip, scale };
+}
+function fromScaled(ip, scale) {
+  const neg = ip < 0;
+  const a = Math.abs(ip);
+  const den = 10 ** scale;
+  const whole = Math.trunc(a / den);
+  const frac = scale ? '.' + String(a % den).padStart(scale, '0') : '';
+  return (neg ? '-' : '') + whole + frac;
+}
+function prodMs(n, body) {
+  const { ip, scale } = scaledMs(body);
+  return fromScaled(n * ip, scale);
+}
+function subMs(aBody, bBody) {
+  const A = scaledMs(aBody), B = scaledMs(bBody);
+  const scale = Math.max(A.scale, B.scale);
+  return fromScaled(A.ip * 10 ** (scale - A.scale) - B.ip * 10 ** (scale - B.scale), scale);
+}
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
 // --- the numbers, computed live from the reader's settings ------------------
@@ -322,15 +349,23 @@ mount({
     ty += 3;
 
     line('PER BLOCK, PER STEP', T.n11, '10px ui-monospace, monospace');
-    line(`attention compute   ${fmtMs(p.tc)}   (${(p.flops / 1e9).toFixed(0)} GFLOP, ∝ block²)`, T.n12);
-    line(`KV block on the wire  ${fmtMs(p.tt)}   (${fmtB(p.kvBytes)}, ∝ block)`, T.n12);
-    const hidden = p.tc >= p.tt;
-    line(hidden
-      ? `OVERLAPPED — wire fully hidden, ${(100 * (1 - p.tt / Math.max(p.tc, 1e-9))).toFixed(0)}% slack`
-      : `STALLED — ${fmtMs(p.idle)} idle per step, waiting on bytes`,
-      hidden ? T.ok : T.bad, '11px ui-monospace, monospace');
+    const tcBody = fmtMs(p.tc).replace(' ms', ''), ttBody = fmtMs(p.tt).replace(' ms', '');
+    const tcN = Number(tcBody), ttN = Number(ttBody);
+    const hiddenShown = tcN >= ttN;
+    const stepBody = hiddenShown ? tcBody : ttBody;
+    const totalBody = prodMs(n, stepBody);
+    const idleStepBody = hiddenShown ? '0' : subMs(ttBody, tcBody);
+    const idleTotBody = hiddenShown ? '0' : prodMs(n, idleStepBody);
+    const idlePct = Number(totalBody) > 0 ? (100 * Number(idleTotBody) / Number(totalBody)).toFixed(1) : '0.0';
+    const slack = tcN > 0 ? (100 * (1 - ttN / tcN)).toFixed(0) : '0';
+    line(`attention compute   ${tcBody} ms   (${(p.flops / 1e9).toFixed(0)} GFLOP, ∝ block²)`, T.n12);
+    line(`KV block on the wire  ${ttBody} ms   (${fmtB(p.kvBytes)}, ∝ block)`, T.n12);
+    line(hiddenShown
+      ? `OVERLAPPED — wire fully hidden, ${slack}% slack`
+      : `STALLED — ${idleStepBody} ms idle per step, waiting on bytes`,
+      hiddenShown ? T.ok : T.bad, '11px ui-monospace, monospace');
     line(`ring-wide ${fmtB(p.kvBytes * n)} per step across ${n} wires`, T.n10, '10px ui-monospace, monospace');
-    line(`${n} × max(compute, transfer) = ${fmtMs(p.total)}; idle ${fmtMs(p.totalIdle)} (${(100 * p.totalIdle / Math.max(p.total, 1e-9)).toFixed(1)}%)`, T.n13);
+    line(`${n} × max(compute, transfer) = ${totalBody} ms; idle ${idleTotBody} ms (${idlePct}%)`, T.n13);
 
     // ---------------- per-device timeline ------------------------------------
     const x0 = 40, x1 = W - 12;
@@ -409,17 +444,17 @@ mount({
           const own = j >= 0 ? ownerOf(w.from, j, n) : w.from;
           tip = `wire D${w.from} → D${w.to}\n`
               + `in flight: KV block b${own} — K and V for ${fmtTok(p.block)} tokens × ${p.hidden} wide × 16-bit\n`
-              + `= ${fmtB(p.kvBytes)} at ${st.link} GB/s = ${fmtMs(p.tt)}\n`
-              + `issued WHILE block b${own} is still computing (${fmtMs(p.tc)})\n`
-              + (p.tc >= p.tt ? `→ fully hidden behind compute` : `→ ${fmtMs(p.idle)} of it is NOT hidden: the receiver stalls`);
+              + `${fmtB(p.kvBytes)} on the wire · ${ttBody} ms at ${st.link} GB/s\n`
+              + `issued WHILE block b${own} is still computing (${tcBody} ms)\n`
+              + (hiddenShown ? `→ fully hidden behind compute` : `→ ${idleStepBody} ms of it is NOT hidden: the receiver stalls`);
           break;
         }
       }
       if (!tip) for (const b of rBar) {
         if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) {
           tip = `D${b.dev}, step ${b.step + 1}/${n} — attends its queries against KV block b${b.owner}\n`
-              + `compute ${fmtMs(p.tc)}   transfer ${fmtMs(p.tt)} (concurrent)   step wall ${fmtMs(p.stepMs)}\n`
-              + (p.idle > 0 ? `idle ${fmtMs(p.idle)} — compute finished first and the next block has not landed` : `idle 0 — the block landed before the compute finished`);
+              + `compute ${tcBody} ms   transfer ${ttBody} ms (concurrent)   step wall ${stepBody} ms\n`
+              + (hiddenShown ? `idle 0 — the block landed before the compute finished` : `idle ${idleStepBody} ms — compute finished first and the next block has not landed`);
           break;
         }
       }
@@ -431,10 +466,10 @@ mount({
     o += j >= 0 ? `step ${j + 1} / ${n}: every device attends its own queries against the block it holds, then passes it on.\n`
                : `press ▶ — the blocks rotate ${n} times and every query meets every key.\n`;
     o += `per-device memory ${fmtB(p.mem)} (block-sized, NOT sequence-sized)  ·  single-device baseline needs ${fmtB(p.single)} resident and does not fit past some length\n`;
-    o += `compute/block ${fmtMs(p.tc)}  vs  transfer/block ${fmtMs(p.tt)} at ${st.link} GB/s  →  `;
-    o += p.tc >= p.tt
-      ? `communication fully HIDDEN; total ${fmtMs(p.total)}, idle 0.00 ms`
-      : `STALL: ${fmtMs(p.idle)} idle per step; total ${fmtMs(p.total)}, idle ${fmtMs(p.totalIdle)} (${(100 * p.totalIdle / Math.max(p.total, 1e-9)).toFixed(1)}%)`;
+    o += `compute/block ${tcBody} ms  vs  transfer/block ${ttBody} ms at ${st.link} GB/s  →  `;
+    o += hiddenShown
+      ? `communication fully HIDDEN; total ${totalBody} ms, idle 0 ms`
+      : `STALL: ${idleStepBody} ms idle per step; total ${totalBody} ms, idle ${idleTotBody} ms (${idlePct}%)`;
     o += `\ntier:${r.name}`;
     page.setReadout(o);
   },

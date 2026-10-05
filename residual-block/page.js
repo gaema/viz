@@ -5,10 +5,11 @@
 //       F(x)≈0 and the block ≈ identity (y≈x) -- a small refinement on top of x.
 //   (2) depth chart: the gradient magnitude reaching layer 0 as it propagates
 //       back through L stacked blocks. Per block the local factor is g (no skip)
-//       vs 1+g (skip), so grad_0 = g^L vanishes without the skip while the
-//       identity path holds (1+g)^L -- ~O(1) only while g is small; large g
-//       makes the same product explode. dy/dx = I + dF/dx: the "+I" is the
-//       gradient highway. NOTE the provenance: this derivation is Identity
+//       vs 1+g (skip). grad_0 = g^L leaves the page for g<1 only once the
+//       stack is deep; a short stack can still show it. The identity
+//       path holds (1+g)^L, near 1 only while g is small; large g makes that
+//       product explode. dy/dx = I + dF/dx only while the skip is on. NOTE the
+//       provenance: this derivation is Identity
 //       Mappings in Deep ResNets (1603.05027), NOT the original ResNet paper,
 //       which explicitly argues its problem is degradation rather than
 //       vanishing gradients. Drag x; tune depth L, gain g, toggle the skip.
@@ -51,11 +52,11 @@ function drawVec(r, ctx, x0, y0, w, h, vals, lo, hi, color, label) {
 mount({
   mount: 'body',
   title: 'residual-block — the skip connection y = F(x) + x',
-  blurb: 'A residual (ResNet) block computes y = F(x) + x: a small learned function F runs in parallel with an identity shortcut that copies x straight to the output. The point is deep training. At initialization F is near zero, so the block ≈ identity — signal passes through untouched. The real win is the gradient: ∂y/∂x = I + ∂F/∂x, an identity term plus F\'s. Stack L blocks and that "+I" gives a gradient HIGHWAY straight back to layer 0 — the magnitude stays ~(1+g)^L ≈ O(1). Remove the skip and the same per-block factor g compounds to g^L, which for g<1 vanishes (no gradient reaches the early layers → they never learn). Drag the input x to refeed the block; tune the depth L and the F-branch gain g; toggle the skip to watch the gradient curve crash. The gradient pulse animates back through the stack.',
+  blurb: 'A residual (ResNet) block computes y = F(x) + x: a small learned function F runs in parallel with an identity shortcut that copies x straight to the output. The point is deep training. At initialization F is near zero, so the block ≈ identity — signal passes through untouched. The real win is the gradient: ∂y/∂x = I + ∂F/∂x, an identity term plus F\'s. Stack L blocks and that "+I" gives a gradient HIGHWAY straight back to layer 0. The magnitude is (1+g)^L, near 1 only while g stays small; a large g makes the same product explode. Remove the skip and the factor is g^L. For g<1 a deep stack drives that product off the page. Turning the skip off does not by itself mean the gradient has vanished — a short stack can still show it. Drag the input x to refeed the block; tune the depth L and the F-branch gain g; toggle the skip to watch the gradient curve. The gradient pulse animates back through the stack.',
   prefer: 'canvas2d',
   aspect: '2 / 1',
   animate: true,
-  compare: { key: 'skip', a: true, b: false, labelA: 'skip ON — gradient flows', labelB: 'skip OFF — gradient vanishes' },
+  compare: { key: 'skip', a: true, b: false, labelA: 'skip ON — gradient flows', labelB: 'skip OFF — no identity path' },
   challenges: [
     { goal: 'WITHOUT the skip, make the gradient vanish: reaching layer 0 below 1e-6.', hint: 'turn the skip OFF, lower the gain g, and raise the depth L — g^L collapses.', check: (api) => ({ solved: !api.state.skip && (api.probe.gNo ?? 1) < 1e-6, detail: api.state.skip ? 'skip is ON — turn it off first' : `no-skip grad = ${(api.probe.gNo ?? 1).toExponential(1)} (need < 1e-6)` }) },
     { goal: 'WITH the skip ON, keep the gradient healthy (≥ 0.5) at depth ≥ 30.', hint: 'skip ON keeps (1+g)^L ~ O(1); a small gain g stays near 1 even when L is large.', check: (api) => ({ solved: api.state.skip && (api.state.L | 0) >= 30 && (api.probe.gSk ?? 0) >= 0.5, detail: api.state.skip ? `skip grad = ${(api.probe.gSk ?? 0).toFixed(2)}, L=${api.state.L | 0}` : 'turn the skip ON' }) },
@@ -110,7 +111,10 @@ mount({
     }
     ctx.restore();
     // gradient identity note
-    r.label(`backward:  ∂y/∂x = I + ∂F/∂x   — the "+I" is a gradient highway that bypasses F`, pad, ty + vh + 22, { color: skip ? T.ok : T.n11, font: '10px ui-monospace, monospace' });
+    r.label(skip
+      ? `backward:  ∂y/∂x = I + ∂F/∂x   — the "+I" is a gradient highway that bypasses F`
+      : `backward:  ∂y/∂x = ∂F/∂x   — no "+I", so nothing bypasses F`,
+      pad, ty + vh + 22, { color: skip ? T.ok : T.n11, font: '10px ui-monospace, monospace' });
     r.label(g < 0.12 ? 'g small → F(x)≈0 → block ≈ identity (y≈x): a small refinement on top of the signal.' : 'larger g → F(x) contributes more; without normalization deep skips can also blow up.', pad, ty + vh + 38, { color: T.n11, font: '10px ui-monospace, monospace' });
 
     // --- depth / gradient chart (bottom) ---
@@ -153,9 +157,13 @@ mount({
     }
 
     let o = `residual block: y = F(x) + x.  F branch gain g=${g.toFixed(2)} (|F|≈g·|x|), depth L=${L}, skip ${skip ? 'ON' : 'OFF'}.   tier:${r.name}\n`;
+    const noShown = gNo >= 1e-4 ? gNo.toFixed(4) : gNo.toExponential(1);
+    const gone = gNo < 1e-3;
     o += skip
       ? `with the skip, the gradient reaching layer 0 is (1+g)^${L} ≈ ${gSk >= 0.01 ? gSk.toFixed(2) : gSk.toExponential(1)} — the identity path stops it VANISHING, which is the whole point, but it is only O(1) while g stays small: crank g and the same product explodes instead. At init g≈0 so y≈x and (1+0)^L=1: perfect signal + gradient flow through the whole stack.`
-      : `WITHOUT the skip the per-block factor g=${g.toFixed(2)} compounds: gradient at layer 0 = g^${L} ≈ ${gNo.toExponential(1)} — vanished. The early layers get almost no gradient and never learn. Toggle the skip back on to restore the highway.`;
+      : gone
+        ? `WITHOUT the skip the per-block factor g=${g.toFixed(2)} compounds: gradient at layer 0 = g^${L} ≈ ${noShown} — vanished. The early layers get almost no gradient and never learn. Toggle the skip back on to restore the highway.`
+        : `WITHOUT the skip the per-block factor g=${g.toFixed(2)} compounds: gradient at layer 0 = g^${L} ≈ ${noShown} — not gone. It shrinks as the stack gets deeper. Toggle the skip back on to restore the highway.`;
     page.setReadout(o);
   },
 }).then((page) => {

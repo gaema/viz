@@ -154,7 +154,7 @@ mount({
     }
 
     let o = `ViT patch embedding: image → ${gN}×${gN}=${N} patches of ${P}×${P} → flatten (${dim}) → linear W (${D}×${dim}) → ${N} tokens (+[CLS]) + positional emb.   tier:${r.name}\n`;
-    o += `selected patch #${sel} (${sr},${sc}) → token ${sel} ∈ ℝ^${D}. Sequence length ${N + 1} (= ${N} patches + 1 CLS). Smaller P → more, smaller patches → longer sequence (quadratic in 1/P). The projection is exactly Conv2d(kernel=stride=${P}).`;
+    o += `selected patch #${sel} (${sr},${sc}) → token ${sel} ∈ ℝ^${D}. Sequence length ${N + 1} (= ${N} patches + 1 CLS). Smaller P → more, smaller patches → longer sequence. The patch count is quadratic in 1/P; the sequence is that count plus the class token. The projection is exactly Conv2d(kernel=stride=${P}).`;
     page.setReadout(o);
   },
 }).then((page) => {

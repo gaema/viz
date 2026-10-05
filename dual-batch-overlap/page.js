@@ -74,7 +74,16 @@ const mbFill = (i, a) => (i === 0 ? alphaOf(T.accent, a) : alphaOf(categorical(i
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const ms = (v) => `${v.toFixed(2)} ms`;
 // Step time is a LOWER-is-better quantity: >100% of the baseline is WORSE.
-const pctOf = (v, b) => (b > 0 ? Math.round((v / b) * 1000) / 10 : 100);
+// The percent is the ratio of the millisecond strings on the page, not of
+// the unrounded durations those strings came from.
+const pctOf = (v, b) => {
+  const bn = Number(Number(b).toFixed(2));
+  return bn > 0 ? Math.round((Number(Number(v).toFixed(2)) / bn) * 1000) / 10 : 100;
+};
+const pctPair = (part, whole) => {
+  const wn = Number(Number(whole).toFixed(2));
+  return wn > 0 ? (100 * Number(Number(part).toFixed(2)) / wn).toFixed(1) : '0.0';
+};
 const dirWord = (p) => (p > 100 ? '▲ worse' : p < 100 ? '▼ better' : '= parity');
 const dirColor = (p) => (p > 100.05 ? T.bad : p < 99.95 ? T.ok : T.n12);
 
@@ -378,15 +387,16 @@ mount({
     // one-line explanation of the current regime, straight off the schedule
     const perMbCompute = cur.dur.attn + cur.dur.expert;
     const perMbComm = cur.dur.dispatch + cur.dur.combine;
+    const cover = Number(perMbCompute.toFixed(2)) >= Number(perMbComm.toFixed(2));
     const line = M === 1
       ? `one batch: nothing can run during the all-to-all — ${ms(cur.commSum)} of routing is dead time`
-      : perMbCompute >= perMbComm
+      : cover
         ? `per microbatch/layer: compute ${ms(perMbCompute)} ≥ comm ${ms(perMbComm)} — hides behind a sibling`
         : `per microbatch/layer: compute ${ms(perMbCompute)} < comm ${ms(perMbComm)} — too short to cover it`;
     // clipped to the lane column so a long sentence can never run under the
     // readout cards on the right
     ctx.save(); ctx.beginPath(); ctx.rect(x0, laneBot + 30, xR - x0, 16); ctx.clip();
-    r.label(line, x0, laneBot + 42, { color: M === 1 ? T.bad : (perMbCompute >= perMbComm ? T.ok : T.warn), font: '10px ui-monospace, monospace' });
+    r.label(line, x0, laneBot + 42, { color: M === 1 ? T.bad : (cover ? T.ok : T.warn), font: '10px ui-monospace, monospace' });
     ctx.restore();
 
     // ---- split chart: every M is its own full simulation --------------------
@@ -438,8 +448,9 @@ mount({
 
     cy += 70; card(cy, 52);
     r.label('overlap achieved', cx + 8, cy + 14, { color: T.n11, font: '10px ui-monospace, monospace' });
-    const ov = cur.overlapFrac * 100;
-    r.label(`${ov.toFixed(1)}%`, cx + 8, cy + 34, { color: ov > 99.9 ? T.ok : ov > 50 ? T.warn : T.bad, font: '17px ui-monospace, monospace' });
+    const ovText = pctPair(cur.hidden, cur.commSum);
+    const ov = Number(ovText);
+    r.label(`${ovText}%`, cx + 8, cy + 34, { color: ov > 99.9 ? T.ok : ov > 50 ? T.warn : T.bad, font: '17px ui-monospace, monospace' });
     r.label(`${ms(cur.hidden)} of ${ms(cur.commSum)} hidden`, cx + 8, cy + 46, { color: T.n11, font: '9px ui-monospace, monospace' });
     // overlap bar
     ctx.fillStyle = rgbaToken('n14', 0.12); ctx.fillRect(cx + 8, cy + 49, cw - 16, 3);
@@ -448,13 +459,13 @@ mount({
     cy += 62; card(cy, 52);
     r.label('residual bubble', cx + 8, cy + 14, { color: T.n11, font: '10px ui-monospace, monospace' });
     r.label(ms(cur.bubble), cx + 8, cy + 34, { color: cur.bubble > 0.01 ? T.bad : T.ok, font: '17px ui-monospace, monospace' });
-    r.label(`${((cur.bubble / cur.total) * 100).toFixed(1)}% of the step idle`, cx + 8, cy + 46, { color: T.n11, font: '9px ui-monospace, monospace' });
+    r.label(`${pctPair(cur.bubble, cur.total)}% of the step idle`, cx + 8, cy + 46, { color: T.n11, font: '9px ui-monospace, monospace' });
 
     cy += 62; card(cy, 60);
     r.label('per microbatch, per layer', cx + 8, cy + 14, { color: T.n11, font: '10px ui-monospace, monospace' });
     r.label(`compute ${ms(perMbCompute)}`, cx + 8, cy + 28, { color: T.n12, font: '9.5px ui-monospace, monospace' });
     r.label(`comm    ${ms(perMbComm)}`, cx + 8, cy + 40, { color: T.n12, font: '9.5px ui-monospace, monospace' });
-    r.label(perMbCompute >= perMbComm ? 'compute ≥ comm → coverable' : 'compute < comm → bubble', cx + 8, cy + 53, { color: perMbCompute >= perMbComm ? T.ok : T.warn, font: '9px ui-monospace, monospace' });
+    r.label(cover ? 'compute ≥ comm → coverable' : 'compute < comm → bubble', cx + 8, cy + 53, { color: cover ? T.ok : T.warn, font: '9px ui-monospace, monospace' });
 
     cy += 70;
     r.label(`fixed costs paid ${2 * M * L}× each:`, cx, cy, { color: T.n11, font: '9px ui-monospace, monospace' });
@@ -499,7 +510,7 @@ mount({
           if (b) {
             const s = cur.sweep.find((q) => q.m === b.m).sched;
             tip = `${b.m} microbatch${b.m === 1 ? '' : 'es'}: step ${ms(s.total)} = ${pctOf(s.total, base.total)}% of baseline\n`
-              + `overlap ${(s.overlapFrac * 100).toFixed(1)}% · bubble ${ms(s.bubble)}\n`
+              + `overlap ${pctPair(s.hidden, s.commSum)}% · bubble ${ms(s.bubble)}\n`
               + `per microbatch/layer: compute ${ms(s.dur.attn + s.dur.expert)} vs comm ${ms(s.dur.dispatch + s.dur.combine)}\n`
               + `perfect-overlap floor at this split: ${ms(s.floor)}`;
           }
@@ -515,11 +526,15 @@ mount({
       : `M = ${M}: microbatches ${MB.slice(0, M).join('/')} interleaved over ${L} layer${L === 1 ? '' : 's'} on two lanes. `;
     o += `tier:${r.name}\n`;
     o += `step time ${ms(cur.total)} = ${pctOf(cur.total, base.total)}% of the no-overlap one-batch baseline (${ms(base.total)}) `
-      + `(lower is better; 100% = parity). Overlap achieved ${(cur.overlapFrac * 100).toFixed(1)}% of communication hidden `
-      + `(${ms(cur.hidden)} of ${ms(cur.commSum)}); residual bubble ${ms(cur.bubble)} = ${((cur.bubble / cur.total) * 100).toFixed(1)}% of the step with the arithmetic units idle.`;
+      + `(lower is better; 100% = parity). Overlap achieved ${pctPair(cur.hidden, cur.commSum)}% of communication hidden `
+      + `(${ms(cur.hidden)} of ${ms(cur.commSum)}); residual bubble ${ms(cur.bubble)} = ${pctPair(cur.bubble, cur.total)}% of the step with the arithmetic units idle.`;
     const b2 = m2 ? m2.sched.total : 0, b4 = m4 ? m4.sched.total : 0;
-    if (b2 && b4) o += `\nsplit sweep: 2 microbatches ${ms(b2)} · 4 microbatches ${ms(b4)} = ${pctOf(b4, b2)}% of the 2-microbatch step `
-      + `(lower is better) — ${b4 > b2 ? 'splitting further is WORSE here' : 'splitting further still pays here'}.`;
+    if (b2 && b4) {
+      const n2 = Number(b2.toFixed(2)), n4 = Number(b4.toFixed(2));
+      const splitWord = n4 > n2 ? 'splitting further is WORSE here' : n4 < n2 ? 'splitting further still pays here' : 'splitting further ties the 2-microbatch step';
+      o += `\nsplit sweep: 2 microbatches ${ms(b2)} · 4 microbatches ${ms(b4)} = ${pctOf(b4, b2)}% of the 2-microbatch step `
+        + `(lower is better) — ${splitWord}.`;
+    }
     o += s ? `\n${s.label}` : '';
     page.setReadout(o);
   },

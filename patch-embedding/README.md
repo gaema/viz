@@ -23,8 +23,10 @@ A ViT has no convolutions in its trunk, so the image must be turned into tokens:
 
 The page shows the gridded image, the selected patch flattening → projecting →
 landing as one column in the token-sequence heatmap (`[CLS]` + `N` patch tokens,
-`D` rows). Smaller `P` → more, smaller patches → a **longer sequence** (cost grows
-~`1/P²`).
+`D` rows). Smaller `P` → more, smaller patches → a **longer sequence**. The patch
+count grows as `1/P²`, so attention over the patches grows as `1/P⁴`: halving `P`
+costs sixteen times as much on the patches, and less than that once the class
+token is counted.
 
 **Drag** on the image (or the slider) to pick a patch and watch its token light up
 in the sequence; tune the patch size `P`, embed dim `D`, image preset, seed; the

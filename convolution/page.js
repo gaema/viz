@@ -97,6 +97,22 @@ mount({
     const C = conv(st), { out, Hpad, Hout, p, s, dil } = C; geomP = p;
     page.probe = { Hout, n: cur.n };
     const sp = page.step(), oy = sp ? sp.oy : Hout - 1, ox = sp ? sp.ox : Hout - 1, ostep = sp ? (oy * Hout + ox) : Hout * Hout - 1;
+    // When every product is on the line, the total is the sum of those printed
+    // one-decimal factors, added as integer hundredths so a zero sum stays 0.00.
+    const xpad = C.xpad;
+    let terms = '', acc = 0, cents = 0, nTerms = 0;
+    for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) {
+      const w = W[i * k + j], xv = xpad(oy * s + i * dil, ox * s + j * dil);
+      acc += w * xv;
+      nTerms++;
+      if (nTerms <= 4) {
+        const ws = w.toFixed(1), xs = xv.toFixed(1);
+        terms += `${nTerms === 1 ? '' : ' + '}${ws}·${xs}`;
+        cents += Math.round(Number(ws) * 10) * Math.round(Number(xs) * 10);
+      }
+    }
+    const termsFull = nTerms <= 4;
+    const accText = termsFull ? (cents / 100).toFixed(2) : acc.toFixed(2);
     const xdom = Math.max(maxAbs(X), 0.5), wdom = Math.max(maxAbs(W), 0.3), odom = Math.max(maxAbs(out), 0.5);
 
     const pad = 16, topY = 64;
@@ -139,17 +155,17 @@ mount({
       const x = outX + xx * oc, y = outY + yy * oc, idx = yy * Hout + xx, done = idx <= ostep;
       ctx.fillStyle = done ? divcol(out[idx], odom) : T.n2; ctx.fillRect(x, y, oc - 1, oc - 1);
       ctx.strokeStyle = T.n4; ctx.strokeRect(x + 0.5, y + 0.5, oc - 1, oc - 1);
-      if (done) { ctx.fillStyle = divink(out[idx], odom); ctx.fillText(out[idx].toFixed(1), x + oc / 2, y + oc / 2); }
+      if (done) {
+        const cell = (termsFull && yy === oy && xx === ox) ? Number(accText).toFixed(1) : out[idx].toFixed(1);
+        ctx.fillStyle = divink(out[idx], odom); ctx.fillText(cell, x + oc / 2, y + oc / 2);
+      }
       if (yy === oy && xx === ox) { ctx.strokeStyle = T.accent; ctx.lineWidth = 2.6; ctx.strokeRect(x + 1, y + 1, oc - 2, oc - 2); }
     }
     ctx.restore();
     // arrow kernel-field -> current output
     ctx.save(); ctx.strokeStyle = T.n9; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(kx + k * kc + 6, ky + k * kc / 2); ctx.lineTo(outX - 6, outY + oy * oc + oc / 2); ctx.stroke(); ctx.restore();
 
-    // sum-of-products readout for the current pixel
-    let terms = '', acc = 0; const xpad = C.xpad;
-    for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) { const w = W[i * k + j], xv = xpad(oy * s + i * dil, ox * s + j * dil); acc += w * xv; if (i * k + j < 4) terms += `${i + j === 0 ? '' : ' + '}${w.toFixed(1)}·${xv.toFixed(1)}`; }
-    r.label(`out[${oy},${ox}] = Σ W⊙field = ${terms}${k * k > 4 ? ' + …' : ''} = ${acc.toFixed(2)}   (${k * k} products)`, inRect.x, inRect.y + Hpad * ic + 24, { color: T.n14, font: '12px ui-monospace, monospace' });
+    r.label(`out[${oy},${ox}] = Σ W⊙field = ${terms}${termsFull ? '' : ' + …'} = ${accText}   (${k * k} products)`, inRect.x, inRect.y + Hpad * ic + 24, { color: T.n14, font: '12px ui-monospace, monospace' });
 
     // hover
     if (page.pointer.over && !grab) {
@@ -160,13 +176,18 @@ mount({
         page.setTip(isPad ? `padding cell = 0\n(zero border, p=${p})` : `X[${inrr - p},${incc - p}] = ${X[(inrr - p) * n + (incc - p)].toFixed(3)}\ndrag ↕ to change`);
       } else {
         const oxx = Math.floor((pt.x - outX) / oc), oyy = Math.floor((pt.y - outY) / oc);
-        if (oyy >= 0 && oyy < Hout && oxx >= 0 && oxx < Hout && pt.x >= outX && pt.y >= outY) page.setTip(`out[${oyy},${oxx}] = ${out[oyy * Hout + oxx].toFixed(3)}\nΣ of ${k * k} kernel·field products`);
+        if (oyy >= 0 && oyy < Hout && oxx >= 0 && oxx < Hout && pt.x >= outX && pt.y >= outY) {
+          const here = termsFull && oyy === oy && oxx === ox;
+          page.setTip(here
+            ? `out[${oyy},${oxx}] = ${accText}\nsum of the ${k * k} printed one-decimal products`
+            : `out[${oyy},${oxx}] = ${out[oyy * Hout + oxx].toFixed(3)}\nΣ of ${k * k} kernel·field products`);
+        }
         else { const kj = Math.floor((pt.x - kx) / kc), ki = Math.floor((pt.y - ky) / kc); if (ki >= 0 && ki < k && kj >= 0 && kj < k && pt.x >= kx && pt.y >= ky) page.setTip(`W[${ki},${kj}] = ${W[ki * k + kj].toFixed(3)}\nkernel weight`); }
       }
     }
 
     let o = `2-D conv: out[oy,ox] = Σ W[i,j]·Xpad[oy·s+i·dil, ox·s+j·dil].   n=${n} k=${k} stride=${s} pad=${p} dil=${dil} → output ${Hout}×${Hout}.    tier:${r.name}\n`;
-    o += sp ? `sliding: kernel at output (${oy},${ox}); receptive field outlined; sum of ${k * k} products = ${acc.toFixed(2)}.`
+    o += sp ? `sliding: kernel at output (${oy},${ox}); receptive field outlined; sum of ${k * k} products = ${accText}.`
       : `output ${Hout}×${Hout} = max(1, ⌊(${n}+2·${p} − ${dil}·(${k}−1) − 1)/${s}⌋+1). Drag an input cell to change the affected outputs.`;
     page.setReadout(o);
   },
