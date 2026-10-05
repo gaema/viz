@@ -60,6 +60,15 @@ function pool(st) {
   return { O, arg, out, k, s };
 }
 
+// The equation under the grids reduces the 1-decimal cells it prints.
+// The output grid itself stays the true window reduction.
+function shownWindow(wvals, type) {
+  const cells = wvals.map((v) => v.toFixed(1));
+  if (type === 'max') return { cells, res: Math.max(...cells.map(Number)).toFixed(1) };
+  const mean = cells.reduce((s, x) => s + Number(x), 0) / cells.length;
+  return { cells, res: mean.toFixed(2) };
+}
+
 mount({
   mount: 'body',
   title: 'pooling — max / avg, downsampling',
@@ -128,9 +137,10 @@ mount({
     // readout for current window
     const wvals = []; for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) wvals.push(X[(oy * s + i) * n + (ox * s + j)]);
     const res = O[oy * out + ox];
+    const win = shownWindow(wvals, type);
     r.label(type === 'max'
-      ? `out[${oy},${ox}] = max(${wvals.map((v) => v.toFixed(1)).join(', ')}) = ${res.toFixed(1)}  (the strongest activation; the rest are dropped)`
-      : `out[${oy},${ox}] = mean(${wvals.map((v) => v.toFixed(1)).join(', ')}) = ${res.toFixed(2)}  (the window averaged)`,
+      ? `out[${oy},${ox}] = max(${win.cells.join(', ')}) = ${win.res}  (the strongest activation; the rest are dropped)`
+      : `out[${oy},${ox}] = mean(${win.cells.join(', ')}) = ${win.res}  (the window averaged)`,
       inRect.x, inRect.y + n * ic + 24, { color: T.n14, font: '12px ui-monospace, monospace' });
 
     // hover

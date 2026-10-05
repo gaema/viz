@@ -151,6 +151,15 @@ let grab = null;                  // 'probe' | 'gs' | 'ge' while dragging
 const fmtV = (v) => `(${v[0] >= 0 ? ' ' : ''}${v[0].toFixed(2)}, ${v[1] >= 0 ? ' ' : ''}${v[1].toFixed(2)})`;
 const mag = (v) => Math.hypot(v[0], v[1]);
 const pct = (a, b) => (b > 1e-9 ? `${Math.round((a / b) * 100)}%` : 'n/a');
+// ε~ in the readout is ε_u + w·Δ using the components those vectors print.
+function shownEps(eu, wNow, dl) {
+  const wS = wNow.toFixed(1);
+  const euN = [Number(eu[0].toFixed(2)), Number(eu[1].toFixed(2))];
+  const dlN = [Number(dl[0].toFixed(2)), Number(dl[1].toFixed(2))];
+  const eg = [euN[0] + Number(wS) * dlN[0], euN[1] + Number(wS) * dlN[1]];
+  const magS = Math.hypot(Number(eg[0].toFixed(2)), Number(eg[1].toFixed(2))).toFixed(3);
+  return { wS, eg, magS };
+}
 
 mount({
   mount: 'body',
@@ -396,7 +405,7 @@ mount({
     if (page.pointer.over && !grab) {
       const p = page.pointer; let tipTxt = null;
       const near = (q, rr) => Math.hypot(p.x - q.x, p.y - q.y) < rr;
-      if (near(tG, 16)) tipTxt = `ε~  = ε_u + w·(ε_c − ε_u)\n     = ${fmtV(eu)} + ${wNow.toFixed(1)}·${fmtV(dl)}\n     = ${fmtV(eg)}   |ε~| = ${mag(eg).toFixed(3)}\n|ε~| is ${pct(mag(eg), mag(ec))} of |ε_c| — past the conditional answer,\nnot a filtered version of it.`;
+      if (near(tG, 16)) { const sh = shownEps(eu, wNow, dl); tipTxt = `ε~  = ε_u + w·(ε_c − ε_u)\n     = ${fmtV(eu)} + ${sh.wS}·${fmtV(dl)}\n     = ${fmtV(sh.eg)}   |ε~| = ${sh.magS}\n|ε~| is ${pct(Number(sh.magS), mag(ec))} of |ε_c| — past the conditional answer,\nnot a filtered version of it.`; }
       else if (near(tC, 16)) tipTxt = `ε_c — the prediction WITH the prompt\n${fmtV(ec)}   |ε_c| = ${mag(ec).toFixed(3)}\nw = 1 lands exactly here. Everything beyond is extrapolation.`;
       else if (near(tU, 16)) tipTxt = `ε_u — the prediction with the prompt DROPPED\n${fmtV(eu)}   |ε_u| = ${mag(eu).toFixed(3)}\nThis is the second forward pass guidance pays for.`;
       else if (near(P0, 14)) tipTxt = `probe point (${probe.x.toFixed(2)}, ${probe.y.toFixed(2)})\nσ_t = ${rec.sig.toFixed(3)}\nΔ = ε_c − ε_u = ${fmtV(dl)}, |Δ| = ${mag(dl).toFixed(3)}\ndrag me — Δ is tiny far from the data and grows as σ_t falls`;
@@ -425,8 +434,9 @@ mount({
     // the guided interval, so the probe is honestly showing unguided vectors.
     // Without the note it reads as the slider having been ignored.
     const wWhy = (wNow !== st.w) ? ` (step ${si} is OUTSIDE the guided interval [${gs}, ${ge}) — slider w=${st.w.toFixed(1)} does not apply here)` : '';
-    let o = `ε~ = ε_u + w·(ε_c − ε_u)   at probe (${probe.x.toFixed(2)}, ${probe.y.toFixed(2)}), σ_t=${rec.sig.toFixed(3)}, w=${wNow.toFixed(1)}${wWhy}:  `;
-    o += `ε_u ${fmtV(eu)} + ${wNow.toFixed(1)}·Δ ${fmtV(dl)} = ${fmtV(eg)}   |ε~| = ${mag(eg).toFixed(3)} = ${pct(mag(eg), mag(ec))} of |ε_c|.\n`;
+    const sh = shownEps(eu, wNow, dl);
+    let o = `ε~ = ε_u + w·(ε_c − ε_u)   at probe (${probe.x.toFixed(2)}, ${probe.y.toFixed(2)}), σ_t=${rec.sig.toFixed(3)}, w=${sh.wS}${wWhy}:  `;
+    o += `ε_u ${fmtV(eu)} + ${sh.wS}·Δ ${fmtV(dl)} = ${fmtV(sh.eg)}   |ε~| = ${sh.magS} = ${pct(Number(sh.magS), mag(ec))} of |ε_c|.\n`;
     if (sA && sB) {
       o += `strip @ ${rec.i}/${TSTEP}: control w=1 → sub-modes ${sA.modes}/2, on-prompt ${Math.round(sA.adherence * 100)}%, spread ${sA.spread.toFixed(3)}, typicality ${sA.typ.toFixed(2)}σ  |  `;
       o += `guided w=${st.w.toFixed(1)} → sub-modes ${sB.modes}/2, on-prompt ${Math.round(sB.adherence * 100)}%, spread ${sB.spread.toFixed(3)} (${pct(sB.spread, sA.spread)} of control), typicality ${sB.typ.toFixed(2)}σ.\n`;

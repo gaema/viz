@@ -15,6 +15,10 @@ import { T, alphaOf } from '../framework/theme.js';
 
 
 const softplus = (x) => Math.log1p(Math.exp(-Math.abs(x))) + Math.max(x, 0);
+function shownDelta(bias, sel, x) {
+  const bS = bias.toFixed(1), sS = sel.toFixed(1), xS = x.toFixed(2);
+  return { bS, sS, xS, yS: softplus(Number(bS) + Number(sS) * Number(xS)).toFixed(3) };
+}
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 
 let cur = null;
@@ -152,7 +156,7 @@ mount({
       if (hh) page.setTip(`h[dim ${hh.r}, t${hh.c}] = ${S.H[hh.r * L + hh.c].toFixed(3)}\nĀ=${S.Ab[hh.r * L + hh.c].toFixed(2)} (retain), A=${cur.A[hh.r].toFixed(2)}`);
       else { const t = Math.floor((p.x - barsX) / cw); if (t >= 0 && t < L) {
         if (p.y >= xBand.y && p.y <= xBand.y + xBand.h) page.setTip(`x[${t}] = ${cur.x[t].toFixed(3)}\nΔ=${S.D[t].toFixed(2)}  ·  drag ↕`);
-        else if (p.y >= dBand.y && p.y <= dBase) page.setTip(`Δ[${t}] = softplus(${st.dbias.toFixed(1)} + ${st.sel.toFixed(1)}·${cur.x[t].toFixed(2)}) = ${S.D[t].toFixed(3)}`);
+        else if (p.y >= dBand.y && p.y <= dBase) { const sd = shownDelta(st.dbias, st.sel, cur.x[t]); page.setTip(`Δ[${t}] = softplus(${sd.bS} + ${sd.sS}·${sd.xS}) = ${sd.yS}`); }
         else if (p.y >= yBand.y && p.y <= yBand.y + yBand.h) page.setTip(`y[${t}] = C·h_${t} = ${S.Y[t].toFixed(3)}`);
       } }
     }

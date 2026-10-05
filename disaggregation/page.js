@@ -57,6 +57,13 @@ const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const preTicks = (P) => Math.max(1, Math.ceil((P * PRE_MS_PER_TOK) / TICK_MS));
 const kvMB = (P) => P * KV_MB_PER_TOK;
 const xferMs = (P, bw) => (kvMB(P) / 1024 / bw) * 1000;      // MB -> GiB -> s -> ms
+// Wire time from the MiB and GiB/s strings a sentence prints. 1 GiB = 1024 MiB.
+function shownXfer(mb, bw) {
+  const mbS = mb.toFixed(0), bwS = `${+bw}`;
+  const den = Number(bwS);
+  if (!(den > 0)) return { mbS, bwS, msS: null };
+  return { mbS, bwS, msS: (Number(mbS) / 1024 / den * 1000).toFixed(1) };
+}
 const xferTicks = (P, bw) => Math.max(1, Math.ceil(xferMs(P, bw) / TICK_MS));
 
 function hash32(a, b) {
@@ -304,9 +311,9 @@ function tipFor(r, kind, bw) {
   ];
   if (kind === 'disagg') {
     lines.push(`KV cache = ${r.P} tok × ${KV_MB_PER_TOK} MB/tok = ${r.mb.toFixed(0)} MB (K+V, every layer)`);
-    // MiB/GiB, because xferMs divides by 1024. Printed as MB ÷ GB/s the shown
-    // equation did not evaluate to the number beside it (256/25 = 10.24, not 10.0).
-    lines.push(`transfer = ${r.mb.toFixed(0)} MiB ÷ ${bw} GiB/s = ${r.xMs.toFixed(1)} ms` + (p.linkQ > 0 ? ` (+ ${p.linkQ.toFixed(0)} ms queued for the link)` : ''));
+    const xf = shownXfer(r.mb, bw);
+    const msTxt = xf.msS == null ? 'not a finite number' : `${xf.msS} ms`;
+    lines.push(`transfer = ${xf.mbS} MiB ÷ ${xf.bwS} GiB/s × 1000/1024 = ${msTxt}` + (p.linkQ > 0 ? ` (+ ${p.linkQ.toFixed(0)} ms queued for the link)` : ''));
     if (p.slotQ > 0) lines.push(`then waited ${p.slotQ.toFixed(0)} ms for a free decode slot`);
     lines.push(`decode ${p.dec.toFixed(0)} ms on decode machine ${r.decM}`);
   } else {
@@ -747,7 +754,9 @@ mount({
         }
       }
       if (!tip && px >= geom.pipe.x - 16 && px <= geom.pipe.x + geom.pipe.w + 16 && py >= geom.pipe.y - 16 && py <= geom.pipe.y + geom.pipe.h + 16) {
-        tip = `interconnect: ${bw} GB/s\nevery disaggregated request must move ${KV_MB_PER_TOK} MB per prompt token\nmean prompt here = ${(reqs.reduce((a, q) => a + q.P, 0) / reqs.length).toFixed(0)} tokens → ${(mD.mb).toFixed(0)} MB → ${(mD.mb / 1024 / bw * 1000).toFixed(1)} ms on the wire\n↕ drag to widen or throttle the link`;
+        const ix = shownXfer(mD.mb, bw);
+        const ixMs = ix.msS == null ? 'not a finite number' : `${ix.msS} ms`;
+        tip = `interconnect: ${ix.bwS} GiB/s\nevery disaggregated request must move ${KV_MB_PER_TOK} MB per prompt token\nmean prompt ${(reqs.reduce((a, q) => a + q.P, 0) / reqs.length).toFixed(0)} tokens, mean KV ${ix.mbS} MiB\ntransfer = ${ix.mbS} MiB ÷ ${ix.bwS} GiB/s × 1000/1024 = ${ixMs} on the wire\n↕ drag to widen or throttle the link`;
       }
       if (!tip && px >= gx && px <= gx + gw && py >= swY - 4 && py <= swY + swH + 2) {
         tip = 'end-to-end latency at every possible split (re-simulated, not interpolated):\n'

@@ -65,6 +65,16 @@ const NMAX = NS[NS.length - 1];
 const MAXP = 12, MAXA = 7;
 const pct = (x) => (x * 100).toFixed(1) + '%';
 const f3 = (x) => x.toFixed(3);
+function shownVer(v, mu) {
+  const nS = (v - mu).toFixed(3), mS = mu.toFixed(3);
+  return { nS, mS, vS: (Number(nS) + Number(mS)).toFixed(3) };
+}
+function shownSel(C, p, n) {
+  const Cs = f3(C), ps = f3(p);
+  const aS = f3(Math.pow(Number(Cs), n));
+  const bS = f3(Math.pow(Number(Cs) - Number(ps), n));
+  return { Cs, ps, aS, bS, dS: (Number(aS) - Number(bS)).toFixed(3) };
+}
 /** A ratio as a PERCENT OF the named baseline. Higher is better on this axis. */
 const rel = (x, base) => (base > 1e-9 ? (x / base * 100).toFixed(0) + '%' : 'n/a');
 
@@ -533,11 +543,11 @@ mount({
         let bi = 0, bd = Infinity;
         for (let i = 0; i < NS.length; i++) { const d = Math.abs(xFor(NS[i]) - px); if (d < bd) { bd = d; bi = i; } }
         const n = NS[bi], ex = rows[fi];
-        const sel = bestOfNSel(ex.p, ex.v, n);
         const order = ex.p.map((_, i) => i).sort((x, y) => ex.v[x] - ex.v[y]);
         let cum = 0, cAt = 0;
         for (const i of order) { cum += ex.p[i]; if (i === ex.ci) cAt = cum; }
         const bmh = beamSearch(ex.s, n, st.depth | 0, st.beam | 0, st.vacc);
+        const vs = shownSel(cAt, ex.p[ex.ci], n);
         page.setTip(
           `N = ${n} generations per problem\n` +
           `best-of-N  ${pct(bo[bi])}   ${rel(bo[bi], greedy)} of greedy single sample\n` +
@@ -545,8 +555,8 @@ mount({
           `beam       ${pct(be[bi])}   ${rel(be[bi], greedy)} of greedy single sample\n` +
           `— on problem ${fi + 1}, the arithmetic —\n` +
           `best-of-N picks ✓ with  C^N − (C−p)^N\n` +
-          `  C = ${f3(cAt)} (mass scoring ≤ the ✓ answer), p = ${f3(ex.p[ex.ci])}\n` +
-          `  ${f3(Math.pow(cAt, n))} − ${f3(Math.pow(cAt - ex.p[ex.ci], n))} = ${f3(sel[ex.ci])}\n` +
+          `  C = ${vs.Cs} (mass scoring ≤ the ✓ answer), p = ${vs.ps}\n` +
+          `  ${vs.aS} − ${vs.bS} = ${vs.dS}\n` +
           `majority picks ✓ with P(✓ is the plurality) = ${f3(majoritySel(ex.p, n, ex.ci))}\n` +
           `beam keeps b = ${bmh.b} of c = ${bmh.c}/step, r = s^(1/${st.depth}) = ${f3(bmh.r)}\n` +
           `  → ${f3(bmh.acc)}   (process reward ranks correctly ${pct(bmh.qr)} of the time)`);
@@ -557,12 +567,13 @@ mount({
           const order = F.p.map((_, j) => j).sort((x, y) => F.v[x] - F.v[y]);
           let cum = 0, cAt = 0;
           for (const j of order) { cum += F.p[j]; if (j === i) cAt = cum; }
+          const vv = shownVer(F.v[i], mu), vs = shownSel(cAt, F.p[i], N);
           page.setTip(
             `answer ${i} — ${ok ? 'CORRECT' : 'wrong'}\n` +
             `model gives it   p = ${f3(F.p[i])}\n` +
-            `verifier scores it  v = ${F.v[i].toFixed(3)}${ok ? `  (= noise ${(F.v[i] - mu).toFixed(3)} + separation ${mu.toFixed(3)})` : ''}\n` +
-            `best-of-N picks it: C^N − (C−p)^N with C = ${f3(cAt)}\n` +
-            `  = ${f3(Math.pow(cAt, N))} − ${f3(Math.pow(cAt - F.p[i], N))} = ${f3(boSel[i])}\n` +
+            `verifier scores it  v = ${ok ? vv.vS : F.v[i].toFixed(3)}${ok ? `  (= noise ${vv.nS} + separation ${vv.mS})` : ''}\n` +
+            `best-of-N picks it: C^N − (C−p)^N with C = ${vs.Cs}\n` +
+            `  = ${vs.aS} − ${vs.bS} = ${vs.dS}\n` +
             `majority picks it:  ${f3(mvSel[i])}   (most common of ${N} draws, ties split)\n` +
             (ok ? 'more budget widens the search — including for wrong answers scoring above this one'
                 : (F.v[i] > F.v[F.ci] ? '⚠ this WRONG answer outscores the correct one — best-of-N converges onto it'

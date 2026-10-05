@@ -23,6 +23,10 @@ const N = 8, EPS = 1e-9;
 const relu = (a) => Float32Array.from(a, (v) => (v > 0 ? v : 0));
 const norm = (a) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * a[i]; return Math.sqrt(s); };
 const matvec = (W, x) => { const out = new Float32Array(N); for (let i = 0; i < N; i++) { let s = 0; for (let j = 0; j < N; j++) s += W[i * N + j] * x[j]; out[i] = s; } return out; };
+function shownAdd(f, x) {
+  const fS = f.toFixed(2), xS = x.toFixed(2);
+  return { fS, xS, yS: (Number(fS) + Number(xS)).toFixed(2) };
+}
 
 let cur = null, bsig = '';
 let xRect = null, dragI = -1;
@@ -150,7 +154,7 @@ mount({
     if (page.pointer.over && dragI < 0) {
       const p = page.pointer;
       if (xRect && p.x >= xRect.x && p.x <= xRect.x + xRect.w && p.y >= xRect.y - 8 && p.y <= xRect.y + xRect.h + 8) {
-        const i = Math.floor((p.x - xRect.x) / (xRect.w / N)); if (i >= 0 && i < N) page.setTip(`x[${i}] = ${x[i].toFixed(2)}\nF(x)[${i}]=${F[i].toFixed(2)}  →  y[${i}]=${y[i].toFixed(2)}${skip ? ` = ${F[i].toFixed(2)}+${x[i].toFixed(2)}` : ''}\ndrag ↕ to change`);
+        const i = Math.floor((p.x - xRect.x) / (xRect.w / N)); if (i >= 0 && i < N) { const add = shownAdd(F[i], x[i]); page.setTip(`x[${i}] = ${x[i].toFixed(2)}\nF(x)[${i}]=${add.fS}  →  y[${i}]=${skip ? `${add.yS} = ${add.fS}+${add.xS}` : y[i].toFixed(2)}\ndrag ↕ to change`); }
       } else if (p.x >= cx && p.x <= cx + cw && p.y >= cTop && p.y <= cTop + chH) {
         const d = Math.round((p.x - cx) / cw * L); page.setTip(`after ${d} block(s):\nskip:   (1+g)^${d} = ${Math.pow(1 + g, d).toExponential(1)}\nno-skip: g^${d} = ${Math.pow(g, d).toExponential(1)}`);
       }

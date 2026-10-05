@@ -53,6 +53,11 @@ import { categorical } from '../framework/render.js';
 // shared system prompt (this is what a router can match on); the trailing
 // TAIL_BLOCKS are that request's own text and are never shared with anybody.
 const PREFIX_BLOCKS = 8;
+function shownRoute(w, aff, load) {
+  const wS = w.toFixed(2), affS = aff.toFixed(2), oneS = (1 - w).toFixed(2), loadS = load.toFixed(2);
+  const scoreS = (Number(wS) * Number(affS) - Number(oneS) * Number(loadS)).toFixed(3);
+  return { wS, affS, oneS, loadS, scoreS };
+}
 const TAIL_BLOCKS = 2;
 const TOTAL_BLOCKS = PREFIX_BLOCKS + TAIL_BLOCKS;
 const BLOCK_TOKENS = 16;
@@ -606,7 +611,8 @@ mount({
             const aff = rec.match[i] / PREFIX_BLOCKS;
             const mb = Math.max(...rec.backlog);
             const load = mb > 0 ? rec.backlog[i] / mb : 0;
-            lines.push(`  R${i}: ${st.w.toFixed(2)}×${aff.toFixed(2)} (${rec.match[i]}/${PREFIX_BLOCKS} blocks) − ${(1 - st.w).toFixed(2)}×${load.toFixed(2)} (${f1(rec.backlog[i])} ms backlog) = ${rec.scores[i].toFixed(3)}${i === rec.replica ? '   ← chosen' : ''}`);
+            const sr = shownRoute(st.w, aff, load);
+            lines.push(`  R${i}: ${sr.wS}×${sr.affS} (${rec.match[i]}/${PREFIX_BLOCKS} blocks) − ${sr.oneS}×${sr.loadS} (${f1(rec.backlog[i])} ms backlog) = ${sr.scoreS}${i === rec.replica ? '   ← chosen' : ''}`);
           }
           lines.push(`reused ${rec.hit} block(s), computed ${rec.comp}: prefill ${f1(rec.prefill)} ms`);
           lines.push(`waited ${f1(rec.wait)} ms in queue → TTFT ${f1(rec.ttft)} ms`);
@@ -677,6 +683,7 @@ mount({
     page.setReadout(o);
   },
 }).then((page) => {
+  window.__prefixPage = page;
   const q = new URLSearchParams(location.search);
   const t = page.controls._transport;
   // Restore every control from the query string, so one URL replays exactly one

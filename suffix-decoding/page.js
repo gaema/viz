@@ -243,6 +243,10 @@ function draftMean(a0, rho, L) {
   const a = draftAccept(a0, rho);
   return a >= 0.999 ? L : (a - Math.pow(a, L + 1)) / (1 - a);
 }
+function shownTpf(accepted) {
+  const aS = accepted.toFixed(2);
+  return { aS, tpf: (Number(aS) + 1).toFixed(2) };
+}
 
 let run = null, runSig = '';
 let sweep = null, sweepSig = '';
@@ -646,7 +650,8 @@ mount({
       r.label(fit(ctx, text, vw), vx, ctlY + dy, { color, font });
       ctx.restore();
     };
-    vline(`${curveAt.toFixed(2)} accepted per proposal → ${(curveAt + 1).toFixed(2)} tokens per forward (plain decode = 1.00)`,
+    const tpf = shownTpf(curveAt);
+    vline(`${tpf.aS} accepted per proposal → ${tpf.tpf} tokens per forward (plain decode = 1.00)`,
       6, '11.5px ui-monospace, monospace', T.n14);
     vline(`this run on screen: ${data.mean.toFixed(2)} over ${R} rounds · draft-model baseline here: ${dm.toFixed(2)} (modelled)`,
       22, '9.5px ui-monospace, monospace', T.n11);
@@ -697,8 +702,9 @@ mount({
       if (tip) page.setTip(tip);
     }
 
-    let o = `repetitiveness ${(+st.rho).toFixed(2)} · proposal length ${L} · tree depth ${D} → mean accepted ${curveAt.toFixed(2)} tokens over ${SWEEP_SEEDS} seeds × ${R} rounds, `;
-    o += `so ${(curveAt + 1).toFixed(2)} tokens per forward of the big model (plain decode = 1.00). This run on screen: ${data.mean.toFixed(2)}. Draft-model baseline, modelled: ${dm.toFixed(2)} accepted.    tier:${r.name}\n`;
+    const tpfR = shownTpf(curveAt);
+    let o = `repetitiveness ${(+st.rho).toFixed(2)} · proposal length ${L} · tree depth ${D} → mean accepted ${tpfR.aS} tokens over ${SWEEP_SEEDS} seeds × ${R} rounds, `;
+    o += `so ${tpfR.tpf} tokens per forward of the big model (plain decode = 1.00). This run on screen: ${data.mean.toFixed(2)}. Draft-model baseline, modelled: ${dm.toFixed(2)} accepted.    tier:${r.name}\n`;
     if (rd) {
       o += `round ${roundIdx + 1}: matched the last ${rd.match.len} token${rd.match.len === 1 ? '' : 's'} `;
       o += `(a context that occurs ${rd.match.node.count} time${rd.match.node.count === 1 ? '' : 's'} in ${rd.corpusLen} indexed tokens; `;
@@ -712,6 +718,7 @@ mount({
     page.setReadout(o);
   },
 }).then((page) => {
+  window.__suffixPage = page;
   const q = new URLSearchParams(location.search);
   const t = page.controls._transport;
   for (const key of ['plen', 'depth', 'corpus']) if (q.has(key)) page.controls.set(key, parseInt(q.get(key), 10));

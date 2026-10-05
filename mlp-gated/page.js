@@ -15,6 +15,15 @@ import { T, alphaOf } from '../framework/theme.js';
 
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
 const fx = (v) => (v >= 0 ? ' ' : '') + v.toFixed(2);
+function shownAct(name, gate) {
+  const gS = gate.toFixed(2);
+  const y = name === 'GELU' ? gelu(Number(gS)) : silu(Number(gS));
+  return { gS, yS: y.toFixed(3) };
+}
+function shownProd(a, b) {
+  const aS = fx(a), bS = fx(b);
+  return { aS, bS, yS: (Number(aS) * Number(bS)).toFixed(3) };
+}
 
 const STAGES = [
   { key: 'gate', label: 'gate = x · W_gate  (project up to intermediate width I)' },
@@ -148,8 +157,8 @@ mount({
         if (rr.key === 'x') tip = `x[${j}] = ${x[j].toFixed(3)}\ndrag ↕ to change — gate, up, ⊙, out recompute`;
         else if (rr.key === 'gate') tip = `gate[${j}] = (x·W_gate)[${j}]\n= ${gate[j].toFixed(3)}`;
         else if (rr.key === 'up') tip = `up[${j}] = (x·W_up)[${j}]\n= ${up[j].toFixed(3)}`;
-        else if (rr.key === 'act') tip = `${actName}(gate[${j}]) = ${actName}(${gate[j].toFixed(2)})\n= ${act[j].toFixed(3)}`;
-        else if (rr.key === 'hidden') tip = `hidden[${j}] = ${actName}(gate[${j}]) · up[${j}]\n= ${fx(act[j])} · ${fx(up[j])} = ${hidden[j].toFixed(3)}`;
+        else if (rr.key === 'act') { const sa = shownAct(actName, gate[j]); tip = `${actName}(gate[${j}]) = ${actName}(${sa.gS})\n= ${sa.yS}`; }
+        else if (rr.key === 'hidden') { const hp = shownProd(act[j], up[j]); tip = `hidden[${j}] = ${actName}(gate[${j}]) · up[${j}]\n= ${hp.aS} · ${hp.bS} = ${hp.yS}`; }
         else if (rr.key === 'out') {
           const terms = [];
           for (let i = 0; i < I; i++) terms.push(`${fx(hidden[i])}·${fx(Wd.data[i * D + j])}`);
