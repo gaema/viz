@@ -50,6 +50,28 @@ function logitsOf(h, Wlm, V, D, soft, cap) {
   return { raw, capped, argmax };
 }
 
+// A fully printed logit, and the soft-cap of that printed logit, use the tip's digits.
+function logitBits(h, wAt, D, trueRaw) {
+  const terms = [];
+  let acc = 0;
+  for (let d = 0; d < D; d++) {
+    const hv = h[d], wv = wAt(d);
+    const hS = hv.toFixed(2), wS = wv.toFixed(2);
+    terms.push(`${(hv >= 0 ? ' ' : '') + hS}·${(wv >= 0 ? ' ' : '') + wS}`);
+    acc += Number(hS) * Number(wS);
+  }
+  const full = terms.length <= 5;
+  const shown = full ? terms.join(' + ') : terms.slice(0, 4).join(' + ') + ' + … (' + D + ' terms)';
+  return { shown, result: full ? acc.toFixed(3) : trueRaw.toFixed(3) };
+}
+function capBits(logitS, cap) {
+  const capS = `${cap}`;
+  const rawS = Number(logitS).toFixed(2);
+  const den = Number(capS);
+  const yS = den === 0 ? null : (den * Math.tanh(Number(rawS) / den)).toFixed(3);
+  return { capS, rawS, yS };
+}
+
 mount({
   mount: 'body',
   title: 'lm-head — hidden state → vocab logits',
@@ -176,11 +198,12 @@ mount({
       let tip = null;
       if (bh) {
         const v = bh.r;
-        const terms = [];
-        for (let d = 0; d < D; d++) terms.push(`${(h[d] >= 0 ? ' ' : '') + h[d].toFixed(2)}·${(Wlm.data[v * D + d] >= 0 ? ' ' : '') + Wlm.data[v * D + d].toFixed(2)}`);
-        const shown = terms.length <= 5 ? terms.join(' + ') : terms.slice(0, 4).join(' + ') + ' + … (' + D + ' terms)';
-        tip = `"${VOCAB[v]}" : logit = h · W_lm[${v}] = Σ_d h[d]·W[${v},d]\n= ${shown}\n= ${raw[v].toFixed(3)}`;
-        if (soft) tip += `\nsoft-cap: ${cap}·tanh(${raw[v].toFixed(2)}/${cap}) = ${capped[v].toFixed(3)}`;
+        const lb = logitBits(h, (d) => Wlm.data[v * D + d], D, raw[v]);
+        tip = `"${VOCAB[v]}" : logit = h · W_lm[${v}] = Σ_d h[d]·W[${v},d]\n= ${lb.shown}\n= ${lb.result}`;
+        if (soft) {
+          const cb = capBits(lb.result, cap);
+          tip += `\nsoft-cap: ${cb.capS}·tanh(${cb.rawS}/${cb.capS}) ${cb.yS == null ? 'is not a finite number' : '= ' + cb.yS}`;
+        }
       } else if (hh) {
         tip = `h[${hh.c}] = ${h[hh.c].toFixed(3)}\ndrag ↕ to steer the hidden state`;
       } else if (wh) {

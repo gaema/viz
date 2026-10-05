@@ -78,6 +78,25 @@ function resync(page) {
   if (t) t._sync();
 }
 
+// The score quotient and a fully printed output sum use the digits in the tip.
+function scoreBits(raws, sq) {
+  const aS = raws.toFixed(3), bS = sq.toFixed(3);
+  const quot = Number(bS) === 0 ? null : (Number(aS) / Number(bS)).toFixed(3);
+  return { aS, bS, quot };
+}
+function outBits(ws, vs, trueOut) {
+  const terms = [];
+  let acc = 0;
+  for (let j = 0; j < ws.length; j++) {
+    const wS = ws[j].toFixed(2), vS = vs[j].toFixed(2);
+    terms.push(wS + '·' + vS);
+    acc += Number(wS) * Number(vS);
+  }
+  const full = terms.length <= 4;
+  const shown = full ? terms.join(' + ') : terms.slice(0, 3).join(' + ') + ' + … (' + terms.length + ' terms)';
+  return { shown, result: full ? acc.toFixed(3) : trueOut.toFixed(3) };
+}
+
 // small input strip [rows x cols] heatmap with a label
 function strip(r, M, rect, label, col) {
   r.heatmap(M, { rows: M.rows, cols: M.cols, rect, ramp: ramps.diverging, domain: [-maxAbs(M.data), maxAbs(M.data)] });
@@ -201,17 +220,17 @@ mount({
           // softmax weight cell: its share of the row's attention.
           tip = `w[${i},${j}] = softmax row ${i} over keys 0..${i}\n= ${weights.data[i * N + j].toFixed(3)}  (this key's share)`;
         } else {
-          // score cell: q_i·k_j / √d.
-          const raws = raw.data[i * N + j];
-          tip = `score[${i},${j}] = q${i}·k${j}/√d\n= ${raws.toFixed(3)} / ${sq.toFixed(3)} = ${scaled.data[i * N + j].toFixed(3)}`;
+          // score cell: q_i·k_j / √d, quotient of the printed digits.
+          const sb = scoreBits(raw.data[i * N + j], sq);
+          tip = `score[${i},${j}] = q${i}·k${j}/√d\n= ${sb.aS} / ${sb.bS} = ${sb.quot == null ? 'not a finite number' : sb.quot}`;
         }
       } else if (oh) {
-        // output cell: Σ_j w[i,j]·v[j,c].
+        // output cell: Σ_j w[i,j]·v[j,c]. A fully listed sum uses those digits.
         const i = oh.r, c = oh.c;
-        const terms = [];
-        for (let j = 0; j <= i; j++) terms.push(`${weights.data[i * N + j].toFixed(2)}·${V.data[j * d + c].toFixed(2)}`);
-        const shown = terms.length <= 4 ? terms.join(' + ') : terms.slice(0, 3).join(' + ') + ' + … (' + (i + 1) + ' terms)';
-        tip = `out[${i},${c}] = Σⱼ w[${i},j]·v[j,${c}]\n= ${shown}\n= ${output.data[i * d + c].toFixed(3)}`;
+        const ws = [], vs = [];
+        for (let j = 0; j <= i; j++) { ws.push(weights.data[i * N + j]); vs.push(V.data[j * d + c]); }
+        const ob = outBits(ws, vs, output.data[i * d + c]);
+        tip = `out[${i},${c}] = Σⱼ w[${i},j]·v[j,${c}]\n= ${ob.shown}\n= ${ob.result}`;
       }
       if (tip) page.setTip(tip);
     }

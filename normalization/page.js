@@ -61,6 +61,20 @@ function computeNorm(X, N, D, isLN) {
   return { mu, sd, rms, Y, eps };
 }
 
+// The tip's normalized value is the formula on the digits that formula prints.
+function shownLN(x, mu, sd) {
+  const xS = x.toFixed(2), muS = mu.toFixed(2), sdS = sd.toFixed(3);
+  const den = Number(sdS);
+  const yS = den === 0 ? null : (((Number(xS) - Number(muS)) / den) * 1 + 0).toFixed(3);
+  return { xS, muS, sdS, yS };
+}
+function shownRMS(x, rms) {
+  const xS = x.toFixed(2), rmsS = rms.toFixed(3);
+  const den = Number(rmsS);
+  const yS = den === 0 ? null : (Number(xS) / den * 1).toFixed(3);
+  return { xS, rmsS, yS };
+}
+
 function tableHeat(r, M, rect, hiRow, label, dom) {
   const ctx = r.ctx, cell = rect.h / M.rows;
   r.heatmap(M, { rows: M.rows, cols: M.cols, rect, ramp: ramps.diverging, domain: [-dom, dom] });
@@ -177,9 +191,14 @@ mount({
         const st2 = isLN ? `row μ=${mu[ih.r].toFixed(3)}, σ=${sd[ih.r].toFixed(3)}` : `row RMS=${rms[ih.r].toFixed(3)}`;
         tip = `x[t${ih.r},${ih.c}] = ${x.toFixed(3)}\n${st2}\ndrag ↕ to change`;
       } else if (oh) {
-        const x = X.data[oh.r * D + oh.c], y = Y.data[oh.r * D + oh.c];
-        if (isLN) tip = `y[t${oh.r},${oh.c}] = (x−μ)/√(σ²+ε)·γ+β\n= (${x.toFixed(2)}−${mu[oh.r].toFixed(2)})/${sd[oh.r].toFixed(3)}·1+0\n= ${y.toFixed(3)}   (μ=${mu[oh.r].toFixed(3)}, σ=${sd[oh.r].toFixed(3)})`;
-        else tip = `y[t${oh.r},${oh.c}] = x/rms·γ\n= ${x.toFixed(2)}/${rms[oh.r].toFixed(3)}·1\n= ${y.toFixed(3)}   (rms=${rms[oh.r].toFixed(3)})`;
+        const x = X.data[oh.r * D + oh.c];
+        if (isLN) {
+          const b = shownLN(x, mu[oh.r], sd[oh.r]);
+          tip = `y[t${oh.r},${oh.c}] = (x−μ)/√(σ²+ε)·γ+β\n= (${b.xS}−${b.muS})/${b.sdS}·1+0\n= ${b.yS == null ? 'not a finite number' : b.yS}   (μ=${b.muS}, σ=${b.sdS})`;
+        } else {
+          const b = shownRMS(x, rms[oh.r]);
+          tip = `y[t${oh.r},${oh.c}] = x/rms·γ\n= ${b.xS}/${b.rmsS}·1\n= ${b.yS == null ? 'not a finite number' : b.yS}   (rms=${b.rmsS})`;
+        }
       }
       if (tip) page.setTip(tip);
     }

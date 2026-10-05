@@ -69,6 +69,14 @@ function buildData(st) {
   return steps;
 }
 
+// O/l in a tip is the quotient of the printed accumulator and the printed sum.
+function olBits(O, l) {
+  const oS = O.toFixed(3), lS = l.toFixed(3);
+  const den = Number(lS);
+  const quot = den === 0 ? null : (Number(oS) / den).toFixed(3);
+  return { oS, lS, quot };
+}
+
 mount({
   mount: 'body',
   title: 'flash-attention — tiled online softmax',
@@ -219,13 +227,16 @@ mount({
         }
       } else if (oh) {
         const i = oh.r, c = oh.c;
-        tip = `O accumulator [qi=${i}, dim ${c}] = ${s.O[i * D + c].toFixed(3)}\n`
-            + `partial Σ exp(S−m)·V over tiles 1..${j + 1};  l=${s.l[i].toFixed(3)}\n`
-            + `final output = O/l${s.isLast ? ` = ${(s.O[i * D + c] / s.l[i]).toFixed(3)}` : ' (after the last tile)'}`;
+        const ol = olBits(s.O[i * D + c], s.l[i]);
+        const fin = !s.isLast ? ' (after the last tile)' : (ol.quot == null ? ' is not a finite number' : ` = ${ol.quot}`);
+        tip = `O accumulator [qi=${i}, dim ${c}] = ${ol.oS}\n`
+            + `partial Σ exp(S−m)·V over tiles 1..${j + 1};  l=${ol.lS}\n`
+            + `final output = O/l${fin}`;
       } else if (nh) {
         const i = nh.r, c = nh.c;
-        tip = `output [qi=${i}, dim ${c}] = O/l = ${s.norm[i * D + c].toFixed(3)}\n`
-            + `= ${s.O[i * D + c].toFixed(3)} / ${s.l[i].toFixed(3)}  (normalized at the last tile)`;
+        const ol = olBits(s.O[i * D + c], s.l[i]);
+        tip = `output [qi=${i}, dim ${c}] = O/l ${ol.quot == null ? 'is not a finite number' : '= ' + ol.quot}\n`
+            + `= ${ol.oS} / ${ol.lS}  (normalized at the last tile)`;
       }
       if (tip) page.setTip(tip);
     }
