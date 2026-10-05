@@ -79,8 +79,10 @@ export function* dotSteps(a, b) {
   a = asVec(a); b = asVec(b);
   let acc = 0;
   for (let k = 0; k < a.length; k++) {
-    const term = a[k] * b[k]; acc += term;
-    yield { op: 'dot', k, term, value: a[k] * b[k], acc, partial: acc, label: `+ a[${k}]·b[${k}] = ${a[k].toFixed(3)}·${b[k].toFixed(3)} = ${term.toFixed(3)}  (sum ${acc.toFixed(3)})` };
+    const aS = a[k].toFixed(3), bS = b[k].toFixed(3);
+    const termS = (Number(aS) * Number(bS)).toFixed(3);
+    acc = Number((acc + Number(termS)).toFixed(3));
+    yield { op: 'dot', k, term: Number(termS), value: a[k] * b[k], acc, partial: acc, label: `+ a[${k}]·b[${k}] = ${aS}·${bS} = ${termS}  (sum ${acc.toFixed(3)})` };
   }
 }
 
@@ -127,17 +129,24 @@ export function softmax(v, opts = {}) {
 export function* softmaxSteps(v, opts = {}) {
   v = asVec(v); const t = opts.temp == null ? 1 : opts.temp;
   let mx = -Infinity; for (let i = 0; i < v.length; i++) if (v[i] / t > mx) mx = v[i] / t;
-  yield { op: 'softmax', phase: 'max', value: mx, partial: Float32Array.from(v), label: `max(logits${t !== 1 ? '/T' : ''}) = ${mx.toFixed(3)} (subtract for stability)` };
+  const mxS = mx.toFixed(3);
+  yield { op: 'softmax', phase: 'max', value: mx, partial: Float32Array.from(v), label: `max(logits${t !== 1 ? '/T' : ''}) = ${mxS} (subtract for stability)` };
   const e = new Float32Array(v.length); let sum = 0;
+  const eS = [];
   for (let i = 0; i < v.length; i++) {
     e[i] = Math.exp(v[i] / t - mx); sum += e[i];
-    yield { op: 'softmax', phase: 'exp', i, value: e[i], acc: sum, partial: Float32Array.from(e), label: `exp(${(v[i] / t).toFixed(3)} - ${mx.toFixed(3)}) = ${e[i].toFixed(3)}` };
+    const vS = (v[i] / t).toFixed(3);
+    const expS = Math.exp(Number(vS) - Number(mxS)).toFixed(3);
+    eS.push(expS);
+    yield { op: 'softmax', phase: 'exp', i, value: e[i], acc: sum, partial: Float32Array.from(e), label: `exp(${vS} - ${mxS}) = ${expS}` };
   }
-  yield { op: 'softmax', phase: 'sum', value: sum, partial: Float32Array.from(e), label: `Σexp = ${sum.toFixed(3)}` };
+  const sumS = eS.reduce((acc, s) => acc + Number(s), 0).toFixed(3);
+  yield { op: 'softmax', phase: 'sum', value: sum, partial: Float32Array.from(e), label: `Σexp = ${sumS}` };
   const p = new Float32Array(v.length);
   for (let i = 0; i < e.length; i++) {
     p[i] = e[i] / sum;
-    yield { op: 'softmax', phase: 'norm', i, value: p[i], partial: Float32Array.from(p), label: `p[${i}] = ${e[i].toFixed(3)} / ${sum.toFixed(3)} = ${p[i].toFixed(3)}` };
+    const pS = Number(sumS) > 0 ? (Number(eS[i]) / Number(sumS)).toFixed(3) : null;
+    yield { op: 'softmax', phase: 'norm', i, value: p[i], partial: Float32Array.from(p), label: pS == null ? `p[${i}] = ${eS[i]} / ${sumS} is not a finite number` : `p[${i}] = ${eS[i]} / ${sumS} = ${pS}` };
   }
 }
 // Row-wise softmax of a matrix (attention weights: one softmax per query row).

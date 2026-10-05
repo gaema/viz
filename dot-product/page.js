@@ -10,6 +10,24 @@ import { T, alphaOf } from '../framework/theme.js';
 
 
 const norm = (v) => { let s = 0; for (let i = 0; i < v.length; i++) s += v[i] * v[i]; return Math.sqrt(s); };
+
+// The angle, the cosine, and |a|·|b|·cos use the digits printed beside them.
+function printedGeom(a, b) {
+  const na = norm(a), nb = norm(b), d = dot(a, b);
+  const na3 = na.toFixed(3), nb3 = nb.toFixed(3), dS = d.toFixed(3);
+  const den = Number(na3) * Number(nb3);
+  const cos3 = den > 0 ? (Number(dS) / den).toFixed(3) : null;
+  const cos2 = cos3 == null ? null : Number(cos3).toFixed(2);
+  let degS = '0', cosDeg = null;
+  if (cos3 != null) {
+    const th = Math.acos(Math.max(-1, Math.min(1, Number(cos3))));
+    degS = (th * 180 / Math.PI).toFixed(0);
+    cosDeg = Math.cos(Number(degS) * Math.PI / 180).toFixed(2);
+  }
+  const a2 = na.toFixed(2), b2 = nb.toFixed(2);
+  const prod = cos2 == null ? null : (Number(a2) * Number(b2) * Number(cos2)).toFixed(3);
+  return { na, nb, d, na3, nb3, dS, cos3, cos2, degS, cosDeg, a2, b2, prod };
+}
 const maxAbs = (v) => { let a = 0; for (let i = 0; i < v.length; i++) { const x = Math.abs(v[i]); if (x > a) a = x; } return a || 1; };
 
 // Shared between compute(), draw(), and onPointer(). compute() runs (via
@@ -78,7 +96,13 @@ function geometry(page, a, b, rect) {
   r.arrow({ x: cx, y: cy }, bTip, { color: T.warn, width: 2.5 });
   r.label('a', aTip.x + 6, aTip.y + 14, { color: T.accent, font: '13px ui-monospace, monospace' });
   r.label('b', bTip.x + 6, bTip.y, { color: T.warn, font: '13px ui-monospace, monospace' });
-  r.label(`θ = ${(th * 180 / Math.PI).toFixed(0)}°   cos θ = ${cos.toFixed(2)}`, rect.x + 8, rect.y + 16, { color: T.n11, font: '12px ui-monospace, monospace' });
+  const pg = printedGeom(a, b);
+  const angleBit = pg.cos3 == null
+    ? 'cos θ is not a finite number (|a| or |b| prints 0)'
+    : pg.cosDeg === pg.cos2
+      ? `θ = ${pg.degS}°   cos θ = ${pg.cos2}`
+      : `θ = ${pg.degS}°   cos ${pg.degS}° = ${pg.cosDeg}`;
+  r.label(angleBit, rect.x + 8, rect.y + 16, { color: T.n11, font: '12px ui-monospace, monospace' });
   r.label(`projₐ b = |b|cos θ = ${projLen.toFixed(2)}`, rect.x + 8, rect.y + rect.h - 8, { color: T.n11, font: '12px ui-monospace, monospace' });
 }
 
@@ -149,16 +173,23 @@ mount({
       let tip = null;
       if (ah) tip = `a[${ah.c}] = ${a[ah.c].toFixed(3)}\ndrag ↕ to change`;
       else if (bh) tip = `b[${bh.c}] = ${b[bh.c].toFixed(3)}\ndrag ↕ to change`;
-      else if (ph && ph.c <= ki) tip = `a[${ph.c}]·b[${ph.c}]\n= ${a[ph.c].toFixed(2)} · ${b[ph.c].toFixed(2)} = ${(a[ph.c] * b[ph.c]).toFixed(3)}`;
+      else if (ph && ph.c <= ki) {
+        const aS = a[ph.c].toFixed(2), bS = b[ph.c].toFixed(2);
+        tip = `a[${ph.c}]·b[${ph.c}]\n= ${aS} · ${bS} = ${(Number(aS) * Number(bS)).toFixed(3)}`;
+      }
       if (tip) page.setTip(tip);
     }
 
-    const cos = na && nb ? d / (na * nb) : 0;
-    let out = `a·b = Σ aₖ·bₖ    |a| = ${na.toFixed(3)}   |b| = ${nb.toFixed(3)}   cos θ = a·b/(|a||b|) = ${cos.toFixed(3)}    tier:${r.name}\n`;
+    const pg = printedGeom(a, b);
+    let out = `a·b = Σ aₖ·bₖ    |a| = ${pg.na3}   |b| = ${pg.nb3}   ${pg.cos3 == null ? 'cos θ is not a finite number (|a| or |b| prints 0)' : `cos θ = a·b / (|a||b|) = ${pg.cos3}`}    tier:${r.name}\n`;
     if (!s) out += '(drag a/b cells to edit · press ▶ or scrub to accumulate each term)';
     else {
       out += `${s.label}\n`;
-      out += `a·b = ${d.toFixed(3)} = |a|·|b|·cos θ = ${na.toFixed(2)}·${nb.toFixed(2)}·${cos.toFixed(2)}`;
+      out += pg.prod == null
+        ? `a·b = ${pg.dS}`
+        : pg.dS === pg.prod
+          ? `a·b = ${pg.dS} = |a|·|b|·cos θ = ${pg.a2}·${pg.b2}·${pg.cos2}`
+          : `a·b = ${pg.dS}. |a|·|b|·cos θ = ${pg.a2}·${pg.b2}·${pg.cos2} = ${pg.prod}`;
     }
     page.setReadout(out);
   },

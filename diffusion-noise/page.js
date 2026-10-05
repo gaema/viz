@@ -209,6 +209,27 @@ function plot(ctx, rect, ys, color, opts = {}) {
 }
 const norm = (arr) => { let m = 0; for (const v of arr) if (v > m) m = v; return arr.map((v) => v / (m || 1)); };
 const f3 = (v) => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(3));
+// Printed coefficients are the ones the formula line names, then SNR and x_t use those strings.
+function shownCoeff(mode, a, s, ab, tau) {
+  if (mode === 'flow') {
+    const tauS = tau.toFixed(3);
+    return { aS: (1 - Number(tauS)).toFixed(3), sS: tauS, abS: null, tauS };
+  }
+  const abS = ab.toFixed(4);
+  return { aS: Math.sqrt(Number(abS)).toFixed(3), sS: Math.sqrt(Math.max(0, 1 - Number(abS))).toFixed(3), abS, tauS: null };
+}
+function shownSnr(aS, sS) {
+  const sN = Number(sS);
+  if (!(sN > 0)) return null;
+  return f3((Number(aS) * Number(aS)) / (sN * sN));
+}
+function shownXt(aS, xS, sS, eS) {
+  return (Number(aS) * Number(xS) + Number(sS) * Number(eS)).toFixed(3);
+}
+function snrText(aS, sS) {
+  const v = shownSnr(aS, sS);
+  return v == null ? 'SNR = a²/s² is not a finite number (s prints 0)' : `SNR = a²/s² = ${v}`;
+}
 // A loss that reads 0.0000 hides the whole point at the easy end of the axis.
 const fL = (v) => (v >= 1e-4 ? v.toFixed(4) : v.toExponential(1));
 
@@ -363,11 +384,14 @@ mount({
     const p = selPix, pr = (p / N) | 0, pc = p % N;
     const cur = cv[Math.max(0, Math.min(BINS - 1, Math.round(t * BINS) - 1))];
     r.label('one training step', cx3, by + 6, { color: T.n13, font: `11px ${MONO}` });
+    const scn = shownCoeff(isFlow ? 'flow' : 'diffusion', a, s, ex.ab, ex.tau);
+    const aP = scn.aS, sP = scn.sS;
+    const xP = x0[p].toFixed(3), eP = eps[p].toFixed(3);
     const lines = [
       [`t = ${t.toFixed(3)}   boxed pixel (${pr}, ${pc})`, T.n12],
-      [isFlow ? `τ = ${ex.tau.toFixed(3)}   a = 1−τ = ${a.toFixed(3)}   s = τ = ${s.toFixed(3)}` : `ᾱ = ${ex.ab.toFixed(4)}   a = √ᾱ = ${a.toFixed(3)}   s = √(1−ᾱ) = ${s.toFixed(3)}`, T.n12],
-      [`SNR = a²/s² = ${f3(snrOf(a, s))}`, T.violet],
-      [`x_t = ${a.toFixed(3)}·${x0[p].toFixed(3)} + ${s.toFixed(3)}·${eps[p].toFixed(3)} = ${ex.xt[p].toFixed(3)}`, T.n13],
+      [isFlow ? `τ = ${scn.tauS}   a = 1−τ = ${aP}   s = τ = ${sP}` : `ᾱ = ${scn.abS}   a = √ᾱ = ${aP}   s = √(1−ᾱ) = ${sP}`, T.n12],
+      [snrText(aP, sP), T.violet],
+      [`x_t = ${aP}·${xP} + ${sP}·${eP} = ${shownXt(aP, xP, sP, eP)}`, T.n13],
       [`${predName} = ${predArr[p].toFixed(3)}   vs target ${st.target === 'eps' ? eps[p].toFixed(3) : st.target === 'v' ? ex.vTrue[p].toFixed(3) : x0[p].toFixed(3)}`, T.teal],
       [`loss at this t = ${fL(cur.loss)}   ×  w(t) = ${f3(cur.w)}`, T.gold],
       [`a fixed ${st.target === 'eps' ? 'ε' : st.target === 'v' ? 'v' : 'x₀'} error is ×${gain.toFixed(2)} in image space`, gain > 3 ? T.bad : T.n13],
@@ -387,7 +411,7 @@ mount({
         if (!hit) continue;
         const i = hit.r * N + hit.c;
         let tip = `${pn.title}  pixel (${hit.r}, ${hit.c})\nvalue = ${pn.data[i].toFixed(4)}\n`;
-        if (pn.key === 'xt') tip += `x_t = a·x₀ + s·ε = ${a.toFixed(3)}·${x0[i].toFixed(3)} + ${s.toFixed(3)}·${eps[i].toFixed(3)}`;
+        if (pn.key === 'xt') tip += `x_t = a·x₀ + s·ε = ${aP}·${x0[i].toFixed(3)} + ${sP}·${eps[i].toFixed(3)}`;
         else if (pn.key === 'x0h') tip += `E[x₀ | x_t] over the ${refs.length} templates\ntop weight ${(wmax * 100).toFixed(0)}% — ${wmax > 0.9 ? 'one template explains x_t' : 'a blend: the blurry mean'}\ntemplate share s²/(a²sd²+s²) = ${((s * s) / (a * a * st.spread * st.spread + s * s)).toFixed(3)}`;
         else if (pn.key === 'pred') tip += st.target === 'eps' ? `ε̂ = (x_t − a·x̂₀)/s = (${ex.xt[i].toFixed(3)} − ${a.toFixed(3)}·${ex.x0h[i].toFixed(3)})/${s.toFixed(3)}\ntarget ε = ${eps[i].toFixed(3)}` : st.target === 'v' ? `${predName} = ${isFlow ? 'ε̂ − x̂₀' : 'a·ε̂ − s·x̂₀'} = ${predArr[i].toFixed(3)}\ntarget = ${ex.vTrue[i].toFixed(3)}` : `x̂₀ = ${ex.x0h[i].toFixed(3)}   target x₀ = ${x0[i].toFixed(3)}`;
         else if (pn.key === 'err') tip += `|x̂₀ − x₀| = |${ex.x0h[i].toFixed(3)} − ${x0[i].toFixed(3)}|`;
@@ -399,10 +423,12 @@ mount({
     }
 
     // ---- readout -------------------------------------------------------------
+    const sqS = (Number(aP) * Number(aP) + Number(sP) * Number(sP)).toFixed(3);
     const modeTxt = isFlow
-      ? `rectified flow: x_t = (1−τ)·x₀ + τ·ε with τ = ${ex.tau.toFixed(3)} (shift ${ex.shift}); the regression target is the velocity ε − x₀, constant along the straight path from data to noise.`
-      : `diffusion: x_t = √ᾱ·x₀ + √(1−ᾱ)·ε with ᾱ = ${ex.ab.toFixed(4)} on the ${st.sched} schedule; a² + s² = 1, so x_t keeps unit variance at every t.`;
-    let o = `${modeTxt}   t = ${t.toFixed(3)}, a = ${a.toFixed(3)}, s = ${s.toFixed(3)}, SNR = ${f3(snrOf(a, s))}.   tier:${r.name}\n`;
+      ? `rectified flow: x_t = (1−τ)·x₀ + τ·ε with τ = ${scn.tauS} (shift ${ex.shift}); the regression target is the velocity ε − x₀, constant along the straight path from data to noise.`
+      : `diffusion: x_t = √ᾱ·x₀ + √(1−ᾱ)·ε with ᾱ = ${scn.abS} on the ${st.sched} schedule; a² + s² = ${sqS}.`;
+    const snrBit = shownSnr(aP, sP) == null ? 'SNR = a²/s² is not a finite number (s prints 0)' : `SNR = ${shownSnr(aP, sP)}`;
+    let o = `${modeTxt}   t = ${t.toFixed(3)}, a = ${aP}, s = ${sP}, ${snrBit}.   tier:${r.name}\n`;
     o += `x̂₀ is the exact posterior mean E[x₀ | x_t, t] over the ${refs.length}-template training distribution — top weight ${(wmax * 100).toFixed(0)}%, so the guess is ${wmax > 0.9 ? 'one template, with its texture recovered' : wmax < 0.45 ? 'their blurry average' : 'a blend of a few samples'}. `;
     o += `Predicting ${st.target === 'eps' ? 'ε' : st.target === 'v' ? 'v' : 'x₀'}: a fixed error costs ×${gain.toFixed(2)} in image space (loss ${fL(cur.loss)}, weight ${f3(cur.w)}). `;
     o += st.target === 'eps'

@@ -116,6 +116,16 @@ mount({
     const e = Float32Array.from(z, (x) => Math.exp(x - mx));
     const sum = e.reduce((a, b) => a + b, 0);
     const p = Float32Array.from(e, (x) => x / sum);
+    // The readout's Σexp is the sum of the exp strings the step labels print.
+    const mxS = mx.toFixed(3);
+    let expAcc = 0;
+    const eS = [];
+    for (let i = 0; i < z.length; i++) {
+      const expS = Math.exp(Number(z[i].toFixed(3)) - Number(mxS)).toFixed(3);
+      eS.push(expS);
+      expAcc += Number(expS);
+    }
+    const sumS = expAcc.toFixed(3);
     const maxAbsV = Math.max(1e-9, ...Array.from(v, Math.abs)), maxP = Math.max(...p);
     page.probe = { maxP, k: p.length };
 
@@ -152,16 +162,15 @@ mount({
       let tip = null;
       if (li >= 0) tip = `z[${li}] = ${v[li].toFixed(3)}\ndrag ↕ to change`;
       else if (pi >= 0) {
-        const zi = v[pi] / tau;
-        const denS = fmt(sum);
-        const quot = (Number(e[pi].toFixed(3)) / Number(denS)).toFixed(4);
-        tip = `p[${pi}] = exp(z[${pi}]/T − max) / Σexp\n= e^(${(zi - mx).toFixed(2)}) / ${denS}\n= ${e[pi].toFixed(3)} / ${denS} = ${quot}`;
+        const numS = eS[pi];
+        const quot = Number(sumS) > 0 ? (Number(numS) / Number(sumS)).toFixed(4) : null;
+        tip = `p[${pi}] = exp(z[${pi}]/T − max) / Σexp\n= ${numS} / ${sumS}${quot == null ? ' is not a finite number' : ' = ' + quot}`;
       }
       if (tip) page.setTip(tip);
     }
 
     const pSum = probUpto < 0 ? 0 : Array.from(p).slice(0, probUpto + 1).reduce((a, b) => a + b, 0);
-    let out = `softmax(z)ᵢ = exp(zᵢ/T) / Σⱼ exp(zⱼ/T)    T = ${tau.toFixed(1)}    argmax = z[${mi}]    Σexp = ${fmt(sum)}    tier:${r.name}\n`;
+    let out = `softmax(z)ᵢ = exp(zᵢ/T) / Σⱼ exp(zⱼ/T)    T = ${tau.toFixed(1)}    argmax = z[${mi}]    Σexp = ${sumS}    tier:${r.name}\n`;
     out += s ? `${s.label}\n` : '(drag logit bars ↕ to edit · press ▶ or scrub: max → exp → sum → normalize)\n';
     out += `Σ p (revealed) = ${fmt(pSum)}${probUpto === k - 1 ? '  →  1.0 ✓' : ''}`;
     page.setReadout(out);

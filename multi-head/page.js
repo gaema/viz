@@ -53,6 +53,25 @@ function recompute() {
   }
 }
 
+// The quotient and a fully printed output sum use the digits in the tip.
+function scoreBits(sc, sq) {
+  const scS = sc.toFixed(3), sqS = sq.toFixed(3);
+  const quot = Number(sqS) === 0 ? null : (Number(scS) / Number(sqS)).toFixed(3);
+  return { scS, sqS, quot };
+}
+function outBits(ws, vs, trueOut) {
+  const terms = [];
+  let acc = 0;
+  for (let j = 0; j < ws.length; j++) {
+    const wS = ws[j].toFixed(2), vS = vs[j].toFixed(2);
+    terms.push(wS + '·' + vS);
+    acc += Number(wS) * Number(vS);
+  }
+  const full = terms.length <= 3;
+  const shown = full ? terms.join(' + ') : terms.slice(0, 3).join(' + ') + ' + … (' + terms.length + ' terms)';
+  return { shown, result: full ? acc.toFixed(3) : trueOut.toFixed(3) };
+}
+
 function buildData(st) {
   const N = st.N, H = st.H, hd = st.hd, D = H * hd, seed = st.seed | 0;
   const Q = seededRandn(seed, [N, D]), K = seededRandn(seed + 1, [N, D]), V = seededRandn(seed + 2, [N, D]);
@@ -180,7 +199,8 @@ mount({
           if (mh && mh.c <= mh.r) {                       // visible (unmasked) cell
             const i = mh.r, j = mh.c, off = h * hd;
             const sc = heads[h].raw.data[i * N + j];
-            tip = `head ${h}: score[${i},${j}] = q${i}·k${j}/√d_head\n= ${sc.toFixed(3)} / ${sq.toFixed(3)} = ${(sc / sq).toFixed(3)}\nw[${i},${j}] = ${heads[h].W.data[i * N + j].toFixed(3)} (softmax share, slice [${off}:${off + hd}))`;
+            const sb = scoreBits(sc, sq);
+            tip = `head ${h}: score[${i},${j}] = q${i}·k${j}/√d_head\n= ${sb.scS} / ${sb.sqS} = ${sb.quot == null ? 'not a finite number' : sb.quot}\nw[${i},${j}] = ${heads[h].W.data[i * N + j].toFixed(3)} (softmax share, slice [${off}:${off + hd}))`;
           }
         }
         // concat output cell?
@@ -188,10 +208,10 @@ mount({
           const oh = outRect && cellAt(outRect, N, D, p.x, p.y);
           if (oh) {
             const i = oh.r, gc = oh.c, h = Math.floor(gc / hd), c = gc % hd, off = h * hd;
-            const terms = [];
-            for (let j = 0; j <= i; j++) terms.push(`${heads[h].W.data[i * N + j].toFixed(2)}·${V.data[j * D + off + c].toFixed(2)}`);
-            const shown = terms.length <= 3 ? terms.join(' + ') : terms.slice(0, 3).join(' + ') + ' + … (' + (i + 1) + ' terms)';
-            tip = `out[${i},${gc}] ← head ${h}, dim ${c}\n= Σⱼ wₕ[${i},j]·v[j,${off + c}]\n= ${shown}\n= ${output.data[i * D + gc].toFixed(3)}`;
+            const ws = [], vs = [];
+            for (let j = 0; j <= i; j++) { ws.push(heads[h].W.data[i * N + j]); vs.push(V.data[j * D + off + c]); }
+            const ob = outBits(ws, vs, output.data[i * D + gc]);
+            tip = `out[${i},${gc}] ← head ${h}, dim ${c}\n= Σⱼ wₕ[${i},j]·v[j,${off + c}]\n= ${ob.shown}\n= ${ob.result}`;
           }
         }
       }

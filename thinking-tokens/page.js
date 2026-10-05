@@ -117,6 +117,18 @@ function candFor(seed, b, k, tok, isBoundary, sp) {
 }
 
 // softmax over a stated candidate set, with the bias applied to the stop row
+function shownSum(x, bias) {
+  const xS = x.toFixed(2);
+  const bS = Math.abs(bias).toFixed(2);
+  const sum = (Number(xS) + (bias >= 0 ? 1 : -1) * Number(bS)).toFixed(2);
+  return { xS, bS, sum: sum === '-0.00' ? '0.00' : sum };
+}
+function boundaryWord(sl, al, bias) {
+  const sm = shownSum(sl, bias);
+  const altS = al.toFixed(2);
+  const word = sm.sum === altS ? 'TIE' : Number(sm.sum) > Number(altS) ? 'WINS' : 'LOSES';
+  return { ...sm, altS, word };
+}
 function pOfStop(cands, bias) {
   let mx = -Infinity;
   const ls = cands.map((c) => c.l + (c.stop ? bias : 0));
@@ -132,7 +144,7 @@ function pOfStop(cands, bias) {
 function buildSynth(st) {
   const bias = +st.bias, force = st.force | 0, inj = st.inj | 0, seed = st.seed | 0;
   const steps = [{ kind: 'open', tok: '<think>', L: 0, label: 'open the thinking span' }];
-  let L = 0, completed = 0, truncated = false, stopped = false, capped = false, why = '';
+  let L = 0, completed = 0, truncated = false, stopped = false, capped = false, why = '', tieStop = false;
   for (let b = 0; b < BLOCKS.length && !stopped; b++) {
     const B = BLOCKS[b];
     for (let k = 0; k < B.toks.length; k++) {
@@ -145,15 +157,20 @@ function buildSynth(st) {
     if (stopped) break;
     completed = b + 1;
     const emits = (B.stop.sl + bias) > B.stop.al;
+    const boundary = boundaryWord(B.stop.sl, B.stop.al, bias);
     if (b < inj) { /* an injected continuation: the decoder suppressed this boundary by hand */ }
-    else if (emits) { stopped = true; why = `natural: p(</think>) beat every alternative at the block-${b} boundary`; }
+    else if (emits) {
+      stopped = true;
+      if (boundary.word === 'TIE') { tieStop = true; why = `natural: the printed stop logit and the best alternative both read ${boundary.sum} at the block-${b} boundary, so neither is ahead`; }
+      else why = `natural: p(</think>) beat every alternative at the block-${b} boundary`;
+    }
     else if (b === BLOCKS.length - 1) { stopped = true; capped = true; why = 'suppressed to the end of the scripted trace (the stand-in runs out of blocks)'; }
     else { /* suppressed → the decoder appends the next "Wait" and keeps going */ }
   }
   const A = completed > 0 ? BLOCKS[completed - 1] : null;
-  steps.push({ kind: 'close', tok: '</think>', L, forced: truncated, label: truncated ? 'FORCED </think> at the budget' : 'the boundary token won — thinking ends' });
+  steps.push({ kind: 'close', tok: '</think>', L, forced: truncated, tie: tieStop, label: truncated ? 'FORCED </think> at the budget' : tieStop ? 'the printed logits match, so neither token is ahead' : 'the boundary token won — thinking ends' });
   for (const t of ['Answer', ':', A ? A.ans : '$?']) steps.push({ kind: 'answer', tok: t, L, ok: !!(A && A.ok), label: 'the answer span' });
-  cur = { steps, L, completed, truncated, capped, why, ok: !!(A && A.ok), ans: A ? A.ans : '$?',
+  cur = { steps, L, completed, truncated, capped, why, tieStop, ok: !!(A && A.ok), ans: A ? A.ans : '$?',
     note: A ? A.note : 'truncated before any block finished — no conclusion reached',
     boundary: '</think>', mode: 'synthetic' };
   return steps;
@@ -423,6 +440,7 @@ mount({
       const stopRow = cands.find((c) => c.stop) || cands[0];
       const altRow = cands.find((c) => !c.stop) || cands[0];
       const sl = stopRow.l, al = altRow.l;
+      const bw = boundaryWord(sl, al, bias);
       const raw = cands.map((c) => c.l);
       const hi = Math.max(...raw) + 2;
       const lo = Math.min(Math.min(...raw), hi - AXIS_SPAN) - 2;
@@ -452,7 +470,7 @@ mount({
       if (offScale) { ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText('◀ off-scale', ax + 2, yb - 6); }
       ctx.font = '10px ui-monospace, monospace'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
       ctx.fillStyle = clamped ? T.bad : T.violetDeep;
-      ctx.fillText(`${cur && cur.mode === 'real' ? 'boundary "' + String(stopRow.t) + '"' : '</think>'}  ${(sl + bias).toFixed(2)}`, ax + 2, yb + hb / 2);
+      ctx.fillText(`${cur && cur.mode === 'real' ? 'boundary "' + String(stopRow.t) + '"' : '</think>'}  ${bw.sum}`, ax + 2, yb + hb / 2);
       ctx.fillStyle = T.accent; ctx.fillText(`best alternative "${String(altRow.t)}"  ${al.toFixed(2)}`, ax + 2, yb + hb + 6 + hb / 2);
       ctx.textAlign = 'center'; ctx.fillStyle = T.n9;
       ctx.textAlign = 'left'; ctx.fillText('logit ' + lo.toFixed(0), ax, ay + ah + 22);
@@ -466,14 +484,14 @@ mount({
       const isReal = !!(cur && cur.mode === 'real');
       const pStop = isReal && rec && rec.pStop != null ? rec.pStop : S.p;
       const lines = [
-        `logit(stop) ${sl.toFixed(2)}  ${bias >= 0 ? '+' : '−'} ${Math.abs(bias).toFixed(2)} (bias) = ${(sl + bias).toFixed(2)}`,
-        `p(stop) = exp(${(sl + bias).toFixed(2)}) / Σ = ${(pStop * 100).toFixed(pStop < 0.001 ? 4 : 2)} %   ${isReal ? 'over vocab' : 'over 4 cands'}`,
-        (sl + bias) > al ? '→ the boundary token WINS: thinking ends here.' : '→ the boundary token LOSES: generation carries on.',
+        `logit(stop) ${bw.xS}  ${bias >= 0 ? '+' : '−'} ${bw.bS} (bias) = ${bw.sum}`,
+        `p(stop) = exp(${bw.sum}) / Σ = ${(pStop * 100).toFixed(pStop < 0.001 ? 4 : 2)} %   ${isReal ? 'over vocab' : 'over 4 cands'}`,
+        bw.word === 'WINS' ? '→ the boundary token WINS: thinking ends here.' : bw.word === 'LOSES' ? '→ the boundary token LOSES: generation carries on.' : '→ the two logits agree: neither token is ahead.',
         clamped ? 'clamped to −∞ — it can never win, at any step.' : '',
       ];
       ctx.save(); ctx.font = '10.5px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
       let ty = ay + ah + 32;
-      for (const L2 of lines) { if (!L2) continue; ctx.fillStyle = L2.startsWith('→') ? ((sl + bias) > al ? T.violetDeep : T.okDeep) : L2.startsWith('clamped') ? T.bad : T.n11; ctx.fillText(fit(ctx, L2, aw), ax, ty); ty += 14; }
+      for (const L2 of lines) { if (!L2) continue; ctx.fillStyle = L2.startsWith('→') ? (bw.word === 'WINS' ? T.violetDeep : bw.word === 'LOSES' ? T.okDeep : T.n13) : L2.startsWith('clamped') ? T.bad : T.n11; ctx.fillText(fit(ctx, L2, aw), ax, ty); ty += 14; }
       ctx.restore();
     }
 
@@ -619,19 +637,23 @@ function wrap(ctx, text, maxW, rows) {
 function tipFor(s, bias, isReal) {
   const nm = String(s.tok).replace(/\n/g, '⏎');
   if (s.kind === 'open') return `<think>\nEverything after this token is ordinary generation — no new block, no new attention, no new anything.`;
-  if (s.kind === 'close') return `${nm}\n${s.forced ? 'FORCED by the decoder at the budget — the model did not choose to stop here.' : 'the boundary token won this step, so thinking ended here.'}`;
+  if (s.kind === 'close') return `${nm}\n${s.forced ? 'FORCED by the decoder at the budget — the model did not choose to stop here.' : s.tie ? 'the printed logits match, so neither token is ahead.' : 'the boundary token won this step, so thinking ended here.'}`;
   if (s.kind === 'answer') return `${nm}\nthe answer span — decoded after the boundary, with the bias off.`;
   const cands = s.cands || [];
   const S = pOfStop(cands, bias);
   const lines = [`step ${s.L}  "${nm}"${s.injected ? '   ← INJECTED by the decoder' : ''}`, ''];
   for (let i = 0; i < cands.length; i++) {
-    const c = cands[i], l = c.l + (c.stop ? bias : 0);
-    lines.push(`${c.stop ? '»' : ' '} "${String(c.t)}"  logit ${c.l.toFixed(2)}${c.stop && bias ? ` ${bias < 0 ? '−' : '+'} ${Math.abs(bias).toFixed(2)}` : ''} → ${l.toFixed(2)}   share of these rows ${(S.ps[i] * 100).toFixed(2)} %`);
+    const c = cands[i];
+    const sm = c.stop ? shownSum(c.l, bias) : null;
+    const arrow = sm ? sm.sum : c.l.toFixed(2);
+    lines.push(`${c.stop ? '»' : ' '} "${String(c.t)}"  logit ${c.l.toFixed(2)}${c.stop && bias ? ` ${bias < 0 ? '−' : '+'} ${sm.bS}` : ''} → ${arrow}   share of these rows ${(S.ps[i] * 100).toFixed(2)} %`);
   }
   const pS = isReal && s.pStop != null ? s.pStop : S.p;
   lines.push('', isReal
     ? `p(stop) over all 50 257 tokens = ${(pS * 100).toFixed(pS < 0.001 ? 4 : 2)} %. The shares above cover only the rows listed.`
     : `p(stop) over these rows = ${(pS * 100).toFixed(pS < 0.001 ? 4 : 2)} %.`);
-  lines.push((cands.find((c) => c.stop) || {}).l + bias > ((cands.find((c) => !c.stop) || {}).l || 0) ? 'the boundary wins here' : 'the boundary loses here — generation continues');
+  const stopC = cands.find((c) => c.stop), altC = cands.find((c) => !c.stop);
+  const tipWord = stopC ? boundaryWord(stopC.l, altC ? altC.l : 0, bias).word : 'LOSES';
+  lines.push(tipWord === 'WINS' ? 'the boundary wins here' : tipWord === 'TIE' ? 'the two logits agree: neither token is ahead' : 'the boundary loses here — generation continues');
   return lines.join('\n');
 }
