@@ -513,7 +513,7 @@ mount({
           wires.push({
             x1: a.cx, y1: yMid, x2: b.cx, y2: yMid, lift, mid: { x: (a.cx + b.cx) / 2, y: yMid - lift * 0.55 },
             why: `ALL-TO-ALL ${isCombine ? 'combine' : 'dispatch'} · GPU ${a.i} → GPU ${b.i}\n` +
-              `${v.toFixed(1)} token-assignments × ${m.d} × ${BPE} B = ${fmtB(v * m.d * BPE)} per layer\n` +
+              `${v.toFixed(1)} token-assignments × ${m.d} × ${BPE} B = ${fmtB(Number(v.toFixed(1)) * m.d * BPE)} per layer\n` +
               `GPU ${s} holds ${m.toksOn[s]} of the ${m.B} tokens; ${(100 * m.pRank[dst]).toFixed(1)}% of routed\n` +
               `assignments want an expert that lives on GPU ${dst} (it holds ${m.expertsOn[dst]} of ${m.E}).\n` +
               `That percentage is the ROUTER's, not the topology's — skew the router and this\n` +

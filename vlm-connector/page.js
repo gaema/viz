@@ -45,6 +45,9 @@ const RES_MIN = 224, RES_MAX = 1792, RES_STEP = 32;
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const num = (n) => n.toLocaleString('en-US');
 const sci = (n) => (n >= 1e6 ? n.toExponential(2) : num(Math.round(n)));
+// seq² is printed in scientific notation once it crosses a million. The
+// percent uses that printed count: 1.02e+6 of a 4096² pass is 6.08, not 6.06.
+const parseCount = (s) => Number(String(s).replace(/,/g, ''));
 
 let im = null, imSeed = null;
 let imgRect = null, gridRect = null, outRect = null, railRect = null, barRect = null;
@@ -195,6 +198,10 @@ mount({
     const halfTok = tokensAt(halfRes, g.patch, st.conn, g.k, Math.round(+st.queries));
     const seqHalf = halfTok * nImg + nText;
     const attnNow = seq * seq, attnFull = ctxCap * ctxCap;
+    const attnShown = sci(attnNow);
+    const attnPct = (100 * parseCount(attnShown) / attnFull).toFixed(2);
+    const attnUnits = parseCount(attnShown);
+    const halfPct = attnUnits > 0 ? (100 * seqHalf * seqHalf / attnUnits).toFixed(1) : '0.0';
 
     r.clear(T.n0);
     const mono = (px) => `${px}px ui-monospace, monospace`;
@@ -491,7 +498,7 @@ mount({
       r.label(st.conn === 'resampler'
         ? 'halve the resolution and nothing moves — the connector sets the bill'
         : halfRes < +st.res
-          ? `${halfRes}px (half of ${+st.res}) → ${num(halfTok)} tok/image → attention ${(seqHalf * seqHalf / attnNow * 100).toFixed(1)}% of now`
+          ? `${halfRes}px (half of ${+st.res}) → ${num(halfTok)} tok/image → attention ${halfPct}% of now`
           : `${halfRes}px is the floor, not half of ${+st.res} → ${num(halfTok)} tok/image`,
       bx, ay + 12 + bars.length * 17 + 12, { color: T.n11, font: mono(9) });
     }
@@ -550,13 +557,13 @@ mount({
         : `tokens = ⌊${+st.res}/${g.patch}⌋² = ${num(g.gridN)}² = ${num(g.tokens)}  (a projector folds nothing, so the k slider does not apply)`;
     let o = `${CONN_LABEL[st.conn]} · ${eq}   tier:${r.name}\n`;
     o += `${num(g.tokens)} tokens/image × ${nImg} image${nImg === 1 ? '' : 's'} = ${num(imgTok)} image tokens + ${num(nText)} text = ${num(seq)} of ${num(ctxCap)} context (${pctSeq.toFixed(1)}%; the pictures alone eat ${pctCtx.toFixed(1)}%). `;
-    o += `Attention over the sequence costs seq² = ${sci(attnNow)} units = ${(attnNow / attnFull * 100).toFixed(2)}% of a full ${num(ctxCap)}-token pass. `;
+    o += `Attention over the sequence costs seq² = ${attnShown} units = ${attnPct}% of a full ${num(ctxCap)}-token pass. `;
     const halved = halfRes < +st.res;
     const at = `${halfRes}px`;
     o += st.conn === 'resampler'
-      ? `Dropping to ${at} changes nothing — still ${num(halfTok)} tokens/image, ${(seqHalf * seqHalf / attnNow * 100).toFixed(1)}% of the same work: the connector sets the bill, not the pixels.\n`
+      ? `Dropping to ${at} changes nothing — still ${num(halfTok)} tokens/image, ${halfPct}% of the same work: the connector sets the bill, not the pixels.\n`
       : halved
-        ? `Dropping to ${at} gives ${num(halfTok)} tokens/image and ${(seqHalf * seqHalf / attnNow * 100).toFixed(1)}% of that work — the cost moves with the SQUARE, twice over.\n`
+        ? `Dropping to ${at} gives ${num(halfTok)} tokens/image and ${halfPct}% of that work — the cost moves with the SQUARE, twice over.\n`
         : `Already at the ${at} floor, so there is no lower resolution to compare against here — raise the resolution to see the square-law bite.\n`;
     o += st.conn === 'projector'
       ? `A projector spends one token per patch, so resolution IS the token budget: there is no knob to turn but the picture size.`

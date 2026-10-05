@@ -400,12 +400,15 @@ mount({
       }
     }
 
-    const dSpan = A.m.span - B.m.span, dWait = A.m.avgWait - B.m.avgWait;
+    const dSpan = A.m.span - B.m.span;
+    const aw = A.m.avgWait.toFixed(1), bw = B.m.avgWait.toFixed(1);
+    const cutN = Number(aw) - Number(bw), cut = cutN.toFixed(1);
+    const waitBit = cutN > 0 ? `cuts average wait by ${cut} steps` : cutN < 0 ? `raises average wait by ${(-cutN).toFixed(1)} steps` : 'leaves average wait unchanged';
     let o = `same ${reqs.length} requests, same output lengths, same ${S} slots — only the admission policy differs.    tier:${r.name}\n`;
-    o += `STATIC     ${String(A.m.span).padStart(3)} steps to drain · ${(100 * A.m.util).toFixed(0)}% utilisation · ${A.m.dead} dead slot-steps (${A.m.idle} idle in all) · avg wait ${A.m.avgWait.toFixed(1)} · avg latency ${A.m.avgLat.toFixed(1)} · worst ${A.m.worst}\n`;
-    o += `CONTINUOUS ${String(B.m.span).padStart(3)} steps to drain · ${(100 * B.m.util).toFixed(0)}% utilisation · ${B.m.dead} dead slot-steps (${B.m.idle} idle in all) · avg wait ${B.m.avgWait.toFixed(1)} · avg latency ${B.m.avgLat.toFixed(1)} · worst ${B.m.worst}\n`;
+    o += `STATIC     ${String(A.m.span).padStart(3)} steps to drain · ${(100 * A.m.util).toFixed(0)}% utilisation · ${A.m.dead} dead slot-steps (${A.m.idle} idle in all) · avg wait ${aw} · avg latency ${A.m.avgLat.toFixed(1)} · worst ${A.m.worst}\n`;
+    o += `CONTINUOUS ${String(B.m.span).padStart(3)} steps to drain · ${(100 * B.m.util).toFixed(0)}% utilisation · ${B.m.dead} dead slot-steps (${B.m.idle} idle in all) · avg wait ${bw} · avg latency ${B.m.avgLat.toFixed(1)} · worst ${B.m.worst}\n`;
     o += dSpan > 0
-      ? `Continuous drains the queue ${dSpan} step(s) sooner (${(100 * B.m.span / A.m.span).toFixed(0)}% of the static makespan — lower is better) and cuts average wait by ${dWait.toFixed(1)} steps. `
+      ? `Continuous drains the queue ${dSpan} step(s) sooner (${(100 * B.m.span / A.m.span).toFixed(0)}% of the static makespan — lower is better) and ${waitBit}. `
       : 'With these lengths the two schedules coincide — spread the output lengths apart (drag a bar) and the static schedule starts padding. ';
     o += 'The win is throughput and queueing delay only: each sequence still needs exactly its own output length of decode steps, so a single request in an empty engine is not one token faster.';
     page.setReadout(o);

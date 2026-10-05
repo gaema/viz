@@ -185,7 +185,7 @@ function compute(st) {
   const vecAt = (buf) => buf.subarray(tok * d, tok * d + d);
   return {
     d, G, p, side, N, tok, cls, Z, patchOf, X, H1, A, X2, H2, MO, OUT, delta, attnRow,
-    tEmb, yEmb, c, mod, g1, b1, a1, g2, b2, a2,
+    tEmb, tProj, yEmb, c, mod, g1, b1, a1, g2, b2, a2,
     stages: { x: vecAt(X), h1: vecAt(H1), a: vecAt(A), x2: vecAt(X2), h2: vecAt(H2), m: vecAt(MO), out: vecAt(OUT) },
     maxDelta: trueMax(delta),
   };
@@ -212,6 +212,23 @@ function costs(N, d) {
            pCore: pAttn + pMlp, pAda, pTotal: pAttn + pMlp + pAda };
 }
 const fmtN = (v) => (v >= 1e12 ? (v / 1e12).toFixed(2) + ' T' : v >= 1e9 ? (v / 1e9).toFixed(2) + ' G' : v >= 1e6 ? (v / 1e6).toFixed(2) + ' M' : v >= 1e3 ? (v / 1e3).toFixed(1) + ' k' : String(Math.round(v)));
+// A percent beside two already-printed sizes is that pair of strings.
+// 277.27 M against 60.21 M is 461, which the unrounded ratio does not print.
+function parseN(s) {
+  const m = /^(-?[\d.]+)\s*(T|G|M|k)?$/.exec(String(s).trim());
+  if (!m) return NaN;
+  return Number(m[1]) * ({ T: 1e12, G: 1e9, M: 1e6, k: 1e3 }[m[2]] || 1);
+}
+function pctShown(part, whole, digits) {
+  const w = parseN(whole);
+  if (!(w > 0)) return '–';
+  return (100 * parseN(part) / w).toFixed(digits);
+}
+function pctOfParts(part, other, digits) {
+  const den = parseN(part) + parseN(other);
+  if (!(den > 0)) return '–';
+  return (100 * parseN(part) / den).toFixed(digits);
+}
 
 // ---------------------------------------------------------------------------
 // drawing helpers
@@ -452,19 +469,21 @@ mount({
     panel(ctx, PAD, r3y, cw3, r3h, 'the trade: patch size is the whole cost story');
     const dm = Math.round(st.dm), nCoarse = Math.max(1, Math.round(N / 4));
     const C = costs(N, dm), Ch = costs(N * 4, dm), Cl = costs(nCoarse, dm);
+    const totS = fmtN(C.total), hiS = fmtN(Ch.total), loS = fmtN(Cl.total);
+    const adaS = fmtN(C.ada), pAdaS = fmtN(C.pAda), pCoreS = fmtN(C.pCore);
     const lines = [
       [`N = (G/p)² = (${G}/${p})² = ${N} tokens`, T.n13],
       [`N² = ${fmtN(N * N)} attention pairs · 4·N²·d = ${fmtN(C.attn)} FLOP`, T.n12],
-      [`block @ d=${dm}: ${fmtN(C.total)} FLOP — its N² term is ${(C.quadShare * 100).toFixed(1)}% of that`, T.n12],
+      [`block @ d=${dm}: ${totS} FLOP — its N² term is ${(C.quadShare * 100).toFixed(1)}% of that`, T.n12],
       [`p → p/2:  N ×4 = ${N * 4},  N² term ×16 = ${fmtN(Ch.attn)},`, T.warnDeep],
-      [`          block ${fmtN(C.total)} → ${fmtN(Ch.total)} = ${(Ch.total / C.total * 100).toFixed(0)}% of here. Finer detail,`, T.warnDeep],
+      [`          block ${totS} → ${hiS} = ${pctShown(hiS, totS, 0)}% of here. Finer detail,`, T.warnDeep],
       [`          quadratically dearer. That is the whole dial.`, T.warnDeep],
-      [`p → 2p:  N = ${nCoarse}, block → ${fmtN(Cl.total)} = ${(Cl.total / C.total * 100).toFixed(0)}% of here`, T.n11],
+      [`p → 2p:  N = ${nCoarse}, block → ${loS} = ${pctShown(loS, totS, 0)}% of here`, T.n11],
       ['', T.n11],
-      [`adaLN is not free either: 6·d² + 6·d = ${fmtN(C.pAda)} params/block,`, T.n13],
-      [`vs attention + MLP 12·d² = ${fmtN(C.pCore)} — so adaLN is`, T.goldDeep],
-      [`${(C.pAda / C.pTotal * 100).toFixed(1)}% of the block's parameters. Its FLOPs are tiny`, T.goldDeep],
-      [`(${fmtN(C.ada)}, ${(C.ada / C.total * 100).toFixed(3)}% of the block): once per SAMPLE, not per token.`, T.n11],
+      [`adaLN is not free either: 6·d² + 6·d = ${pAdaS} params/block,`, T.n13],
+      [`vs attention + MLP 12·d² = ${pCoreS} — so adaLN is`, T.goldDeep],
+      [`${pctOfParts(pAdaS, pCoreS, 1)}% of the block's parameters. Its FLOPs are tiny`, T.goldDeep],
+      [`(${adaS}, ${pctShown(adaS, totS, 3)}% of the block): once per SAMPLE, not per token.`, T.n11],
     ];
     ctx.save(); ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     for (let k = 0; k < lines.length; k++) { ctx.fillStyle = lines[k][1]; ctx.fillText(lines[k][0], PAD + 9, r3y + 26 + k * 11.6); }
@@ -529,9 +548,18 @@ mount({
           const k = cellIdx(rr), stg = STAGES[rr.k], v = m.stages[stg.key][k];
           tip = `${stg.name}: ${stg.expr}\ncomponent ${k} of token ${tok} = ${v.toFixed(4)}\n‖vector‖ = ${norm2(m.stages[stg.key]).toFixed(3)}`;
         }
-        if (!tip && inR(R.cVec)) { const k = cellIdx(R.cVec); tip = `c[${k}] = ${m.c[k].toFixed(4)}\n= SiLU-projected t-embed[${k}] (${m.tEmb[k].toFixed(3)})\n  + ${st.cscale.toFixed(2)} × class-embed[${k}] (${m.yEmb[k].toFixed(3)})`; }
+        if (!tip && inR(R.cVec)) {
+          const k = cellIdx(R.cVec);
+          const tS = m.tProj[k].toFixed(3), yS = m.yEmb[k].toFixed(3), cs = st.cscale.toFixed(2);
+          const cS = (Number(tS) + Number(cs) * Number(yS)).toFixed(4);
+          tip = `c[${k}] = ${cS}\n= SiLU-projected t-embed[${k}] (${tS})\n  + ${cs} × class-embed[${k}] (${yS})`;
+        }
         if (!tip && inR(R.tEmb)) { const k = cellIdx(R.tEmb); tip = `t-embed[${k}] = ${m.tEmb[k].toFixed(4)}\nsinusoid of t = ${Math.round(st.t)} at frequency band ${k % (d / 2)}`; }
-        if (!tip && inR(R.yEmb)) { const k = cellIdx(R.yEmb); tip = `class-embed[${k}] × strength = ${(m.yEmb[k] * st.cscale).toFixed(4)}\nclass “${CLASSES[m.cls]}”, raw ${m.yEmb[k].toFixed(3)} × ${st.cscale.toFixed(2)}`; }
+        if (!tip && inR(R.yEmb)) {
+          const k = cellIdx(R.yEmb);
+          const yS = m.yEmb[k].toFixed(3), cs = st.cscale.toFixed(2);
+          tip = `class-embed[${k}] × strength = ${(Number(yS) * Number(cs)).toFixed(4)}\nclass “${CLASSES[m.cls]}”, raw ${yS} × ${cs}`;
+        }
         if (!tip && inR(R.tTrack)) tip = `timestep t = ${Math.round(st.t)}\ndrag ↔ — every modulation vector is a function of it`;
         if (!tip && inR(R.cTrack)) tip = `conditioning strength = ${st.cscale.toFixed(2)}\ndrag ↔ — scales the class embedding inside c`;
         if (!tip && inR(R.iTrack)) tip = `training progress = ${st.init.toFixed(2)}\ndrag ↔ to 0 for the adaLN-Zero initialisation`;
@@ -550,7 +578,7 @@ mount({
     o += zeroed
       ? `GATES ARE ZERO: out = x + 0·a + 0·m = x exactly. max‖out−in‖ over all ${N} tokens = ${m.maxDelta.toFixed(6)}. Every block is an identity at initialisation, so a 28-block DiT starts as a clean residual pass-through and each block learns its way in.\n`
       : `gates open: max‖out−in‖ over all ${N} tokens = ${m.maxDelta.toFixed(4)}. Drag "training progress" to 0 to watch this collapse to exactly 0.\n`;
-    o += `cost @ d_model=${dm}: N=${N}, N²=${fmtN(N * N)} attention pairs, ${fmtN(C.total)} FLOP/block — quadratic term ${(C.quadShare * 100).toFixed(1)}% of it; adaLN ${(C.pAda / C.pTotal * 100).toFixed(1)}% of the block's parameters.`;
+    o += `cost @ d_model=${dm}: N=${N}, N²=${fmtN(N * N)} attention pairs, ${totS} FLOP/block — quadratic term ${(C.quadShare * 100).toFixed(1)}% of it; adaLN ${pctOfParts(pAdaS, pCoreS, 1)}% of the block's parameters.`;
     page.setReadout(o);
   },
 

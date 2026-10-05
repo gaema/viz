@@ -90,6 +90,13 @@ const remedyAt = (k) => REMEDIES.find((r) => r.key === k) || REMEDIES[0];
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const pct = (v) => (100 * v).toFixed(1) + '%';
+// The × beside two printed percents is those two strings. 0.0% against 0.0%
+// is a tie, not a finite multiple.
+function massGap(mass, share) {
+  const pm = (100 * mass).toFixed(1), ps = (100 * share).toFixed(1);
+  if (!(Number(ps) > 0)) return { pm, ps, ratio: null };
+  return { pm, ps, ratio: (Number(pm) / Number(ps)).toFixed(1) };
+}
 const norm = (v) => { let s = 0; for (let i = 0; i < v.length; i++) s += v[i] * v[i]; return Math.sqrt(s); };
 
 // The whole subject of this page is an EXTRA TERM in the softmax denominator,
@@ -237,10 +244,16 @@ mount({
     {
       goal: 'Read the gap: find a view where the sinks hold at least 6× more attention mass than their share of the output.',
       hint: 'the base model, well into the sequence — attention piles up on position 0 while its value vector stays tiny.',
-      check: (api) => ({
-        solved: (api.probe.sinkMass ?? 0) >= 6 * (api.probe.sinkShare ?? 1),
-        detail: `mass ${pct(api.probe.sinkMass ?? 0)} vs output share ${pct(api.probe.sinkShare ?? 0)} — ratio ${((api.probe.sinkMass ?? 0) / Math.max(1e-9, api.probe.sinkShare ?? 0)).toFixed(1)}× (need ≥ 6×)`,
-      }),
+      check: (api) => {
+        const g = massGap(api.probe.sinkMass ?? 0, api.probe.sinkShare ?? 0);
+        const solved = g.ratio == null ? Number(g.pm) > 0 : Number(g.ratio) >= 6;
+        const detail = g.ratio == null
+          ? (Number(g.pm) === 0
+            ? `mass ${g.pm}% vs output share ${g.ps}% — tied (need ≥ 6×)`
+            : `mass ${g.pm}% vs output share ${g.ps}% — the share prints 0.0%, so the ratio is not a finite number (need ≥ 6×)`)
+          : `mass ${g.pm}% vs output share ${g.ps}% — ratio ${g.ratio}× (need ≥ 6×)`;
+        return { solved, detail };
+      },
     },
     {
       goal: 'Break it: with no remedy, delete the sinks and push the output drift past 40%.',
@@ -494,7 +507,12 @@ mount({
     // ---- the panel: the two numbers that disagree ------------------------
     const py = topY + availH + gateH + 6;
     const mass = del ? 0 : rec.agg.sinkMass, share = del ? 0 : rec.agg.sinkShare;
-    const ratio = share > 1e-9 ? mass / share : 0;
+    const gMass = massGap(mass, share);
+    const shareSub = del ? 'the mass moved onto the tokens above'
+      : gMass.pm === gMass.ps ? 'the two numbers agree'
+      : gMass.ratio == null ? 'share prints 0.0% — no finite ×'
+      : Number(gMass.ratio) > 1 ? `${gMass.ratio}× less than the mass`
+      : `${gMass.ratio}× the mass`;
     ctx.save();
     ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'left';
     const cardW = Math.min(230, (page.W - 2 * pad - 24) / 3);
@@ -513,8 +531,7 @@ mount({
     };
     card(0, `attention mass on the ${S} sink${S === 1 ? '' : 's'}`, pct(mass),
       del ? 'deleted — they are not there to hold any' : 'what the softmax hands them', 'warn');
-    card(1, 'their share of the output', pct(share),
-      del ? 'the mass moved onto the tokens above' : ratio >= 1.05 ? `${ratio.toFixed(1)}× less than the mass` : 'the two numbers agree', 'violet');
+    card(1, 'their share of the output', pct(share), shareSub, 'violet');
     card(2, 'cost of deleting the sinks', pct(rec.agg.drift), '‖o′ − o‖ / ‖o‖, averaged over heads', rec.agg.drift >= 0.25 ? 'bad' : 'ok');
     ctx.restore();
 
@@ -553,7 +570,12 @@ mount({
           lines.push(`weight a[${q}][${i}] = exp(${hd.logit[i].toFixed(2)} − max) / denom = ${view.a[i].toFixed(4)}   (${pct(view.a[i])})`);
           lines.push(`value norm ‖v_${i}‖ = ${vn[i].toFixed(3)}`);
           lines.push(`contribution a·‖v‖ = ${view.contrib[i].toFixed(4)}  →  ${pct(view.share[i])} of the output`);
-          if (isSink(i)) lines.push(`pinned: this slot is never evicted, and it is ${(view.a[i] / Math.max(1e-9, view.share[i])).toFixed(1)}× bigger in attention than in output`);
+          if (isSink(i)) {
+            const g = massGap(view.a[i], view.share[i]);
+            lines.push(g.ratio == null
+              ? `pinned: this slot is never evicted, and its output share prints ${g.ps}%, so the multiple is not a finite number`
+              : `pinned: this slot is never evicted, and it is ${g.ratio}× bigger in attention than in output`);
+          }
         }
         page.setTip(lines.join('\n'));
       }

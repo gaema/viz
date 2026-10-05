@@ -14,6 +14,14 @@ import { T, rgbaToken } from '../framework/theme.js';
 
 const GB = 1e9;
 const fmt = (b) => b >= GB ? (b / GB).toFixed(b < 10 * GB ? 2 : 1) + ' GB' : b >= 1e6 ? (b / 1e6).toFixed(0) + ' MB' : (b / 1e3).toFixed(0) + ' KB';
+// The equals sign adds the four strings already on the line. Formatting each
+// piece and then the raw sum can print 17.0 where those strings add to 17.1,
+// and a total that prints equal to the card is level with it, not over it.
+function parseBytes(s) {
+  const m = /^(-?[\d.]+)\s*(GB|MB|KB)$/.exec(String(s).trim());
+  if (!m) return NaN;
+  return Number(m[1]) * ({ GB: 1e9, MB: 1e6, KB: 1e3 }[m[2]]);
+}
 const MODELS = {
   'Llama-7B': { params: 6.7e9, L: 32, d: 4096, H: 32, KV: 32, V: 32000 },
   'Llama-13B': { params: 13e9, L: 40, d: 5120, H: 40, KV: 40, V: 32000 },
@@ -71,8 +79,12 @@ mount({
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx, st = page.state, W = page.W, H = page.H;
     r.clear(T.n0);
-    const v = calc(st), cap = (+st.gpu) * GB, oom = v.total > cap;
-    page.probe = { total: v.total, cap };
+    const v = calc(st), cap = (+st.gpu) * GB;
+    const wS = fmt(v.weights), kvS = fmt(v.kv), aS = fmt(v.act), oS = fmt(v.overhead);
+    const totalStr = fmt(Math.round(parseBytes(wS) + parseBytes(kvS) + parseBytes(aS) + parseBytes(oS)));
+    const pt = parseBytes(totalStr), over = pt > cap, under = pt < cap;
+    const kvP = parseBytes(kvS), wP = parseBytes(wS), kvOver = kvP > wP, kvUnder = kvP < wP;
+    page.probe = { total: pt, cap };
     const segs = [
       { k: 'weights', val: v.weights, col: T.accent, f: `params · ${QBYTES[st.wq]}B` },
       { k: 'KV cache', val: v.kv, col: T.warn, f: `2·L·(d/H·n_kv)·seq·batch·${QBYTES[st.kvq] || 2}B` },
@@ -82,17 +94,17 @@ mount({
 
     // ===== stacked VRAM bar vs capacity =====
     const bx = 20, by = 64, bw = W - 40, bh = 38, scaleMax = Math.max(v.total, cap) * 1.06, X = (b) => bx + b / scaleMax * bw;
-    r.label(`total ${fmt(v.total)}  /  ${st.gpu} GB GPU`, bx, by - 10, { color: T.n14, font: '12px ui-monospace, monospace' });
+    r.label(`total ${totalStr}  /  ${st.gpu} GB GPU`, bx, by - 10, { color: T.n14, font: '12px ui-monospace, monospace' });
     let acc = 0;
     ctx.save();
     for (const s of segs) { const x0 = X(acc), x1 = X(acc + s.val); ctx.fillStyle = s.col; ctx.fillRect(x0, by, Math.max(0, x1 - x0), bh); acc += s.val; }
     // capacity line
-    const capX = X(cap); ctx.strokeStyle = oom ? T.bad : T.n14; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(capX, by - 4); ctx.lineTo(capX, by + bh + 4); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = oom ? T.bad : T.n14; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(`${st.gpu} GB`, capX, by + bh + 14);
-    // OOM border pulse
-    if (oom) { const a = 0.4 + 0.4 * Math.sin((page.t || 0) * 4); ctx.strokeStyle = `rgba(209,36,47,${a})`; ctx.lineWidth = 2.5; ctx.strokeRect(bx - 1, by - 1, bw + 2, bh + 2); }
+    const capX = X(cap); ctx.strokeStyle = over ? T.bad : T.n14; ctx.lineWidth = 2; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(capX, by - 4); ctx.lineTo(capX, by + bh + 4); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = over ? T.bad : T.n14; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(`${st.gpu} GB`, capX, by + bh + 14);
+    // OOM border pulse — same comparison as the sentence, the printed total
+    if (over) { const a = 0.4 + 0.4 * Math.sin((page.t || 0) * 4); ctx.strokeStyle = `rgba(209,36,47,${a})`; ctx.lineWidth = 2.5; ctx.strokeRect(bx - 1, by - 1, bw + 2, bh + 2); }
     ctx.restore();
-    if (oom) r.label(`⚠ OOM by ${fmt(v.total - cap)}`, bx + bw - 150, by - 10, { color: T.bad, font: 'bold 12px ui-monospace, monospace' });
+    if (over) r.label(`⚠ OOM by ${fmt(pt - cap)}`, bx + bw - 150, by - 10, { color: T.bad, font: 'bold 12px ui-monospace, monospace' });
 
     // legend / numbers
     let lx = bx;
@@ -134,10 +146,10 @@ mount({
       `KV ${st.kvq}: ${fmt(v.kvPerTok)}/tok·batch`,
       `phase: ${st.mode}`,
       ``,
-      v.kv > v.weights ? 'KV cache > weights — context-bound' : 'weights dominate — model-bound',
-      oom ? `OOM: total ${fmt(v.total)} > ${st.gpu} GB` : `fits: ${fmt(cap - v.total)} free`,
+      kvOver ? 'KV cache > weights — context-bound' : kvUnder ? 'weights dominate — model-bound' : 'KV cache = weights',
+      over ? `OOM: total ${totalStr} > ${st.gpu} GB` : under ? `fits: ${fmt(cap - pt)} free` : `level with the card: total ${totalStr}`,
     ];
-    rows.forEach((t, i) => { if (t) r.label(t, px, py + 14 + i * 15, { color: i >= 7 ? (oom && i === 8 ? T.bad : (i === 7 ? (v.kv > v.weights ? T.warn : T.accent) : T.ok)) : T.n12, font: (i >= 7 ? 'bold ' : '') + '10px ui-monospace, monospace' }); });
+    rows.forEach((t, i) => { if (t) r.label(t, px, py + 14 + i * 15, { color: i >= 7 ? (over && i === 8 ? T.bad : (i === 7 ? (kvOver ? T.warn : kvUnder ? T.accent : T.n12) : (under ? T.ok : T.n12))) : T.n12, font: (i >= 7 ? 'bold ' : '') + '10px ui-monospace, monospace' }); });
 
     // hover on bar segments
     if (page.pointer.over && !dragSeq) {
@@ -146,7 +158,7 @@ mount({
     }
 
     let o = `VRAM = weights + KV cache + activations + overhead.  ${st.model}, ${st.wq} weights, ${st.kvq} KV, ctx ${v.seq} ×${v.B}, ${st.mode}.   tier:${r.name}\n`;
-    o += `weights ${fmt(v.weights)} + KV ${fmt(v.kv)} + act ${fmt(v.act)} + overhead ${fmt(v.overhead)} = ${fmt(v.total)} vs ${st.gpu} GB → ${oom ? 'OOM by ' + fmt(v.total - cap) : fmt(cap - v.total) + ' free'}. ${v.kv > v.weights ? 'KV cache now exceeds the weights — you are context-bound; GQA / KV-quant / shorter context help.' : 'Weights dominate; quantize them (int4) to fit a bigger model or longer context.'}`;
+    o += `weights ${wS} + KV ${kvS} + act ${aS} + overhead ${oS} = ${totalStr} vs ${st.gpu} GB → ${over ? 'OOM by ' + fmt(pt - cap) : under ? fmt(cap - pt) + ' free' : 'level with the card'}. ${kvOver ? 'KV cache now exceeds the weights — you are context-bound; GQA / KV-quant / shorter context help.' : kvUnder ? 'Weights dominate; quantize them (int4) to fit a bigger model or longer context.' : 'KV cache and the weights are the same size.'}`;
     page.setReadout(o);
   },
 }).then((page) => {

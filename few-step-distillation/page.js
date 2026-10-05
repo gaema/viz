@@ -229,6 +229,13 @@ function dupFraction(pts) {
 }
 function modesHit(pts) { const s = new Set(); for (const p of pts) s.add(nearestMode(p[0], p[1]).i); return s.size; }
 function meanOff(pts) { let s = 0; for (const p of pts) s += nearestMode(p[0], p[1]).d; return pts.length ? s / pts.length : 0; }
+// A percent printed beside two spread strings is those two strings. A printed
+// teacher spread of 0 has no finite percent.
+function pctPair(part, whole) {
+  const w = Number(whole);
+  if (!(w > 0)) return null;
+  return (100 * Number(part) / w).toFixed(1);
+}
 
 // ------------------------------------------------------------------- state ---
 let D = null;        // { sig, zs, ys } the distillation dataset
@@ -366,17 +373,30 @@ mount({
     {
       goal: 'Give the variety back: get the student\'s sample spread above 70% of the teacher\'s.',
       hint: 'the collapse is capacity, not step count — lower the distillation strength so each answer is a blend of fewer teacher endpoints, and watch the repeated swatches in the strip separate.',
-      check: (api) => ({ solved: (api.probe.spPct ?? 0) > 70, detail: `student spread = ${(api.probe.spPct ?? 0).toFixed(1)}% of the teacher's (need > 70%; lower = less variety)` }),
+      check: (api) => {
+        const p = api.probe.spPct;
+        const finite = p != null && isFinite(p);
+        return { solved: finite && p > 70, detail: finite ? `student spread = ${p.toFixed(1)}% of the teacher's (need > 70%; lower = less variety)` : `student spread is not a finite percent of the teacher's (need > 70%)` };
+      },
     },
     {
       goal: 'Show the collapse belongs to the MODEL, not the step count: keep spread under 25% of the teacher\'s while running 4 or more jumps.',
       hint: 'more jumps do move the number, in whichever direction the paired 1-jump control in the readout says — a re-noise puts randomness back and then the averaging is applied again. Raise the strength until the model swallows it either way. That is the point: a fixed model sampled coarsely is the diffusion-sampler page; here the model itself is what threw the variety away.',
-      check: (api) => ({ solved: (api.probe.K ?? 0) >= 4 && (api.probe.spPct ?? 999) < 25, detail: `${api.probe.K ?? 0} jumps, spread ${(api.probe.spPct ?? 0).toFixed(1)}% of the teacher's (need >= 4 jumps and < 25%)` }),
+      check: (api) => {
+        const p = api.probe.spPct;
+        const finite = p != null && isFinite(p);
+        return { solved: (api.probe.K ?? 0) >= 4 && finite && p < 25, detail: `${api.probe.K ?? 0} jumps, spread ${finite ? p.toFixed(1) + '%' : 'not a finite percent'} of the teacher's (need >= 4 jumps and < 25%)` };
+      },
     },
     {
       goal: 'Land a one-or-two-jump sample ON the data manifold: mean off-manifold distance under 0.05.',
       hint: 'that is what the adversarial / distribution-matching family is for — switch the training signal. Then read the diversity numbers again before deciding it was free.',
-      check: (api) => ({ solved: (api.probe.K ?? 9) <= 2 && (api.probe.offS ?? 9) < 0.05, detail: `${api.probe.K ?? 0} jumps, off-manifold ${(api.probe.offS ?? 0).toFixed(3)} (need <= 2 jumps and < 0.05); spread is ${(api.probe.spPct ?? 0).toFixed(1)}% of the teacher's` }),
+      check: (api) => {
+        const offS = Number((api.probe.offS ?? 9).toFixed(4));
+        const p = api.probe.spPct;
+        const finite = p != null && isFinite(p);
+        return { solved: (api.probe.K ?? 9) <= 2 && offS < 0.05, detail: `${api.probe.K ?? 0} jumps, off-manifold ${offS.toFixed(4)} (need <= 2 jumps and < 0.05); spread is ${finite ? p.toFixed(1) + '%' : 'not a finite percent'} of the teacher's` };
+      },
     },
   ],
   controls: (c, page) => {
@@ -601,13 +621,20 @@ mount({
       }
     }
     const my = sy + 2 * rowH + 22;
-    r.label(`spread ${m.spS.toFixed(3)} vs teacher ${m.spT.toFixed(3)} = ${m.spPct.toFixed(1)}% of the teacher's (lower = LESS variety)`
+    const spS3 = m.spS.toFixed(3), spT3 = m.spT.toFixed(3);
+    const spCanvas = pctPair(spS3, spT3);
+    const s4 = m.spS.toFixed(4), t4 = m.spT.toFixed(4);
+    const readPct = pctPair(s4, t4);
+    const canvasBit = spCanvas == null
+      ? `spread ${spS3} vs teacher ${spT3} — the teacher's printed spread is 0, so the percent is not a finite number`
+      : `spread ${spS3} vs teacher ${spT3} = ${spCanvas}% of the teacher's (lower = LESS variety)`;
+    r.label(canvasBit
       + `   ·   repeats ${(100 * m.dupS).toFixed(0)}% vs ${(100 * m.dupT).toFixed(0)}%   ·   modes ${m.modeS} vs ${m.modeT} of ${NSTRIP}`,
-      pad, my, { color: m.spPct < 60 ? T.bad : T.n12, font: '10.5px ui-monospace, monospace' });
+      pad, my, { color: spCanvas != null && Number(spCanvas) < 60 ? T.bad : T.n12, font: '10.5px ui-monospace, monospace' });
     r.label(`red outline = a near-identical twin elsewhere in the row (within ${DUP_EPS})   ·   swatch colour = the sample's position`,
       pad, my + 13, { color: T.n10, font: '9.5px ui-monospace, monospace' });
 
-    page.probe = { spPct: m.spPct, spS: m.spS, spT: m.spT, K, bw: st.bw, mode: st.mode, offS: m.offS, offT: m.offT, resid: m.resid, ess: m.ess, dupS: m.dupS, modeS: m.modeS };
+    page.probe = { spPct: readPct == null ? null : Number(readPct), spS: m.spS, spT: m.spT, K, bw: st.bw, mode: st.mode, offS: m.offS, offT: m.offT, resid: m.resid, ess: m.ess, dupS: m.dupS, modeS: m.modeS };
 
     // ---- hover: the arithmetic under the cursor -----------------------------
     if (page.pointer.over && !grab) {
@@ -663,14 +690,27 @@ mount({
     // ---- readout ------------------------------------------------------------
     let o = `${st.mode} student · ${K} jump${K === 1 ? '' : 's'} vs the ${TEACHER_REF}-step reference teacher · the drawn path uses ${N} steps · distillation strength ${st.bw.toFixed(2)} (kernel h₀ = ${U.bw.toFixed(3)}, h(t) = h₀·(σ(t)+0.06)) · ${NTRAIN} distilled pairs · seed ${st.seed}    tier:${r.name}\n`;
     o += `step ${si}/${N}  t=${tcur.toFixed(3)}  ${s ? s.label : ''}\n`;
-    o += `COST — sample spread ${m.spS.toFixed(4)} = ${m.spPct.toFixed(1)}% of the teacher's ${m.spT.toFixed(4)} (lower is worse here; 100% = teacher parity) · `
+    const costBit = readPct == null
+      ? `COST — sample spread ${s4}; the teacher's printed spread ${t4} is 0, so the percent is not a finite number`
+      : `COST — sample spread ${s4} = ${readPct}% of the teacher's ${t4} (lower is worse here; 100% = teacher parity)`;
+    o += costBit + ` · `
       + `${(100 * m.dupS).toFixed(0)}% of student samples have a near-identical twin vs ${(100 * m.dupT).toFixed(0)}% of the teacher's · `
       + `${m.modeS} of ${NSTRIP} distinct data modes reached vs the teacher's ${m.modeT}\n`;
     o += `WHY — each student answer is a weighted blend of ESS ${m.ess.toFixed(1)} of ${NTRAIN} teacher endpoints (ESS ${NTRAIN} = one answer for every input; ESS 1 = a copy of one training endpoint)\n`;
     o += `ACCURACY — mean |student − teacher| over the ${NSTRIP} swept seeds: ${m.resid.toFixed(4)} · off-manifold ${m.offS.toFixed(4)} vs the teacher's ${m.offT.toFixed(4)} (floor ≈ the data's own mode width ${MODE_SD.toFixed(2)})\n`;
+    const p1Shown = Number(t4) > 0 ? m.sp1Pct.toFixed(1) : null;
+    const offNow = m.offS.toFixed(4), offOne = m.off1.toFixed(4);
+    const spreadWord = p1Shown == null || readPct == null
+      ? 'could not compare'
+      : Number(readPct) > Number(p1Shown) ? 'RAISED'
+      : Number(readPct) < Number(p1Shown) ? 'LOWERED'
+      : 'left';
+    const offWord = Number(offNow) < Number(offOne) ? 'moved the output CLOSER to'
+      : Number(offNow) > Number(offOne) ? 'moved the output FURTHER from'
+      : 'left the output the same distance from';
     o += K === 1
       ? `JUMPS — this IS the one-jump run. Drag the K rail: the same fitted student is re-run at 1 jump as a paired control, so the two numbers below are measured side by side rather than argued.\n`
-      : `JUMPS — paired control, the SAME student and the same seeds at 1 jump: spread ${m.sp1Pct.toFixed(1)}% of the teacher's and off-manifold ${m.off1.toFixed(4)}; at ${K} jumps, ${m.spPct.toFixed(1)}% and ${m.offS.toFixed(4)}. So going to ${K} jumps ${m.spPct > m.sp1Pct ? 'RAISED' : m.spPct < m.sp1Pct ? 'LOWERED' : 'left'} the spread and ${m.offS < m.off1 ? 'moved the output CLOSER to' : m.offS > m.off1 ? 'moved the output FURTHER from' : 'left the output the same distance from'} the manifold. Each extra jump re-noises before jumping again, which puts randomness back AND re-applies the averaging; which of the two wins is not a slogan, it is the pair of numbers above, and it changes with the strength.\n`;
+      : `JUMPS — paired control, the SAME student and the same seeds at 1 jump: spread ${p1Shown == null ? 'no finite percent' : p1Shown + '%'} of the teacher's and off-manifold ${offOne}; at ${K} jumps, ${readPct == null ? 'no finite percent' : readPct + '%'} and ${offNow}. So going to ${K} jumps ${spreadWord} the spread and ${offWord} the manifold. Each extra jump re-noises before jumping again, which puts randomness back AND re-applies the averaging; which of the two wins is not a slogan, it is the pair of numbers above, and it changes with the strength.\n`;
     o += st.mode === 'adversarial'
       ? `The manifold term pulls each raw output ${(100 * ADV_PULL).toFixed(0)}% of the way to the nearest data mode — the stand-in for a discriminator (ADD) or a distribution-matching loss (DMD2). It is aimed at off-manifold error, which the number above prices directly; whether it also moves the spread is measured, not claimed — switch the training signal back and compare the percent.`
       : `Self-consistency alone is a REGRESSION onto teacher endpoints, and a regression under capacity pressure averages. That averaging is the whole cost: read the spread percent, then move the strength rail and read it again.`;

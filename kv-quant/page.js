@@ -47,6 +47,30 @@ const VLIM = 3.2;        // drag clamp
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const fmtB = (b) => (b >= GiB ? (b / GiB).toFixed(2) + ' GiB' : (b / 1048576).toFixed(1) + ' MiB');
 const fmtTok = (n) => (n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : Math.round(n) + '');
+function parseTok(s) {
+  const m = /^([\d.]+)(k)?$/.exec(String(s).trim());
+  return m ? Number(m[1]) * (m[2] ? 1000 : 1) : NaN;
+}
+function gainShown(now, fp) {
+  const nS = fmtTok(now), fS = fmtTok(fp);
+  const pn = parseTok(nS), pf = parseTok(fS);
+  return { nS, fS, gain: pf > 0 ? (pn / pf).toFixed(2) : null };
+}
+// A scale, an error, and an axis ratio use the digits already printed beside them.
+function scaleShown(lo, hi, levels) {
+  const loS = lo.toFixed(3), hiS = hi.toFixed(3);
+  return { loS, hiS, sS: ((Number(hiS) - Number(loS)) / levels).toFixed(4) };
+}
+function errShown(x, xp) {
+  const xS = x.toFixed(4), pS = xp.toFixed(4);
+  return { xS, pS, eS: (Number(xS) - Number(pS)).toFixed(4) };
+}
+function axisShown(tok, ch) {
+  const tokS = tok.toFixed(4), chS = ch.toFixed(4);
+  if (tokS === chS) return { tokS, chS, winner: 'tie', ratio: null };
+  const hi = Math.max(Number(tokS), Number(chS)), lo = Math.min(Number(tokS), Number(chS));
+  return { tokS, chS, winner: Number(tokS) < Number(chS) ? 'per-token' : 'per-channel', ratio: lo > 0 ? (hi / lo).toFixed(2) : null };
+}
 
 // ---- the cache slice --------------------------------------------------------
 // K carries its large values in a CHANNEL-aligned band (a few channels are big
@@ -128,17 +152,27 @@ mount({
       goal: 'Show that the axis matters: find a setting where one grouping axis has at least 1.5× the error of the other.',
       hint: 'K hides a channel-aligned band and V a token-aligned one — pick a tensor, then flip the axis. Smaller groups blunt the difference.',
       check: (api) => {
-        const a = api.probe.rTok ?? 0, b = api.probe.rCh ?? 0, hi = Math.max(a, b), lo = Math.min(a, b) || 1e-9;
-        return { solved: hi / lo >= 1.5, detail: `per-token RMSE ${a.toFixed(4)} vs per-channel ${b.toFixed(4)} → ${(hi / lo).toFixed(2)}× (need ≥ 1.5×)` };
+        const ax = axisShown(api.probe.rTok ?? 0, api.probe.rCh ?? 0);
+        const solved = ax.ratio != null && Number(ax.ratio) >= 1.5;
+        const detail = ax.winner === 'tie'
+          ? `per-token RMSE ${ax.tokS} vs per-channel ${ax.chS} — tied (need ≥ 1.5×)`
+          : ax.ratio == null
+            ? `per-token RMSE ${ax.tokS} vs per-channel ${ax.chS} — no finite ratio (need ≥ 1.5×)`
+            : `per-token RMSE ${ax.tokS} vs per-channel ${ax.chS} → ${ax.ratio}× (need ≥ 1.5×)`;
+        return { solved, detail };
       },
     },
     {
       goal: 'Reach 3× more context than fp16 KV in the same memory budget, with RMSE under 0.08.',
       hint: 'fewer bits buys context; a bigger group cuts the scale overhead but raises the error.',
-      check: (api) => ({
-        solved: (api.probe.ctxGain ?? 0) >= 3 && (api.probe.rmse ?? 1) < 0.08,
-        detail: `${(api.probe.ctxGain ?? 0).toFixed(2)}× the fp16 context, RMSE ${(api.probe.rmse ?? 1).toFixed(4)}`,
-      }),
+      check: (api) => {
+        const g = api.probe.ctxGain;
+        const finite = g != null && isFinite(g);
+        return {
+          solved: finite && g >= 3 && (api.probe.rmse ?? 1) < 0.08,
+          detail: `${finite ? Number(g).toFixed(2) + '× the fp16 context' : 'no finite multiple of the fp16 context'}, RMSE ${(api.probe.rmse ?? 1).toFixed(4)}`,
+        };
+      },
     },
   ],
   controls: (c, page) => {
@@ -323,9 +357,10 @@ mount({
     }
     const dx0 = bx0 + bits * (bw + 3) + 16;
     if (m) {
-      r.label(`x  = ${xv.toFixed(4)}   (${tn}[chan ${sel.r}][token ${sel.c}], fp16)`, dx0, y2 + 9, { color: T.n14, font: mono(10) });
-      r.label(`group ${m.tag}:  min ${m.lo.toFixed(3)}  max ${m.hi.toFixed(3)}  →  s = (max−min)/${levels} = ${m.s.toFixed(4)}   z = ${m.z}`, dx0, y2 + 23, { color: T.violet, font: mono(10) });
-      r.label(`q  = clamp(round((x−min)/s), 0, ${levels}) = ${code}   →   x′ = min + s·q = ${rec.toFixed(4)}   err = ${(xv - rec).toFixed(4)}`, dx0, y2 + 37, { color: T.n12, font: mono(10) });
+      const sc = scaleShown(m.lo, m.hi, levels), er = errShown(xv, rec);
+      r.label(`x  = ${er.xS}   (${tn}[chan ${sel.r}][token ${sel.c}], fp16)`, dx0, y2 + 9, { color: T.n14, font: mono(10) });
+      r.label(`group ${m.tag}:  min ${sc.loS}  max ${sc.hiS}  →  s = (max−min)/${levels} = ${sc.sS}   z = ${m.z}`, dx0, y2 + 23, { color: T.violet, font: mono(10) });
+      r.label(`q  = clamp(round((x−min)/s), 0, ${levels}) = ${code}   →   x′ = min + s·q = ${er.pS}   err = ${er.eS}`, dx0, y2 + 37, { color: T.n12, font: mono(10) });
     }
 
     // ===================== row 3: memory + tradeoff ==========================
@@ -339,7 +374,7 @@ mount({
     const wBytes = PARAMS * W_BITS / 8;
     const budget = st.budget * GiB, kvBudget = Math.max(0, budget - wBytes);
     const ctxAt = (eb) => kvBudget / bytesPerTok(eb);
-    const ctxFp16 = ctxAt(16), ctxNow = ctxAt(effAt(bits)), ctxGain = ctxNow / ctxFp16;
+    const ctxFp16 = ctxAt(16), ctxNow = ctxAt(effAt(bits)), mem = gainShown(ctxNow, ctxFp16);
     const crossover = wBytes / bytesPerTok(16);
 
     const y3 = y2 + 62, leftW = Math.min(430, W * 0.42);
@@ -403,8 +438,9 @@ mount({
     r.label('per-token', tx + 48, ty + 15, { color: T.accent, font: mono(9) });
     r.label('per-chan', tx + 108, ty + 15, { color: T.warn, font: mono(9) });
     const cellTxt = (v, best) => ({ txt: v.toFixed(4), col: best ? T.ok : T.n12 });
-    const kRow = [cellTxt(rTokK, rTokK <= rChK), cellTxt(rChK, rChK < rTokK)];
-    const vRow = [cellTxt(rTokV, rTokV <= rChV), cellTxt(rChV, rChV < rTokV)];
+    const kAx = axisShown(rTokK, rChK), vAx = axisShown(rTokV, rChV);
+    const kRow = [cellTxt(rTokK, kAx.winner === 'per-token'), cellTxt(rChK, kAx.winner === 'per-channel')];
+    const vRow = [cellTxt(rTokV, vAx.winner === 'per-token'), cellTxt(rChV, vAx.winner === 'per-channel')];
     r.label('K', tx, ty + 31, { color: T.n13, font: mono(9) });
     r.label(kRow[0].txt, tx + 48, ty + 31, { color: kRow[0].col, font: mono(9) });
     r.label(kRow[1].txt, tx + 108, ty + 31, { color: kRow[1].col, font: mono(9) });
@@ -414,7 +450,7 @@ mount({
     r.label('green = the better axis', tx, ty + 62, { color: T.n10, font: mono(8) });
     r.label('for THIS slice', tx, ty + 74, { color: T.n10, font: mono(8) });
 
-    page.probe = { rmse: Q.rmse, rTok: tn === 'K' ? rTokK : rTokV, rCh: tn === 'K' ? rChK : rChV, ctxGain, t, N };
+    page.probe = { rmse: Q.rmse, rTok: tn === 'K' ? rTokK : rTokV, rCh: tn === 'K' ? rChK : rChV, ctxGain: mem.gain == null ? null : Number(mem.gain), t, N };
 
     // ---- hover: the full derivation ----------------------------------------
     if (page.pointer.over && !dragCell) {
@@ -424,13 +460,14 @@ mount({
         const i = h.r * N + h.c, g = Q.gid[i];
         if (g >= 0) {
           const gm = Q.meta[g];
+          const sc = scaleShown(gm.lo, gm.hi, levels), er = errShown(X[i], Q.deq[i]);
           page.setTip(
             `${tn}[chan ${h.r}][token ${h.c}]\n` +
-            `x  = ${X[i].toFixed(4)}  (fp16)\n` +
+            `x  = ${er.xS}  (fp16)\n` +
             `group: ${gm.tag}  (${gm.n} elem share one scale)\n` +
-            `min ${gm.lo.toFixed(3)}  max ${gm.hi.toFixed(3)}  s = ${gm.s.toFixed(4)}  z = ${gm.z}\n` +
+            `min ${sc.loS}  max ${sc.hiS}  s = ${sc.sS}  z = ${gm.z}\n` +
             `q  = ${Q.q[i]} of 0..${levels}  = 0b${Q.q[i].toString(2).padStart(bits, '0')}\n` +
-            `x′ = ${Q.deq[i].toFixed(4)}   err = ${(X[i] - Q.deq[i]).toFixed(4)}\n` +
+            `x′ = ${er.pS}   err = ${er.eS}\n` +
             `click + drag ↕ to change x`);
         } else {
           page.setTip(`${tn}[chan ${h.r}][token ${h.c}] — not written yet (decode step ${h.c})`);
@@ -439,15 +476,20 @@ mount({
     }
 
     // ---- readout ------------------------------------------------------------
-    const better = tn === 'K' ? (rTokK <= rChK ? 'per-token' : 'per-channel') : (rTokV <= rChV ? 'per-token' : 'per-channel');
-    const ratio = tn === 'K' ? Math.max(rTokK, rChK) / Math.max(1e-9, Math.min(rTokK, rChK)) : Math.max(rTokV, rChV) / Math.max(1e-9, Math.min(rTokV, rChV));
+    const ax = tn === 'K' ? kAx : vAx;
+    const axisLine = ax.winner === 'tie'
+      ? `axis: per-token and per-channel tie at ${ax.tokS} on ${tn}. `
+      : ax.ratio == null
+        ? `axis: ${ax.winner} is the lower error on ${tn}; the other prints 0.0000, so the ratio is not a finite number. `
+        : `axis: ${ax.winner} wins here by ${ax.ratio}× on ${tn} — the large values in this slice line up with that axis, so a group cut along it spans a narrow range and its scale stays small. `;
     let o = `${s ? s.label : `cache full: ${N} of ${N} slots`}    tier:${r.name}\n`;
     o += `${tn} cache, ${bits}-bit, groups of ${G} ${axis === 'token' ? 'channels within one token' : 'tokens within one channel'}: `;
     o += `s=(max−min)/${levels}, z=round(−min/s), q=clamp(round((x−min)/s),0,${levels}), x′=min+s·q.  `;
     o += `RMSE ${Q.rmse.toFixed(4)}, max|err| ${Q.maxE.toFixed(4)} over ${Q.nElem} live elements in ${Q.nGroups} groups → ${effActual.toFixed(2)} effective bits/element on this slice.\n`;
-    o += `axis: ${better} wins here by ${ratio.toFixed(2)}× on ${tn} — the large values in this slice line up with that axis, so a group cut along it spans a narrow range and its scale stays small. `;
-    o += `Cut across it and one large value stretches its group's scale and coarsens every neighbour sharing it (drag one to see it happen).\n`;
-    o += `memory: ${st.budget} GiB budget − ${fmtB(wBytes)} weights = ${fmtB(kvBudget)} for KV → ${fmtTok(ctxNow)} tokens at ${effAt(bits).toFixed(2)} eff. bits vs ${fmtTok(ctxFp16)} at fp16 = ${(ctxGain).toFixed(2)}× the context. `;
+    o += axisLine;
+    if (ax.winner !== 'tie') o += `Cut across it and one large value stretches its group's scale and coarsens every neighbour sharing it (drag one to see it happen).\n`;
+    else o += '\n';
+    o += `memory: ${st.budget} GiB budget − ${fmtB(wBytes)} weights = ${fmtB(kvBudget)} for KV → ${mem.nS} tokens at ${effAt(bits).toFixed(2)} eff. bits vs ${mem.fS} at fp16 = ${mem.gain == null ? 'no finite multiple of the fp16 context' : mem.gain + '× the context'}. `;
     o += `Weight quant (see the quantization page) buys model SIZE once; this buys CONTEXT, every token, for as long as the conversation runs.`;
     page.setReadout(o);
   },

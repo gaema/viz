@@ -153,7 +153,9 @@ mount({
       if (li >= 0) tip = `z[${li}] = ${v[li].toFixed(3)}\ndrag ↕ to change`;
       else if (pi >= 0) {
         const zi = v[pi] / tau;
-        tip = `p[${pi}] = exp(z[${pi}]/T − max) / Σexp\n= e^(${(zi - mx).toFixed(2)}) / ${fmt(sum)}\n= ${e[pi].toFixed(3)} / ${fmt(sum)} = ${p[pi].toFixed(4)}`;
+        const denS = fmt(sum);
+        const quot = (Number(e[pi].toFixed(3)) / Number(denS)).toFixed(4);
+        tip = `p[${pi}] = exp(z[${pi}]/T − max) / Σexp\n= e^(${(zi - mx).toFixed(2)}) / ${denS}\n= ${e[pi].toFixed(3)} / ${denS} = ${quot}`;
       }
       if (tip) page.setTip(tip);
     }
