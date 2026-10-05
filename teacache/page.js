@@ -7,7 +7,7 @@ const RESIDUALS = [0.1, 0.4, 0.2, 0.8];
 mount({
   mount: 'body',
   title: 'step cache — skip a small residual',
-  blurb: 'A sampler step whose residual is under the threshold is skipped, and the drift is the residual that was not applied. A higher threshold skips more and the drift rises. One skipped step is a much larger share of a four-step schedule than of a forty-step one.',
+  blurb: 'A sampler step whose residual is under the threshold is skipped, and the drift is the sum of the residuals that were not applied. Between residuals the skip count stays put. It rises, and the drift rises with it, when the threshold passes the next residual. One skipped step is a much larger share of a four-step schedule than of a forty-step one.',
   prefer: 'canvas2d',
   aspect: '2 / 1',
   controls: (c) => {

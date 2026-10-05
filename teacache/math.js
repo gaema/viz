@@ -1,7 +1,8 @@
 // TeaCache skips a sampler step whose residual magnitude is under the
 // threshold. The drift is the sum of the residuals that were not applied.
-// A higher threshold skips more, so the drift rises. The same skipped count
-// is a larger share of a few-step schedule than of a long one.
+// Between residuals the skip count stays put. It rises, and the drift rises
+// with it, when the threshold passes the next residual. The same skipped
+// count is a larger share of a few-step schedule than of a long one.
 
 export function skipped(residuals, threshold) {
   return residuals.filter((r) => Math.abs(r) < threshold);

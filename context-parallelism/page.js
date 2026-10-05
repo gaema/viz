@@ -28,14 +28,14 @@
 // point. That is the very thing the batch-invariance card in this family
 // exists to teach.
 //
-// WHY IT FLIPS BY PHASE. Pass-KV's payload is the resident KV shard: it scales
-// with how much context the device holds and not at all with how many queries
-// are in flight. Pass-Q's payload scales with the queries. During prefill a
-// device has a whole prompt shard of queries live at once, so pass-Q's payload
-// is enormous and pass-KV wins. During decode there is one query token per
-// sequence and the KV cache is the biggest object in the system, so pass-Q's
-// payload is tiny and it wins by orders of magnitude. The two cost curves
-// therefore CROSS, and the crossing is what this page draws.
+// WHEN THE PHASE FLIPS. While the KV shard is re-sent every step, pass-KV is
+// flat in the live query count and pass-Q is linear in it, so the curves
+// cross. For every head count this page allows, a full prefill shard sits to
+// the right of that crossing and pass-KV wins prefill. Decode sits to the
+// left, and pass-Q wins, only while its batch is smaller than the crossing.
+// A large batch on a short shard is on the same side as prefill. Persisting
+// the shards makes both costs linear in the query count: the curves never
+// cross, and pass-KV wins at every q.
 //
 // Every byte figure on screen is computed live from the head counts, sequence
 // length, device count and phase the reader sets -- nothing is a stored
@@ -124,6 +124,18 @@ function fmtB(n) {
   return Math.round(n) + ' B';
 }
 const fmtN = (n) => Math.round(n).toLocaleString('en-US');
+// Enough decimals that a printed crossing stays on the true side of every
+// query count this sentence also prints. Rounding 25.98 to 26 puts it on top
+// of a decode batch that is actually to the right.
+function fmtStar(cross, qs) {
+  for (let d = 0; d <= 4; d++) {
+    const s = d === 0 ? String(Math.round(cross)) : cross.toFixed(d);
+    const n = Number(s);
+    const ok = qs.every((q) => (q < cross ? n > q : q > cross ? n < q : n === q));
+    if (ok) return d === 0 ? fmtN(cross) : s;
+  }
+  return cross.toFixed(4);
+}
 function fmtTok(n) {
   if (n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(n % (1024 * 1024) ? 2 : 0) + 'M';
   if (n >= 1024) return (n / 1024).toFixed(n % 1024 ? 1 : 0) + 'K';
@@ -132,9 +144,26 @@ function fmtTok(n) {
 // Percent with the direction spelled out, because a bare ratio on a
 // lower-is-better axis reads equally well as "better" and "worse".
 function pctPhrase(pct) {
-  if (pct < 100) return `${pct < 0.01 ? pct.toFixed(4) : pct < 1 ? pct.toFixed(3) : pct.toFixed(1)}% of pass-KV's bytes — ${(100 / pct).toFixed(pct < 1 ? 0 : 1)}x LESS traffic`;
-  if (pct > 100) return `${pct.toFixed(1)}% of pass-KV's bytes — ${(pct / 100).toFixed(2)}x MORE traffic`;
-  return '100% of pass-KV\'s bytes — exact parity';
+  // The multiplier is parsed back from the percent this phrase prints, and it
+  // gains decimals until that printed factor is on the same side of 1 as the
+  // bytes. A rounded 1.00x is not "more".
+  if (pct === 100) return `100% of pass-KV's bytes — exact parity`;
+  let dec = pct < 0.01 ? 4 : pct < 1 ? 3 : 1;
+  let shown = pct.toFixed(dec);
+  while (Number(shown) === 100 && dec < 6) shown = pct.toFixed(++dec);
+  const p = Number(shown);
+  if (p < 100) {
+    const raw = 100 / p;
+    let td = p < 1 ? 0 : 1;
+    let times = raw.toFixed(td);
+    while (Number(times) <= 1 && td < 6) times = raw.toFixed(++td);
+    return `${shown}% of pass-KV's bytes — ${times}x LESS traffic`;
+  }
+  const raw = p / 100;
+  let td = 2;
+  let times = raw.toFixed(td);
+  while (Number(times) <= 1 && td < 6) times = raw.toFixed(++td);
+  return `${shown}% of pass-KV's bytes — ${times}x MORE traffic`;
 }
 
 // Divisors of Hq, so a dragged grouping lands on an equal-sized group.
@@ -178,7 +207,7 @@ function setOpTo(page, q) {
 mount({
   mount: 'body',
   title: 'context-parallelism — pass the KV, or pass the queries?',
-  blurb: 'The sequence is already sharded across devices and attention is already computed by rotating blocks around a ring (that mechanism is the ring-attention page). This page is the serving decision left over: for every (query, key) pair to meet, exactly one operand must travel. Pass-KV circulates keys and values and keeps queries put; pass-Q circulates queries against resident KV. Both compute the same attention output — only the traffic differs. Drag the sequence length, device count and head counts and watch the two byte-per-hop curves CROSS: pass-KV is flat in the number of live queries, pass-Q is linear in it, so prefill and decode land on opposite sides of the crossing. Drag the ✕ itself to re-solve the crossing for a KV-head grouping.',
+  blurb: 'The sequence is already sharded across devices and attention is already computed by rotating blocks around a ring (that mechanism is the ring-attention page). This page is the serving decision left over: for every (query, key) pair to meet, exactly one operand must travel. Pass-KV circulates keys and values and keeps queries put; pass-Q circulates queries against resident KV. Both compute the same attention output — only the traffic differs. While the KV shard is re-sent every step, pass-KV is flat in the live query count and pass-Q is linear in it, so the curves cross. Prefill lands on the pass-KV side at every setting. Decode lands on the pass-Q side only while its batch is left of the crossing. Persisted shards never cross, and pass-KV wins at every q. Drag the ✕ itself to re-solve the crossing for a KV-head grouping.',
   prefer: 'canvas2d',
   aspect: '16 / 10',
   autoplay: true,
@@ -453,13 +482,29 @@ mount({
     }
 
     // ------------------------------------------------------------- readout
+    const qPrint = fmtB(m.bQ), kvPrint = fmtB(m.bKV);
     const cheaper = m.winner, dearer = m.winner === 'pass-Q' ? 'pass-KV' : 'pass-Q';
     const lo = Math.min(m.bQ, m.bKV), hi = Math.max(m.bQ, m.bKV);
     let o = `phase=${st.phase}  q=${fmtN(m.qOp)} query tokens/device  ·  ${fmtN(m.shard)} tokens of context/device  ·  H_q=${m.Hq} H_kv=${m.Hkv}  ·  ${m.P} devices  ·  tier:${r.name}\n`;
-    o += `WINNER: ${cheaper} — ${fmtB(lo)}/hop vs ${dearer} ${fmtB(hi)}/hop. pass-Q moves ${pctPhrase(m.pctQofKV)}.\n`;
-    o += m.cross != null
-      ? `Crossing at q* = ${fmtN(m.cross)} query tokens/device: left of it pass-Q is cheaper, right of it pass-KV is. Prefill puts q at the full shard (${fmtN(m.shard)}); decode puts it at ${fmtN(st.phase === 'decode' ? m.qOp : Math.max(1, st.batch | 0))} — opposite sides, which is why a real system picks per phase.\n`
-      : `KV shards persist, so only the newly produced K,V moves: both costs are linear in q, the curves never cross, and ${cheaper} wins at every q. Persisting the shards is exactly how a system removes the phase flip.\n`;
+    o += qPrint === kvPrint
+      ? `Printed size matches: pass-Q and pass-KV both ${qPrint}/hop. pass-Q moves ${pctPhrase(m.pctQofKV)}.\n`
+      : `WINNER: ${cheaper} — ${fmtB(lo)}/hop vs ${dearer} ${fmtB(hi)}/hop. pass-Q moves ${pctPhrase(m.pctQofKV)}.\n`;
+    if (m.cross != null) {
+      const decQ = Math.max(1, Math.min(st.batch | 0, m.shard));
+      const pick = (q) => {
+        const bQ = m.passQ(q), bKV = m.passKV(q);
+        if (bQ < bKV) return 'pass-Q';
+        if (bQ > bKV) return 'pass-KV';
+        return 'tie';
+      };
+      const preW = pick(m.shard), decW = pick(decQ);
+      const sides = preW === decW
+        ? 'Both sit on the same side of the crossing.'
+        : 'Those are opposite sides of the crossing.';
+      o += `Crossing at q* = ${fmtStar(m.cross, [m.shard, decQ])} query tokens/device: left of it pass-Q is cheaper, right of it pass-KV is. Prefill puts q at the full shard (${fmtN(m.shard)}) and picks ${preW}. Decode puts q at ${fmtN(decQ)} and picks ${decW}. ${sides}\n`;
+    } else {
+      o += `KV shards persist, so only the newly produced K,V moves: both costs are linear in q, the curves never cross, and ${cheaper} wins at every q. Persisting the shards is exactly how a system removes the phase flip.\n`;
+    }
     o += `Both patterns compute the SAME attention output — the maths is identical, only which operand crosses the wire changes. Grouped-query attention is what makes the KV payload small (${m.Hkv} KV heads vs ${m.Hq} query heads, ${(m.group % 1 ? m.group.toFixed(2) : m.group)}:1), which is why it moves this decision at all. Mechanism this sits on: the ring-attention page.`;
     page.setReadout(o);
   },

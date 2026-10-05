@@ -38,11 +38,12 @@ serving-time mechanisms).
  count that would put the crossing where you dropped it, snapping to a grouping
  that divides the query heads evenly -- which is precisely why grouped-query
  attention changes this decision at all.
-- **The phase decides which side of the crossing you are on.** Prefill puts a
- whole prompt shard of queries in flight at once; decode puts one query token
- per sequence against a cache holding the entire context. Those land on
- opposite sides of `q*`, so a real system picks differently per phase. The
- verdict card names the winner and says how far you are from the crossing.
+- **Prefill is on the pass-KV side at every setting.** A whole prompt shard of
+ queries is in flight at once, and that point is to the right of `q*` for
+ every head count this page allows. Decode is on the pass-Q side only while
+ its batch sits left of `q*`. A large batch on a short shard is on the same
+ side as prefill. The two example URLs below are one setting where the phases
+ do land on opposite sides.
 - **The comparison is reported with its direction stated.** pass-Q's traffic is
  given as a **percent of pass-KV's** on a lower-is-better axis (`100%` =
  parity, `>100%` = pass-Q moves *more*), never as a bare multiplier.
