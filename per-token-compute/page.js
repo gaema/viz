@@ -126,6 +126,16 @@ function compute(st) {
   };
 }
 
+// Percents beside the printed counts. 4.5 of 24 is 18.8, not the raw machine total.
+function printedShares(C) {
+  const uS = C.useful.toFixed(0);
+  const mS = C.machine.toFixed(1);
+  const flopS = (100 * Number(uS) / C.baseline).toFixed(1);
+  const machS = (100 * Number(mS) / C.baseline).toFixed(1);
+  const utilS = Number(mS) > 0 ? (100 * Number(uS) / Number(mS)).toFixed(1) : '100.0';
+  return { uS, mS, flopS, machS, utilS };
+}
+
 // ---------------------------------------------------------------------------
 
 mount({
@@ -321,9 +331,10 @@ mount({
       ctx.strokeStyle = T.n9; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cX + full, y - 2); ctx.lineTo(cX + full, y + 11); ctx.stroke();
       r.label(`${label} ${pct.toFixed(1)}%`, cX, y - 3, { color: T.n12, font: '10px ui-monospace, monospace' });
     };
+    const { uS, mS, flopS, machS, utilS } = printedShares(C);
     r.label('vs the uniform-depth model (tick = 100%)', cX, cY, { color: T.n11, font: '10px ui-monospace, monospace' });
-    meter(cY + 15, C.flopPct, hue, 'FLOPs');
-    meter(cY + 36, C.machinePct, C.machinePct > 100 ? T.bad : T.ok, 'machine');
+    meter(cY + 15, Number(flopS), hue, 'FLOPs');
+    meter(cY + 36, Number(machS), Number(machS) > 100 ? T.bad : T.ok, 'machine');
 
     ctx.restore();
 
@@ -335,7 +346,7 @@ mount({
         const i = clamp(Math.floor((p.x - gx) / cw), 0, N - 1);
         const path = [];
         for (let l = 0; l < L; l++) path.push(C.proc[i * L + l] ? '█' : '·');
-        const share = C.useful > 0 ? (C.cnt[i] / C.useful) * 100 : 0;
+        const share = Number(uS) > 0 ? (C.cnt[i] / Number(uS)) * 100 : 0;
         let extra = '';
         if (mode === 'exit' && C.exitD[i] >= 0) extra = `\nconfidence at exit ${C.conf[i * L + C.exitD[i]].toFixed(3)} (threshold ${(0.30 + 0.65 * st.cap).toFixed(3)})`;
         page.setTip(
@@ -353,15 +364,15 @@ mount({
     }
 
     // ---- readout ----------------------------------------------------------
-    const dir = C.machinePct > 100 ? 'NET LOSS — the ragged shape costs MORE than it saves'
-      : C.machinePct > C.flopPct + 0.05 ? 'real saving, partly eaten by the schedule'
+    const dir = Number(machS) > 100 ? 'NET LOSS — the ragged shape costs MORE than it saves'
+      : Number(machS) > Number(flopS) + 0.05 ? 'real saving, partly eaten by the schedule'
         : 'real saving';
     let o = `${M.label}: ${M.capName} = ${(+st.cap).toFixed(2)}; ${N} tokens x ${L} blocks; `;
     o += st.sched === 'pad' ? `padded to ${C.tile}-row tiles` : `gather/scatter at ${(+st.gs).toFixed(2)} token-slots per token per block`;
     o += `; router ${ROUTER_COST.toFixed(2)}/token/block on all ${N}.    tier:${r.name}\n`;
-    o += `useful FLOPs ${C.useful.toFixed(0)} of ${C.baseline} token-blocks = ${C.flopPct.toFixed(1)}% of the uniform-depth model (lower is better; 100% = every token through every block).  `;
-    o += `machine time ${C.machine.toFixed(1)} token-slots = ${C.machinePct.toFixed(1)}% of the same baseline (lower is better; >100% = worse than uniform).  `;
-    o += `utilisation ${C.util.toFixed(1)}% (useful / machine).\n`;
+    o += `useful FLOPs ${uS} of ${C.baseline} token-blocks = ${flopS}% of the uniform-depth model (lower is better; 100% = every token through every block).  `;
+    o += `machine time ${mS} token-slots = ${machS}% of the same baseline (lower is better; >100% = worse than uniform).  `;
+    o += `utilisation ${utilS}% (useful / machine).\n`;
     o += `${dir}.  block ${upto} of ${L - 1}: ${C.active[upto]} / ${N} tokens active, ${(C.exec[upto] + C.router).toFixed(2)} token-slots run.  `;
     const live = Array.from(C.exitD).filter((e) => e >= 0);
     const never = N - live.length;

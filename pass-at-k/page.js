@@ -29,6 +29,14 @@ const KMAX = KS[KS.length - 1];
 const MAXN = 14, MAXM = 10;
 const fmt3 = (x) => x.toFixed(3);
 const pct = (x) => (x * 100).toFixed(1) + '%';
+const pctNum = (x) => (x * 100).toFixed(1);
+// The lead is the gap between the two printed percents. Equal strings are a tie.
+function pace(base, rl, rlName, baseName) {
+  const b = pctNum(base), r = pctNum(rl);
+  if (b === r) return 'tied';
+  const gap = Math.abs(Number(r) - Number(b)).toFixed(1);
+  return `${Number(r) > Number(b) ? rlName : baseName} ahead by ${gap}%`;
+}
 
 // ---------------------------------------------------------------- the data
 // One "problem" = a set of candidate answers with base-model logits and a
@@ -364,7 +372,7 @@ mount({
           `k = ${bk}\n` +
           `base pass@${bk} = [ ${terms}${tail} ] / ${M} = ${fmt3(cb[bk])}\n` +
           `RL   pass@${bk} = [ ${termsR}${tail} ] / ${M} = ${fmt3(cr[bk])}\n` +
-          `${cr[bk] > cb[bk] ? 'RL ahead' : cr[bk] < cb[bk] ? 'base ahead' : 'tied'} by ${pct(Math.abs(cr[bk] - cb[bk]))}`);
+          `${(() => { const bS = fmt3(cb[bk]), rS = fmt3(cr[bk]); if (bS === rS) return 'tied'; const gap = (Math.abs(Number(rS) - Number(bS)) * 100).toFixed(1); return `${Number(rS) > Number(bS) ? 'RL' : 'base'} ahead by ${gap}%`; })()}`);
       } else if (px >= strip.x && px <= strip.x + strip.w && py >= strip.y && py <= strip.y + strip.h) {
         const j = Math.min(M - 1, Math.max(0, Math.floor((py - strip.y) / rowH)));
         const row = rows[j], nCorrect = row.correct.reduce((a, b) => a + b, 0);
@@ -379,11 +387,21 @@ mount({
     // ---- readout
     const dead = rows.filter((x) => x.sR < 1e-4 && x.sB > 1e-4).length;
     let out = `pass@k = (1/${M}) Σ over problems of  1 − (1 − s)^k      s = Σ p over the ✓ candidates      q ∝ p^${e.toFixed(2)} · e^(β·reinforced)      tier:${r.name}\n`;
-    out += `k = ${kNow}:  base ${pct(cb[kNow])}   ·   RL ${pct(cr[kNow])}   ·   ${cr[kNow] >= cb[kNow] ? 'RL ahead' : 'BASE ahead'} by ${pct(Math.abs(cr[kNow] - cb[kNow]))}\n`;
+    out += `k = ${kNow}:  base ${pct(cb[kNow])}   ·   RL ${pct(cr[kNow])}   ·   ${pace(cb[kNow], cr[kNow], 'RL', 'BASE')}\n`;
+    const aheadN = Number(pctNum(cr[1])) - Number(pctNum(cb[1]));
+    const behindN = Number(pctNum(cb[cross.worstK])) - Number(pctNum(cr[cross.worstK]));
+    const aheadS = aheadN.toFixed(1), behindS = behindN.toFixed(1);
+    const crossLine = aheadN > 0 && behindN > 0
+      ? `the curves CROSS at k = ${cross.k} — RL is ${aheadS}% ahead at k = 1, and ${behindS}% behind at its worst (k = ${cross.worstK}).`
+      : behindN > 0
+        ? `the curves CROSS at k = ${cross.k} — at k = 1 the printed percents tie, and RL is ${behindS}% behind at its worst (k = ${cross.worstK}).`
+        : aheadN > 0
+          ? `the curves CROSS at k = ${cross.k} — RL is ${aheadS}% ahead at k = 1, and the printed percents tie at its worst (k = ${cross.worstK}).`
+          : `at the printed percents the two curves tie at k = 1 and at k = ${cross.worstK}.`;
     out += (cross.worst < EPS && Math.abs(cr[1] - cb[1]) < EPS)
       ? `α = ${st.sharp.toFixed(2)}, β = ${beta.toFixed(1)} — the two models are the same distribution, so there is nothing to trade yet. Sharpen to buy k = 1.`
       : cross.why === 'crossed'
-      ? `the curves CROSS at k = ${cross.k} — RL is ${pct(cr[1] - cb[1])} ahead at k = 1, and ${pct(cross.worst)} behind at its worst (k = ${cross.worstK}).`
+      ? crossLine
       : cross.why === 'no-crossing'
         ? `no crossing up to k = ${KMAX} — this sharpening helps at every k (nothing correct was pruned).`
         : `RL does not lead even at k = 1 here — nothing is being bought, so there is nothing to trade.`;

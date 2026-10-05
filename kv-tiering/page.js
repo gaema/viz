@@ -280,6 +280,17 @@ function hatch(ctx, x, y, w, h, color, bg) {
 }
 const fmtMs = (v) => (!isFinite(v) ? '∞' : v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2));
 const fmtMB = (b) => (b / 1e6 >= 1000 ? (b / 1e9).toFixed(2) + ' GB' : (b / 1e6).toFixed(1) + ' MB');
+// A race the card has already printed is decided by those millisecond strings.
+// 0.26 vs 0.26 is a tie even when the unrounded times still differ.
+const race = (fc, rc) => {
+  const fn = Number(fmtMs(fc)), rn = Number(fmtMs(rc));
+  if (fn === rn) return 'they tie';
+  return (fn < rn ? 'FETCH' : 'RECOMPUTE') + ' wins';
+};
+const pctOfMs = (v, base) => {
+  const b = Number(fmtMs(base));
+  return b > 0 ? (100 * Number(fmtMs(v)) / b).toFixed(0) : '100';
+};
 
 let cur = null;    // the four simulations + their metrics
 let geom = null;   // hit-test geometry captured each draw
@@ -325,9 +336,9 @@ function blockTip(st, b, bytes) {
     `RECOMPUTE ${fmtMs(b.rc)} ms  (${st.blk} tok × ${st.params}B params, attended against the ${b.pos} tokens before it, at ${st.rate} TFLOP/s)`,
     '',
     b.action === 'resident' ? 'verdict: a top-tier hit — neither path was needed'
-      : b.action === 'fetch' ? `verdict: FETCHED (${fmtMs(b.fc)} ms beats ${fmtMs(b.rc)} ms), and it occupied the ${TIER_SHORT[b.tier]} link while it moved`
+      : b.action === 'fetch' ? `verdict: FETCHED (${fmtMs(b.fc) === fmtMs(b.rc) ? `the printed times tie at ${fmtMs(b.fc)} ms` : `${fmtMs(b.fc)} ms beats ${fmtMs(b.rc)} ms`}), and it occupied the ${TIER_SHORT[b.tier]} link while it moved`
         : b.tier < 0 ? 'verdict: RECOMPUTED — there was nothing anywhere to fetch, so no race was run'
-          : `verdict: RECOMPUTED (${fmtMs(b.rc)} ms beats ${fmtMs(b.fc)} ms), and it occupied the compute unit`,
+          : `verdict: RECOMPUTED (${fmtMs(b.rc) === fmtMs(b.fc) ? `the printed times tie at ${fmtMs(b.rc)} ms` : `${fmtMs(b.rc)} ms beats ${fmtMs(b.fc)} ms`}), and it occupied the compute unit`,
   ];
   return lines.join('\n');
 }
@@ -349,7 +360,7 @@ mount({
       goal: 'Make RECOMPUTE the cheaper answer for a host-DRAM hit.',
       hint: 'recompute is priced by arithmetic and fetch by bandwidth — so raise the arithmetic rate, shrink the model, thin the DRAM link, or fatten each token\'s KV. The race chart\'s crossing point moves as you do.',
       check: (api) => ({
-        solved: (api.probe.rc0 ?? 1e9) < (api.probe.fc1 ?? 0),
+        solved: Number(fmtMs(api.probe.rc0 ?? 1e9)) < Number(fmtMs(api.probe.fc1 ?? 0)),
         detail: `DRAM block at offset 0: recompute ${fmtMs(api.probe.rc0 ?? 0)} ms vs fetch ${fmtMs(api.probe.fc1 ?? 0)} ms`,
       }),
     },
@@ -439,7 +450,7 @@ mount({
     const deepPos = st.blk * (DEPTH - 1);
     const rc0 = recomputeMs(st, st.blk, 0), rcD = recomputeMs(st, st.blk, deepPos);
     const fc1 = fetchMs(bytes, st.bw1), fc2 = fetchMs(bytes, st.bw2);
-    const pct = base.mean > 0 ? (100 * active.mean / base.mean) : 100;
+    const pct = Number(pctOfMs(active.mean, base.mean));
     page.probe = {
       rc0, rcD, fc1, fc2, mean: active.mean, baseMean: base.mean, pct,
       policy: st.policy, be1: breakEvenL(st, st.bw1, 0), be2: breakEvenL(st, st.bw2, 0),
@@ -748,7 +759,7 @@ mount({
       ctx.fillStyle = alphaOf(tone, on ? 0.9 : 0.4);
       ctx.fillRect(180, y, Math.max(2, bwid), prH - 4);
       r.label((on ? '▶ ' : '  ') + lab, 174, y + prH * 0.6, { color: on ? T.n14 : T.n11, font: mono(9.5), align: 'right' });
-      const rel = base.mean > 0 ? (100 * v / base.mean) : 100;
+      const rel = Number(pctOfMs(v, base.mean));
       r.label(`${fmtMs(v)} ms · ${rel.toFixed(0)}% of baseline`,
         184 + Math.max(2, bwid), y + prH * 0.6, { color: T.n11, font: mono(9) });
       policyRects.push({ R: { x: 60, y, w: W - 70, h: prH - 4 }, id, lab, v, rel });
@@ -776,7 +787,7 @@ mount({
             `tier: ${TIER_NAME[b.tier]} · size ${fmtMB(bytes)}`,
             here && here.age != null ? `age: last used ${here.age} request(s) ago` : 'age: in use this request',
             `if it were wanted from here: fetch ${b.tier > 0 ? fmtMs(fcx) + ' ms' : 'not needed, it is resident'} vs recompute ${fmtMs(rcx)} ms`,
-            b.tier > 0 ? (fcx <= rcx ? '→ fetching is cheaper at these settings' : '→ rebuilding it is cheaper at these settings') : '→ a top-tier hit costs nothing at all',
+            b.tier > 0 ? (Number(fmtMs(fcx)) === Number(fmtMs(rcx)) ? '→ the printed times tie' : Number(fmtMs(fcx)) < Number(fmtMs(rcx)) ? '→ fetching is cheaper at these settings' : '→ rebuilding it is cheaper at these settings') : '→ a top-tier hit costs nothing at all',
           ].join('\n');
           break;
         }
@@ -825,7 +836,7 @@ mount({
       if (!tip) for (const p of policyRects) if (inR(p.R)) {
         tip = [
           `${p.lab}: mean request latency ${fmtMs(p.v)} ms`,
-          `= ${p.rel.toFixed(1)}% of GPU-only caching (lower is better; 100% = parity)`,
+          `= ${p.rel.toFixed(0)}% of GPU-only caching (lower is better; 100% = parity)`,
           p.id === 'base' ? 'the baseline: same top tier, nothing below it, so every evicted block is recomputed'
             : p.id === 'fetch' ? 'never rebuilds — pays bandwidth even when the block is cheap to recompute'
               : p.id === 'recompute' ? 'never reads a lower tier — the links stay idle and the compute unit queues'
@@ -853,8 +864,8 @@ mount({
     const hitPct = (i) => (lookups ? (100 * active.hits[i] / lookups).toFixed(0) : '0');
     const pctOf = (v) => (lookups ? (100 * v / lookups).toFixed(0) : '0');
     let o = `ONE ${st.blk}-token block = ${st.blk} × ${st.kvkb} KB = ${fmtMB(bytes)}.   fetch = bytes ÷ bandwidth · recompute = ${st.params}B params + attention, at ${st.rate} TFLOP/s.    tier:${r.name}\n`;
-    o += `  host DRAM  fetch ${fmtMs(fc1)} ms  vs  recompute ${fmtMs(rc0)} ms at offset 0 / ${fmtMs(rcD)} ms at offset ${deepPos}  →  ${fc1 <= rc0 ? 'FETCH wins' : 'RECOMPUTE wins'} at the front of the sequence, ${fc1 <= rcD ? 'FETCH' : 'RECOMPUTE'} deep into it\n`;
-    o += `  local SSD  fetch ${fmtMs(fc2)} ms  vs  the same recompute            →  ${fc2 <= rc0 ? 'FETCH wins' : 'RECOMPUTE wins'} at the front of the sequence, ${fc2 <= rcD ? 'FETCH' : 'RECOMPUTE'} deep into it\n`;
+    o += `  host DRAM  fetch ${fmtMs(fc1)} ms  vs  recompute ${fmtMs(rc0)} ms at offset 0 / ${fmtMs(rcD)} ms at offset ${deepPos}  →  ${race(fc1, rc0)} at the front of the sequence, ${race(fc1, rcD)} deep into it\n`;
+    o += `  local SSD  fetch ${fmtMs(fc2)} ms  vs  the same recompute            →  ${race(fc2, rc0)} at the front of the sequence, ${race(fc2, rcD)} deep into it\n`;
     const beTxt = (be) => (be > 0 ? Math.round(be) + ' tokens' : 'no crossing — fetching is cheaper at EVERY block size');
     o += `BREAK-EVEN BLOCK SIZE (above it, cheaper to fetch; below it, cheaper to rebuild): `
       + `host link ${beTxt(be1)} · SSD ${beTxt(be2)} (both at sequence offset 0; the crossing moves LEFT as the block sits deeper, because attention makes a late block dearer to rebuild)\n`;
@@ -864,7 +875,9 @@ mount({
       + `${pct.toFixed(0)}% of GPU-only caching's ${fmtMs(base.mean)} ms (lower is better; 100% = parity). `;
     o += pct < 100
       ? `Tiering is ahead here by ${(100 - pct).toFixed(0)} percentage points, and it bought that with ${fmtMB(active.movedBytes)} of link traffic — not for free.`
-      : `Tiering is BEHIND the baseline here: keeping the blocks alive downhill costs more link time than simply rebuilding them. Widen a link, shrink the blocks, or hand the arithmetic more headroom.`;
+      : pct === 100
+        ? `Tiering matches the baseline here: the printed means are the same, and the link traffic is ${fmtMB(active.movedBytes)}.`
+        : `Tiering is BEHIND the baseline here: keeping the blocks alive downhill costs more link time than simply rebuilding them. Widen a link, shrink the blocks, or hand the arithmetic more headroom.`;
     o += `  (always fetch ${fmtMs(alt.fetch.mean)} ms · always recompute ${fmtMs(alt.recompute.mean)} ms · cheaper-of-the-two ${fmtMs(alt.cheaper.mean)} ms.)`;
     page.setReadout(o);
   },

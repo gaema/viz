@@ -233,6 +233,19 @@ let grab = null;
 
 const fmtK = (v) => (v >= 10000 ? (v / 1000).toFixed(0) + 'k' : v >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(Math.round(v)));
 const pct1 = (v) => (100 * v).toFixed(1) + '%';
+const parseK = (s) => (String(s).endsWith('k') ? Number(String(s).slice(0, -1)) * 1000 : Number(s));
+// 1.3k / 7.8k is 16.7. The percent is that quotient, not the unrounded costs.
+const pctOfK = (a, b) => {
+  const bb = parseK(fmtK(b));
+  return bb > 0 ? (100 * parseK(fmtK(a)) / bb).toFixed(1) : '0.0';
+};
+// The product on a hover line is the product of the two strings on that line.
+// Formatting it again would turn 12.3k × 0.10 into 1.2k.
+const fmtProd = (n) => {
+  if (!Number.isFinite(n)) return '0';
+  const r = Math.round(n);
+  return Math.abs(n - r) < 1e-6 ? String(r) : n.toFixed(2);
+};
 
 // Why this block is (or is not) still in the context, in the vocabulary of the
 // active policy. This sentence is the page.
@@ -266,16 +279,16 @@ mount({
       goal: 'Make compaction LOSE: find a setting where clearing costs MORE total prefill than never compacting.',
       hint: 'drop the cached prefix re-read cost toward 0 — a free prefix makes keeping everything nearly free, while every edit still pays full price for the tail.',
       check: (api) => ({
-        solved: (api.probe.ratio ?? 0) > 1.0,
-        detail: `active policy cumulative cost is ${(100 * (api.probe.ratio ?? 0)).toFixed(1)}% of never-compacting (lower is better; >100% = compaction lost)`,
+        solved: Number(pctOfK(api.probe.cum ?? 0, api.probe.baseCum ?? 1)) > 100,
+        detail: `active policy cumulative cost is ${pctOfK(api.probe.cum ?? 0, api.probe.baseCum ?? 1)}% of never-compacting (lower is better; >100% = compaction lost)`,
       }),
     },
     {
       goal: 'Now make it WIN by a clear margin: get the active policy under 80% of the never-compacting baseline.',
       hint: 'raise the cached re-read cost (an expensive prefix punishes a long transcript) and raise the threshold so edits fire rarely.',
       check: (api) => ({
-        solved: (api.probe.ratio ?? 2) < 0.8,
-        detail: `active policy is at ${(100 * (api.probe.ratio ?? 1)).toFixed(1)}% of never-compacting (need < 80.0%)`,
+        solved: Number(pctOfK(api.probe.cum ?? 0, api.probe.baseCum ?? 1)) < 80,
+        detail: `active policy is at ${pctOfK(api.probe.cum ?? 0, api.probe.baseCum ?? 1)}% of never-compacting (need < 80.0%)`,
       }),
     },
     {
@@ -549,13 +562,15 @@ mount({
       ctx.restore();
       const tag = row.a.key === 'never'
         ? `${fmtK(row.v.cum)} TE   (baseline${row.v.over ? ' · OVERFLOWED' : ''})`
-        : `${fmtK(row.v.cum)} TE   ${(100 * ratio).toFixed(1)}% of never compacting`;
+        : `${fmtK(row.v.cum)} TE   ${pctOfK(row.v.cum, base.cum)}% of never compacting`;
       lab(tag, barX + barW + 8, y + 10, col, '12px ui-monospace, monospace');
     });
 
     page.probe = {
       t, N: sim.N,
       ratio: rec.cum / cumNever,
+      cum: rec.cum,
+      baseCum: base.cum,
       occ: rec.occupancy,
       activeOver: rec.over,
       baseOver: base.over,
@@ -575,7 +590,7 @@ mount({
             page.setTip([
               `block ${b.id} — ${KINDS[b.kind].label}, turn ${b.turn + 1}`,
               `age ${t - b.turn} turn${t - b.turn === 1 ? '' : 's'}   ·   written ${fmtK(b.tokens)} tokens   ·   costing ${fmtK(eTok)} now`,
-              `${(100 * eTok / Math.max(1, rec.total)).toFixed(1)}% of the ${fmtK(rec.total)} tokens currently in context`,
+              `${pctOfK(eTok, rec.total)}% of the ${fmtK(rec.total)} tokens currently in context`,
               blockReason(hit.i, rec, st, keptTailSet),
               `click to ${cur.pins.has(b.id) ? 'un' : ''}pin`,
             ].join('\n'));
@@ -587,7 +602,7 @@ mount({
         const a = sim.arms[armKey].turns[i], n = sim.arms.never.turns[i];
         page.setTip([
           `turn ${i + 1} — ${arm.short}`,
-          `cached prefix ${fmtK(a.cachedTok)} tokens × ${st.cache.toFixed(2)} = ${fmtK(a.cachedTok * st.cache)} TE`,
+          `cached prefix ${fmtK(a.cachedTok)} tokens × ${st.cache.toFixed(2)} = ${fmtProd(parseK(fmtK(a.cachedTok)) * Number(st.cache.toFixed(2)))} TE`,
           `full-price prefill ${fmtK(a.fullTok)} tokens = ${fmtK(a.fullTok)} TE`,
           `turn cost ${fmtK(a.cost)} TE   ·   never compacting ${fmtK(n.cost)} TE`,
           a.fired ? `an edit fired here: ${a.nCleared} tool result(s) cleared, ${fmtK(a.clearedTok + a.foldedTok)} tokens freed — and the prefix was invalidated from block ${a.editIdx}` : `no edit — the cached prefix survived intact`,
@@ -596,21 +611,22 @@ mount({
     }
 
     // ---- readout ---------------------------------------------------------
-    const ratio = rec.cum / cumNever;
-    const dir = Math.abs(ratio - 1) < 5e-4
+    const shown = pctOfK(rec.cum, base.cum);
+    const shownN = Number(shown);
+    const dir = shownN === 100
       ? 'exactly at parity with'
-      : ratio < 1 ? `${((1 - ratio) * 100).toFixed(1)}% CHEAPER than` : `${((ratio - 1) * 100).toFixed(1)}% MORE EXPENSIVE than`;
+      : shownN < 100 ? `${(100 - shownN).toFixed(1)}% CHEAPER than` : `${(shownN - 100).toFixed(1)}% MORE EXPENSIVE than`;
     let o = `policy: ${arm.name} — ${arm.desc}\n`;
-    o += `turn ${t + 1}/${sim.N}: context ${fmtK(rec.total)} / ${fmtK(W)} tokens (${pct1(rec.occupancy)} of the window, threshold ${st.thresh | 0}%), ${fmtK(rec.cumCleared)} tokens cleared so far, keeping the last ${st.keep | 0} tool result${(st.keep | 0) === 1 ? '' : 's'}${cur.pins.size ? ` + ${cur.pins.size} pinned` : ''}    tier:${r.name}\n`;
-    o += `this turn: ${fmtK(rec.cachedTok)} tokens re-read from cache at ×${st.cache.toFixed(2)} + ${fmtK(rec.fullTok)} tokens prefilled at full price = ${fmtK(rec.cost)} TE   (never compacting: ${fmtK(base.cost)} TE, context ${fmtK(base.total)} tokens${base.over ? ', OVERFLOWED' : ''})\n`;
-    o += `cumulative: ${fmtK(rec.cum)} TE = ${(100 * ratio).toFixed(1)}% of the never-compacting baseline (lower is better; 100% = parity) — ${dir} keeping everything\n`;
+    o += `turn ${t + 1}/${sim.N}: context ${fmtK(rec.total)} / ${fmtK(W)} tokens (${pctOfK(rec.total, W)}% of the window, threshold ${st.thresh | 0}%), ${fmtK(rec.cumCleared)} tokens cleared so far, keeping the last ${st.keep | 0} tool result${(st.keep | 0) === 1 ? '' : 's'}${cur.pins.size ? ` + ${cur.pins.size} pinned` : ''}    tier:${r.name}\n`;
+    o += `this turn: ${fmtK(rec.cachedTok)} tokens re-read from cache at ×${st.cache.toFixed(2)}, plus ${fmtK(rec.fullTok)} tokens prefilled at full price. Turn cost ${fmtK(rec.cost)} TE (never compacting: ${fmtK(base.cost)} TE, context ${fmtK(base.total)} tokens${base.over ? ', OVERFLOWED' : ''})\n`;
+    o += `cumulative: ${fmtK(rec.cum)} TE = ${shown}% of the never-compacting baseline ${fmtK(base.cum)} TE (lower is better; 100% = parity) — ${dir} keeping everything\n`;
     if (armKey === 'never') {
       o += base.over
         ? `the baseline has OVERFLOWED the window: past turn ${base.overflowAt + 1} this arm cannot run at all, so its cost beyond that point is not a real alternative — it is the reason compaction exists.`
         : `nothing is ever edited here, so the prefix is never invalidated and every turn is cheap. This arm is the honest counter-point — right up until it hits the wall.`;
     } else if (!rec.fired && rec.cumCleared === 0) {
       o += `occupancy is still under the threshold, so nothing has been edited yet and this arm is identical to the baseline. Drag the ▾ threshold left, or keep playing until the window fills.`;
-    } else if (ratio > 1) {
+    } else if (shownN > 100) {
       o += `COMPACTION IS LOSING HERE. At a cached re-read cost of ×${st.cache.toFixed(2)} a stable prefix is nearly free, while every edit re-prefills the tail at full price — so summarising costs more than remembering. Raise the cached cost, or the threshold, to flip it back.`;
       if (base.over) o += ` One caveat, in fairness to compaction: this baseline has OVERFLOWED the window, so it is only "cheaper" in the sense that a run which cannot happen is cheap. Widen the window until the grey arm stays under it to make the comparison a real one.`;
     } else {

@@ -317,6 +317,30 @@ function arrowHead(ctx, x, y, ang, size) {
   ctx.closePath(); ctx.fill();
 }
 
+// A percent beside two printed times is their ratio. 0.02 / 0.02 is 100.0,
+// even when the unrounded times are not. A baseline that prints as 0.00 has
+// no percent unless this side prints as 0.00 too.
+const ms2 = (v) => (+v).toFixed(2);
+function stepPct(a, b) {
+  const aS = ms2(a), bS = ms2(b);
+  const bn = Number(bS);
+  if (!(bn > 0)) return aS === bS ? '100.0' : null;
+  return (100 * Number(aS) / bn).toFixed(1);
+}
+function busyPct(comp, step) {
+  const cS = ms2(comp), sS = ms2(step);
+  const sn = Number(sS);
+  if (!(sn > 0)) return cS === sS ? '100' : '–';
+  return (100 * Number(cS) / sn).toFixed(0);
+}
+function stepSetter(m) {
+  const cS = ms2(m.commMs), sS = ms2(m.slowest);
+  if (cS === sS) return `the link and device ${m.slowDev} tie at ${cS} ms`;
+  return Number(cS) > Number(sS)
+    ? `the busiest link (${cS} ms vs ${sS} ms of compute)`
+    : `device ${m.slowDev} (${sS} ms of compute vs ${cS} ms on the wire)`;
+}
+
 // ---- live geometry, captured each draw for hit-testing --------------------
 let panels = null;      // [{d, x, y, w, h, cx}]
 let chips = null;       // [{e, d, x, y, w, h, replica}]
@@ -337,17 +361,31 @@ mount({
     {
       goal: 'Beat round-robin placement: get the step time under 80% of the baseline.',
       hint: 'co-locate experts that are chosen together, and replicate the hottest ones so they never travel — press “rebalance from observed load”, then push the replication slider up.',
-      check: (api) => ({ solved: (api.probe.ratio || 9) < 0.80, detail: `step time is ${(100 * (api.probe.ratio || 1)).toFixed(1)}% of round-robin (lower is better) — needs < 80.0%` }),
+      check: (api) => {
+        const shown = stepPct(api.probe.stepMs ?? 0, api.probe.baseMs ?? 0);
+        return {
+          solved: shown != null && Number(shown) < 80,
+          detail: shown == null
+            ? `step ${(api.probe.stepMs ?? 0).toFixed(2)} ms against a baseline that rounds to 0.00 ms — needs a printed percent under 80.0%`
+            : `step time is ${shown}% of round-robin (lower is better) — needs < 80.0%`,
+        };
+      },
     },
     {
       goal: 'Make one device the bottleneck: push its share of the work past 1.8× the fair share.',
       hint: 'drag the hottest experts onto the same device, and turn the popularity skew up.',
-      check: (api) => ({ solved: (api.probe.imbalance || 1) > 1.8, detail: `busiest device holds ${(api.probe.imbalance || 1).toFixed(2)}× the fair share — needs > 1.80×` }),
+      check: (api) => {
+        const imb = (api.probe.imbalance || 1).toFixed(2);
+        return { solved: Number(imb) > 1.8, detail: `busiest device holds ${imb}× the fair share — needs > 1.80×` };
+      },
     },
     {
       goal: 'Get more than half the batch to stay home: fewer than 0.5 device-crossings per token.',
       hint: 'replication makes a hot expert local everywhere — at the price of a copy of its weights on every device.',
-      check: (api) => ({ solved: (api.probe.crossFrac || 9) < 0.5, detail: `${(api.probe.crossFrac || 0).toFixed(2)} crossings per token — needs < 0.50` }),
+      check: (api) => {
+        const x = (api.probe.crossFrac || 0).toFixed(2);
+        return { solved: Number(x) < 0.5, detail: `${x} crossings per token — needs < 0.50` };
+      },
     },
   ],
   controls: (c, page) => {
@@ -637,7 +675,9 @@ mount({
       ctx.strokeStyle = T.bad; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(pad, barTop); ctx.lineTo(W - pad, barTop); ctx.stroke();
       ctx.setLineDash([]); ctx.restore();
-      r.label(`step ${m.stepMs.toFixed(2)} ms — set by ${m.commMs >= m.slowest ? `the busiest link` : `device ${m.slowDev}`}`,
+      r.label(ms2(m.commMs) === ms2(m.slowest)
+        ? `step ${ms2(m.stepMs)} ms — link and compute tie at ${ms2(m.commMs)} ms`
+        : `step ${ms2(m.stepMs)} ms — set by ${Number(ms2(m.commMs)) > Number(ms2(m.slowest)) ? 'the busiest link' : `device ${m.slowDev}`}`,
         W - pad, barTop - 4, { color: T.bad, font: '10px ui-monospace, monospace', align: 'right' });
       r.label('per-device compute · hatched = idle, waiting for the step', pad, barTop - 4,
         { color: T.n11, font: '10px ui-monospace, monospace' });
@@ -676,14 +716,18 @@ mount({
           if (p.x >= pn.x && p.x <= pn.x + pn.w && p.y >= pn.y && p.y <= pn.y + pn.h) {
             const res = [];
             for (let e = 0; e < E; e++) if (m.replicated[e] || pl[e] === pn.d) res.push('e' + e + (m.replicated[e] ? '*' : ''));
+            const pairs = m.N * m.k;
+            const got = m.assign[pn.d].toFixed(0);
+            const fair = pairs / D;
+            const share = fair > 0 ? (Number(got) / fair).toFixed(2) : '1.00';
             tip = `device ${pn.d} holds ${res.length} experts: ${res.join(' ')}\n` +
-              `${m.assign[pn.d].toFixed(0)} of the ${m.N * m.k} (token, expert) pairs run here — ` +
-              `${(m.assign[pn.d] / Math.max(1, (m.N * m.k) / D)).toFixed(2)}× the fair share\n` +
-              `compute ${m.compMs[pn.d].toFixed(2)} ms of a ${m.stepMs.toFixed(2)} ms step → ${(100 * m.util[pn.d]).toFixed(0)}% busy, ` +
+              `${got} of the ${pairs} (token, expert) pairs run here — ` +
+              `${share}× the fair share\n` +
+              `compute ${ms2(m.compMs[pn.d])} ms of a ${ms2(m.stepMs)} ms step → ${busyPct(m.compMs[pn.d], m.stepMs)}% busy, ` +
               `idle ${m.idleMs[pn.d].toFixed(2)} ms\n` +
               `${m.localPairs[pn.d].toFixed(0)} of its pairs came from tokens already living here\n` +
               `expert weights resident ${fmtB(m.memPerDev[pn.d])}${m.replicas ? ` (includes ${m.replicas} replica${m.replicas > 1 ? 's' : ''})` : ''}` +
-              (pn.d === m.slowDev && m.slowest >= m.commMs ? '\nthis device sets the step time — every other device waits for it' : '');
+              (pn.d === m.slowDev && Number(ms2(m.slowest)) > Number(ms2(m.commMs)) ? '\nthis device sets the step time — every other device waits for it' : '');
             break;
           }
         }
@@ -692,11 +736,15 @@ mount({
     }
 
     // ---- readout ----------------------------------------------------------
-    const dir = ratio < 1 ? 'FASTER than' : ratio > 1 ? 'SLOWER than' : 'level with';
+    const pctS = stepPct(m.stepMs, base.stepMs);
+    const dir = pctS == null ? 'not comparable with'
+      : Number(pctS) < 100 ? 'FASTER than' : Number(pctS) > 100 ? 'SLOWER than' : 'level with';
     let o = `PLACEMENT ${enc}  ·  ${E} experts / ${D} devices / top-${b.k} / ${m.N} tokens / ${m.L} MoE layers  ·  ${m.replicas} replicated     tier:${r.name}\n`;
-    o += `STEP  ${m.stepMs.toFixed(2)} ms = ${(100 * ratio).toFixed(1)}% of round-robin placement's ${base.stepMs.toFixed(2)} ms `;
-    o += `(lower is better; 100% = parity — this placement is ${dir} the baseline). Set by ${m.commMs >= m.slowest ? `the busiest link (${m.commMs.toFixed(2)} ms vs ${m.slowest.toFixed(2)} ms of compute)` : `device ${m.slowDev} (${m.slowest.toFixed(2)} ms of compute vs ${m.commMs.toFixed(2)} ms on the wire)`}.\n`;
-    o += `WIRE  ${m.crossCopies} token copies cross per layer (${m.crossFrac.toFixed(2)} per token; round-robin: ${base.crossFrac.toFixed(2)}) · ${fmtB(m.stepBytes)} moved per step across all ${m.L} layers · busiest link ${fmtB(m.busyStepBytes)} = ${m.commMs.toFixed(2)} ms at ${st.bw} GB/s.\n`;
+    o += pctS == null
+      ? `STEP  ${ms2(m.stepMs)} ms against round-robin placement's ${ms2(base.stepMs)} ms (the baseline rounds to 0.00 ms, so there is no percent — this placement is ${dir} the baseline). `
+      : `STEP  ${ms2(m.stepMs)} ms = ${pctS}% of round-robin placement's ${ms2(base.stepMs)} ms (lower is better; 100% = parity — this placement is ${dir} the baseline). `;
+    o += `Set by ${stepSetter(m)}.\n`;
+    o += `WIRE  ${m.crossCopies} token copies cross per layer (${m.crossFrac.toFixed(2)} per token; round-robin: ${base.crossFrac.toFixed(2)}) · ${fmtB(m.stepBytes)} moved per step across all ${m.L} layers · busiest link ${Math.round(m.busyStepBytes)} B = ${ms2(m.commMs)} ms at ${st.bw} GB/s.\n`;
     o += `LOAD  busiest device ${m.imbalance.toFixed(2)}× the fair share (round-robin: ${base.imbalance.toFixed(2)}×) · utilisation ${m.util.map((u) => (100 * u).toFixed(0) + '%').join(' / ')} · idle ${m.idleMs.map((i) => i.toFixed(2)).join(' / ')} ms.\n`;
     o += `MEM   ${fmtB(m.expertBytes)} of weights per expert per layer; resident per device across ${m.L} layers ${m.memPerDev.map((x) => fmtB(x)).join(' / ')}${m.replicas ? ` — replication is bought with memory, not for free` : ''}.\n`;
     o += `Routing is unchanged by anything on this page: the same tokens want the same experts, and only WHERE those experts live is moving.`;

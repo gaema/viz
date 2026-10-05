@@ -54,8 +54,12 @@ const seqFill = (i, a) => (i === 0 ? alphaOf(T.accent, a) : alphaOf(categorical(
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const ms = (v) => `${v.toFixed(1)} ms`;
-// A LOWER-is-better ratio: >100% of the baseline is WORSE, <100% is BETTER.
-const pctOf = (v, b) => (b > 0 ? Math.round((v / b) * 100) : 100);
+// The percent is 100 times the millisecond strings on the card, so 4.5 / 7.2
+// prints 63 and not the unrounded quotient.
+const pctOf = (v, b) => {
+  const bb = Number((+b).toFixed(1));
+  return bb > 0 ? Math.round((100 * Number((+v).toFixed(1))) / bb) : 100;
+};
 // Direction word + colour for a lower-is-better ratio (100% = parity, and
 // parity is neither good nor bad -- it must not read green).
 const dirWord = (p) => (p > 100 ? '▲ worse' : p < 100 ? '▼ better' : '= parity');
@@ -155,12 +159,12 @@ mount({
     {
       goal: 'Cut the waiting sequences’ worst token gap to under half of the one-big-prefill stall.',
       hint: 'switch the scheduler to chunked and drag the budget line down.',
-      check: (api) => ({ solved: (api.probe.worst ?? 1e9) < (api.probe.baseWorst ?? 0) / 2, detail: `worst gap ${pctOf(api.probe.worst ?? 0, api.probe.baseWorst ?? 1)}% of the stall (lower is better; need < 50%)` }),
+      check: (api) => ({ solved: pctOf(api.probe.worst ?? 0, api.probe.baseWorst ?? 1) < 50, detail: `worst gap ${pctOf(api.probe.worst ?? 0, api.probe.baseWorst ?? 1)}% of the stall (lower is better; need < 50%)` }),
     },
     {
       goal: 'Now pay for it honestly: find a budget where the long prompt’s time-to-first-token is more than 1.5× the stall’s.',
       hint: 'keep dragging the budget down — tiny chunks pay the fixed per-step overhead over and over.',
-      check: (api) => ({ solved: (api.probe.ttft ?? 0) > (api.probe.baseTtft ?? 1e9) * 1.5, detail: `TTFT ${pctOf(api.probe.ttft ?? 0, api.probe.baseTtft ?? 1)}% of the stall (lower is better; need > 150%)` }),
+      check: (api) => ({ solved: pctOf(api.probe.ttft ?? 0, api.probe.baseTtft ?? 1) > 150, detail: `TTFT ${pctOf(api.probe.ttft ?? 0, api.probe.baseTtft ?? 1)}% of the stall (lower is better; need > 150%)` }),
     },
   ],
   controls: (c, page) => {

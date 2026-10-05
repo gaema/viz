@@ -86,6 +86,12 @@ function rng(seed) {
 
 const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : '–');
 const pct = (v) => (Number.isFinite(v) ? (100 * v).toFixed(1) + '%' : '–');
+// A percent beside two already-printed numbers is their ratio. 34.8 / 40.7 is
+// 85.5, not the unrounded quotient written to one decimal.
+const pctPrinted = (a, b) => {
+  const bs = Number(f1(b));
+  return bs > 0 ? f1((100 * Number(f1(a))) / bs) : '–';
+};
 const promptName = (p) => 'prompt ' + String.fromCharCode(65 + p);
 
 // Cache key for "the first k+1 blocks of system prompt p". Two requests share a
@@ -302,12 +308,20 @@ mount({
     {
       goal: 'Beat round-robin on mean time-to-first-token by 25% or more.',
       hint: 'neither extreme does it. Find the weight where the two curves cross — the ★ marks the best one found in the sweep.',
-      check: (api) => ({ solved: (api.probe.ttftRel ?? 2) <= 0.75, detail: `mean TTFT is ${pct(api.probe.ttftRel ?? 1)} of round-robin — needs ≤ 75.0% (lower is better)` }),
+      check: (api) => {
+        const shown = pctPrinted(api.probe.meanTtft ?? 0, api.probe.rrMean ?? 1);
+        return { solved: shown !== '–' && Number(shown) <= 75, detail: `mean TTFT is ${shown}% of round-robin — needs ≤ 75.0% (lower is better)` };
+      },
     },
     {
       goal: 'Make cache affinity worthless: get pure affinity (w = 1) to hit within 5 points of pure balance (w = 0) on hit rate.',
       hint: 'drag the ▲ hard left. With many equally-popular distinct prompts and enough cache, there is no popular prefix to follow.',
-      check: (api) => ({ solved: Math.abs(api.probe.hitAt1 - api.probe.hitAt0) <= 0.05, detail: `hit rate w=1 ${pct(api.probe.hitAt1)} vs w=0 ${pct(api.probe.hitAt0)} — gap ${pct(Math.abs(api.probe.hitAt1 - api.probe.hitAt0))}, needs ≤ 5.0%` }),
+      check: (api) => {
+        const p1 = ((api.probe.hitAt1 ?? 0) * 100).toFixed(1);
+        const p0 = ((api.probe.hitAt0 ?? 0) * 100).toFixed(1);
+        const gap = Math.abs(Number(p1) - Number(p0)).toFixed(1);
+        return { solved: Number(gap) <= 5, detail: `hit rate w=1 ${p1}% vs w=0 ${p0}% — gap ${gap}%, needs ≤ 5.0%` };
+      },
     },
   ],
   controls: (c, page) => {
@@ -623,9 +637,9 @@ mount({
           `router weight ${pt.w.toFixed(2)}  (${pt.w === 0 ? 'pure load balance' : pt.w === 1 ? 'pure cache affinity' : `${(100 * pt.w).toFixed(0)}% affinity / ${(100 * (1 - pt.w)).toFixed(0)}% balance`})`,
           `cache hit rate      ${pct(pt.hit)}   of ${TOTAL_BLOCKS * A} prompt blocks`,
           `load balance        ${pct(pt.bal)}   (least-busy replica ÷ busiest)`,
-          `mean TTFT           ${f1(pt.ttft)} ms = ${f1(ttftRelOf(pt))}% of round-robin (lower is better)`,
-          `tail (p95) TTFT     ${f1(pt.p95)} ms = ${f1(rr.p95Ttft > 0 ? 100 * pt.p95 / rr.p95Ttft : 0)}% of round-robin`,
-          `throughput          ${f1(pt.thr)} req/s = ${f1(rr.throughput > 0 ? 100 * pt.thr / rr.throughput : 0)}% of round-robin (higher is better)`,
+          `mean TTFT           ${f1(pt.ttft)} ms = ${pctPrinted(pt.ttft, rr.meanTtft)}% of round-robin (lower is better)`,
+          `tail (p95) TTFT     ${f1(pt.p95)} ms = ${pctPrinted(pt.p95, rr.p95Ttft)}% of round-robin`,
+          `throughput          ${f1(pt.thr)} req/s = ${pctPrinted(pt.thr, rr.throughput)}% of round-robin (higher is better)`,
           '↔ click and drag to move the router to this weight',
         ].join('\n');
       }
@@ -642,11 +656,9 @@ mount({
 
     // ---- readout ----------------------------------------------------------
     const ttftRel = rr.meanTtft > 0 ? cur.meanTtft / rr.meanTtft : 1;
-    const p95Rel = rr.p95Ttft > 0 ? cur.p95Ttft / rr.p95Ttft : 1;
-    const thrRel = rr.throughput > 0 ? cur.throughput / rr.throughput : 1;
     const idle = cur.served.filter((v) => v === 0).length;
     page.probe = {
-      idleReplicas: idle, ttftRel, hitRate: cur.hitRate,
+      idleReplicas: idle, ttftRel, meanTtft: cur.meanTtft, rrMean: rr.meanTtft, hitRate: cur.hitRate,
       hitAt0: base.sweep[0].hit, hitAt1: base.sweep[SWEEP_N].hit, bestW: bestPt.w,
     };
 
@@ -656,11 +668,11 @@ mount({
       : 'nothing admitted yet — every replica cache is empty, so the first request to each replica matches nothing and prefills its whole prompt.\n';
     o += `whole run at weight ${st.w.toFixed(2)}, ${N} replicas, ${A} requests, ${P} distinct system prompts, skew ${st.skew.toFixed(2)}, ${st.capacity}-block cache per replica:\n`;
     o += `  cache hit rate ${pct(cur.hitRate)} of ${TOTAL_BLOCKS * A} prompt blocks (round-robin: ${pct(rr.hitRate)})\n`;
-    o += `  mean TTFT ${f1(cur.meanTtft)} ms = ${f1(100 * ttftRel)}% of round-robin's ${f1(rr.meanTtft)} ms (lower is better; 100% = parity)\n`;
-    o += `  tail p95 TTFT ${f1(cur.p95Ttft)} ms = ${f1(100 * p95Rel)}% of round-robin's ${f1(rr.p95Ttft)} ms (lower is better)\n`;
-    o += `  throughput ${f1(cur.throughput)} req/s = ${f1(100 * thrRel)}% of round-robin's ${f1(rr.throughput)} req/s (higher is better)\n`;
+    o += `  mean TTFT ${f1(cur.meanTtft)} ms = ${pctPrinted(cur.meanTtft, rr.meanTtft)}% of round-robin's ${f1(rr.meanTtft)} ms (lower is better; 100% = parity)\n`;
+    o += `  tail p95 TTFT ${f1(cur.p95Ttft)} ms = ${pctPrinted(cur.p95Ttft, rr.p95Ttft)}% of round-robin's ${f1(rr.p95Ttft)} ms (lower is better)\n`;
+    o += `  throughput ${f1(cur.throughput)} req/s = ${pctPrinted(cur.throughput, rr.throughput)}% of round-robin's ${f1(rr.throughput)} req/s (higher is better)\n`;
     o += `  per-replica utilisation over the run: ${utilTxt} — balance ${pct(cur.balance)}${idle ? `, and ${idle} replica(s) served nothing at all` : ''}\n`;
-    o += `The sweep re-runs this same arrival stream at ${SWEEP_N + 1} weights. Best mean TTFT is at weight ${bestPt.w.toFixed(2)} (${f1(ttftRelOf(bestPt))}% of round-robin); pure balance gives ${f1(ttftRelOf(base.sweep[0]))}% and pure affinity ${f1(ttftRelOf(base.sweep[SWEEP_N]))}%. `;
+    o += `The sweep re-runs this same arrival stream at ${SWEEP_N + 1} weights. Best mean TTFT is at weight ${bestPt.w.toFixed(2)} (${pctPrinted(bestPt.ttft, rr.meanTtft)}% of round-robin); pure balance gives ${pctPrinted(base.sweep[0].ttft, rr.meanTtft)}% and pure affinity ${pctPrinted(base.sweep[SWEEP_N].ttft, rr.meanTtft)}%. `;
     o += 'Reuse and balance pull against each other — the green curve broadly climbs as the weight does, the violet one gives way, and the dashed latency curve bottoms out near where they cross. Drag the ▲ to the far left (many equally popular prompts) and the green curve flattens: there is no popular prefix to follow, so affinity buys nothing and only costs balance.';
     page.setReadout(o);
   },

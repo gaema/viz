@@ -259,7 +259,11 @@ function tradeCurve() {
 function frame(ctx, x, y, w, h, col) { ctx.save(); ctx.strokeStyle = col || T.n6; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); ctx.restore(); }
 const f2 = (v) => (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2));
 const fE = (v) => (v >= 1e-4 ? v.toFixed(5) : v > 0 ? v.toExponential(1) : '0');
-const fBig = (v) => (v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'k' : String(Math.round(v)));
+// The percent is 100 times the two RMSE strings on the card.
+function floorPct(rmse, ref) {
+  const refS = fE(ref), rmseS = fE(rmse);
+  return Number(refS) > 0 ? (100 * Number(rmseS)) / Number(refS) : 0;
+}
 
 const STEPS = [
   { key: 'source', label: 'x — the image at full resolution' },
@@ -361,7 +365,7 @@ mount({
     const attnRatio = (PIX / tokens) ** 2;                  // attention ∝ tokens²
     const ratioRGB = (PIX * 3) / latElems;                  // same latent, RGB source
     const ref = refFloor();
-    const pct = ref > 0 ? (rtFloor.rmse / ref) * 100 : 0;
+    const pct = floorPct(rtFloor.rmse, ref);
     let dropped = 0; for (let k = C; k < F2; k++) { const [u, v] = zz[k]; dropped += eBasis[u * f + v]; }
     const droppedPct = (dropped / eTot) * 100;
     page.probe = { rmse: rtFloor.rmse, total: rt.rmse, ratio, pct, noise, f, C, droppedPct };
@@ -481,12 +485,12 @@ mount({
     r.label('the arithmetic, from your settings', x2, by + 6, { color: T.n13, font: `11px ${MONO}` });
     const A = [
       [`f = ${f}   C = ${C}   (C ≤ f² = ${F2})`, T.n12],
-      [`pixels        ${N}×${N}×1        = ${fBig(PIX)}`, T.n13],
-      [`latent        ${nb}×${nb}×${C}${nb < 10 ? '  ' : ''}      = ${fBig(latElems)}`, T.accent],
+      [`pixels        ${N}×${N}×1        = ${PIX}`, T.n13],
+      [`latent        ${nb}×${nb}×${C}${nb < 10 ? '  ' : ''}      = ${latElems}`, T.accent],
       [`elements      f²/C = ${f}²/${C}   = ${f2(ratio)}× FEWER`, T.ok],
       [`same on RGB   3f²/C            = ${f2(ratioRGB)}× FEWER`, T.ok],
       [`tokens        ${N}² → ${tokens}`, T.n12],
-      [`attention ∝ tokens²            = ${fBig(attnRatio)}× FEWER`, T.okDeep],
+      [`attention ∝ tokens²            = ${Math.round(attnRatio)}× FEWER`, T.okDeep],
       ['—', T.n6],
       [`floor RMSE    ${fE(rtFloor.rmse)}`, T.bad],
       [`  = ${f2(pct)}% of the 8×/4ch reference`, pct > 100 ? T.bad : T.ok],
@@ -547,7 +551,7 @@ mount({
     o += `Encoder: f = ${f}× downsample, C = ${C} of ${F2} channels kept per block. `;
     o += `${N}×${N}×1 = ${PIX} pixel elements → ${nb}×${nb}×${C} = ${latElems} latent elements = ${f2(ratio)}× FEWER elements (f²/C). `;
     o += `On a 3-channel RGB source the same setting gives ${f2(ratioRGB)}× FEWER. `;
-    o += `Token count falls ${PIX} → ${tokens}, so a quadratic-attention denoiser does ${fBig(attnRatio)}× FEWER attention units of work per step — and a latent-diffusion pipeline pays the pixel-resolution cost exactly twice, at encode and decode, instead of once per sampling step.\n`;
+    o += `Token count falls ${PIX} → ${tokens}, so a quadratic-attention denoiser does ${Math.round(attnRatio)}× FEWER attention units of work per step — and a latent-diffusion pipeline pays the pixel-resolution cost exactly twice, at encode and decode, instead of once per sampling step.\n`;
     const lossless = rtFloor.rmse < 1e-6;
     o += `THE CEILING: encode and decode with NO diffusion at all and the residual is RMSE ${fE(rtFloor.rmse)} = ${f2(pct)}% of the 8×/4-channel reference floor (RMSE ${fE(ref)}; lower is better, 100% = parity). ${droppedPct.toFixed(2)}% of the image's energy is discarded at the truncate step, and nothing downstream restores it. `;
     o += lossless
