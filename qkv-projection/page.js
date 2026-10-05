@@ -17,6 +17,19 @@ import { T, alphaOf } from '../framework/theme.js';
 
 const maxAbs = (a) => { let m = 1e-9; for (let i = 0; i < a.length; i++) { const x = Math.abs(a[i]); if (x > m) m = x; } return m; };
 const fx = (v) => (v >= 0 ? ' ' : '') + v.toFixed(2);
+// A fully printed projection sums the two-decimal factors on that line.
+function shownProj(x, wcol, trueOut) {
+  const terms = [];
+  let acc = 0;
+  for (let d = 0; d < x.length; d++) {
+    const xS = fx(x[d]), wS = fx(wcol[d]);
+    terms.push(`${xS}·${wS}`);
+    acc += Number(xS) * Number(wS);
+  }
+  const full = terms.length <= 5;
+  const shown = full ? terms.join(' + ') : terms.slice(0, 4).join(' + ') + ' + … (' + x.length + ' terms)';
+  return { shown, result: full ? acc.toFixed(3) : trueOut.toFixed(3) };
+}
 
 // Shared state between buildData() (builds x/W/q/k/v), draw() (renders +
 // captures the rects), and onPointer() (hit-tests + edits). Drag edits mutate
@@ -138,10 +151,10 @@ mount({
         const oh = rOut[p] && cellAt(rOut[p], 1, D, pt.x, pt.y);
         if (oh) {
           const oc = oh.c, M = mats[p];
-          const terms = [];
-          for (let d = 0; d < D; d++) terms.push(`${fx(x[d])}·${fx(M.data[d * D + oc])}`);
-          const shown = terms.length <= 5 ? terms.join(' + ') : terms.slice(0, 4).join(' + ') + ' + … (' + D + ' terms)';
-          tip = `${outNames[p]}[${oc}] = ${names[p]} col ${oc} · x = Σ_d x[d]·W[d,${oc}]\n= ${shown}\n= ${outs[p][oc].toFixed(3)}`;
+          const wcol = [];
+          for (let d = 0; d < D; d++) wcol.push(M.data[d * D + oc]);
+          const sp = shownProj(x, wcol, outs[p][oc]);
+          tip = `${outNames[p]}[${oc}] = ${names[p]} col ${oc} · x = Σ_d x[d]·W[d,${oc}]\n= ${sp.shown}\n= ${sp.result}`;
         }
       }
       if (tip) page.setTip(tip);

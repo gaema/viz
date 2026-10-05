@@ -44,6 +44,25 @@ function resync(page) {
 
 const maxAbs = (M) => { let a = 0; for (let i = 0; i < M.data.length; i++) { const v = Math.abs(M.data[i]); if (v > a) a = v; } return a || 1; };
 const fx = (v) => (v >= 0 ? ' ' : '') + v.toFixed(2);
+// A fully printed dot product sums the two-decimal factors on that line.
+function shownDot(as, bs) {
+  const terms = [];
+  let acc = 0;
+  for (let t = 0; t < as.length; t++) {
+    const aS = fx(as[t]), bS = fx(bs[t]);
+    terms.push(`${aS}·${bS}`);
+    acc += Number(aS) * Number(bS);
+  }
+  return { terms, acc };
+}
+function dotLine(A, B, i, j, k, n, fullMax, keep, truth, fmt) {
+  const as = [], bs = [];
+  for (let t = 0; t < k; t++) { as.push(A.data[i * k + t]); bs.push(B.data[t * n + j]); }
+  const dot = shownDot(as, bs);
+  const full = dot.terms.length <= fullMax;
+  const shown = full ? dot.terms.join(' + ') : dot.terms.slice(0, keep).join(' + ') + ' + … (' + k + ' terms)';
+  return { shown, result: full ? fmt(dot.acc) : fmt(truth) };
+}
 
 // Draw one matrix heatmap + (when cells are big enough) per-cell value labels.
 // Leaves renderer.layout set to THIS matrix so the caller can highlight cells.
@@ -154,10 +173,8 @@ mount({
       else if (bh) tip = `B[${bh.r},${bh.c}] = ${B.data[bh.r * n + bh.c].toFixed(3)}\ndrag ↕ to change`;
       else if (ch) {
         const ci = ch.r, cj = ch.c;
-        const terms = [];
-        for (let t = 0; t < k; t++) terms.push(`${fx(A.data[ci * k + t])}·${fx(B.data[t * n + cj])}`);
-        const shown = terms.length <= 5 ? terms.join(' + ') : terms.slice(0, 4).join(' + ') + ' + … (' + k + ' terms)';
-        tip = `C[${ci},${cj}] = row ${ci} of A · col ${cj} of B\n= ${shown}\n= ${final.data[ci * n + cj].toFixed(3)}`;
+        const dl = dotLine(A, B, ci, cj, k, n, 5, 4, final.data[ci * n + cj], (v) => v.toFixed(3));
+        tip = `C[${ci},${cj}] = row ${ci} of A · col ${cj} of B\n= ${dl.shown}\n= ${dl.result}`;
       }
       if (tip) page.setTip(tip);
     }
@@ -167,10 +184,8 @@ mount({
     if (!s) { out += '(drag A/B cells to edit · press ▶ or scrub to step through the multiply)'; }
     else {
       out += `${s.label}\n`;
-      const terms = [];
-      for (let t = 0; t < k; t++) terms.push(`${fx(A.data[i * k + t])}·${fx(B.data[t * n + j])}`);
-      const shown = terms.length <= 6 ? terms.join(' + ') : terms.slice(0, 5).join(' + ') + ' + … (' + k + ' terms)';
-      out += `C[${i},${j}] = ${shown} = ${fx(final.data[i * n + j])}`;
+      const dl = dotLine(A, B, i, j, k, n, 6, 5, final.data[i * n + j], fx);
+      out += `C[${i},${j}] = ${dl.shown} = ${dl.result}`;
     }
     page.setReadout(out);
   },
