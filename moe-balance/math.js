@@ -45,6 +45,12 @@ export function biasRoute(logits, bias, k, step, tokens) {
   return { picked, combine, load, target, bias: next, lam: 0, moves };
 }
 
+// Bars in bias mode are the route load itself: each picked expert is counted
+// once per token, so k picks of T tokens are T, not T/k.
+export function biasBarLoad(row) {
+  return Float32Array.from(row.load);
+}
+
 export function biasRun(logits, k, step, tokens, rounds) {
   let bias = logits.map(() => 0);
   let row = biasRoute(logits, bias, k, step, tokens);

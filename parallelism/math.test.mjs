@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { build, stages } from './math.js';
+import { build, stages, kvpTradeClause, kvpClosing, cardBlurb } from './math.js';
 
 let fail = 0;
 const ok = (c, m) => { if (c) console.log('ok ' + m); else { fail++; console.error('FAIL ' + m); } };
@@ -41,9 +41,23 @@ for (const gpus of ns) for (const seq of seqs) for (const d of ds) for (const kv
   ok(row.moeWire === build({ ...base, gpus, seq, d, kv, moe, attn: 'tp' }).moeWire, `moe wire ignores attn at N=${gpus} ${moe}`);
 }
 
+const one = build({ ...base, gpus: 1, attn: 'kvp' });
+ok(one.attnWire === 0, 'one GPU KV-parallel gather is zero');
+ok(kvpTradeClause(one) === '', 'one GPU trade clause does not claim a cache move');
+ok(kvpClosing(one).includes('gathers no cache bytes'), 'one GPU closing says the gather is zero');
+ok(!/gathers cache bytes/.test(kvpClosing(one)), 'one GPU closing does not claim a gather');
+const many = build({ ...base, gpus: 4, attn: 'kvp' });
+ok(many.attnWire > 0, 'several GPUs gather cache bytes');
+ok(kvpTradeClause(many).includes('moves cache bytes'), 'trade clause names the move when the gather is non-zero');
+ok(/gathers cache bytes/.test(kvpClosing(many)), 'closing names the gather when it is non-zero');
+const tpOne = build({ ...base, gpus: 1, attn: 'tp' });
+ok(kvpClosing(tpOne).includes('only when'), 'another attention mode does not say the current view gathers');
+ok(cardBlurb.includes('With one GPU the gather is zero'), 'blurb stays true on a one-GPU strip');
+
 const page = readFileSync(new URL('./page.js', import.meta.url), 'utf8');
 ok(page.includes("from './math.js'"), 'page imports the shipped math');
-ok(page.includes('kvp'), 'page names KV-parallel');
+ok(page.includes('kvpTradeClause(') && page.includes('kvpClosing('), 'page uses the shipped gather sentences');
+ok(!page.includes('when that choice is selected, shards the sequence and gathers cache bytes'), 'page does not claim the gather unconditionally');
 ok(!page.includes('not drawn here') && !page.includes('not shown here'), 'page does not say the sequence split is absent');
 
 if (fail) { console.error(fail + ' failed'); process.exit(1); }

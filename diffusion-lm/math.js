@@ -42,6 +42,23 @@ export function maskSentence(step) {
   return `${masked} - ${sub} = ${next}`;
 }
 
+// The pending step's scores were computed on the mask it received. Position 0's
+// score is scores[0] of that step, including after the step has cleared the
+// last masked cell. The canvas claim is true only while position 0 is still
+// masked in the picture the step is about to read.
+export function positionScore(step) {
+  const s = step && step.scores ? step.scores[0] : 0;
+  return Number.isFinite(s) ? s : 0;
+}
+
+export function positionScoreSentence(step) {
+  return `position 0 score ${positionScore(step)}`;
+}
+
+export function pendingScoreClaim(mask) {
+  return mask && mask[0] ? 'pending score at 0 includes every position' : '';
+}
+
 export const DEMO_TOKENS = [1, 2, 3, 4];
 
 export function diffusionAt(steps) {

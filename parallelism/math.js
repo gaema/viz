@@ -1,7 +1,7 @@
 // Device-parallel traffic for one transformer layer.
 // tp / pp / dp / ep are the original branches. kvp shards the sequence for
-// attention and gathers cache bytes; it is not the expert-token all-to-all
-// and it is not the ring on the context-parallelism page.
+// attention. The cache gather is zero on a one-GPU strip. It is not the
+// expert-token all-to-all and it is not the ring on the context-parallelism page.
 
 export const BPE = 2;
 const GQA = 8;
@@ -145,4 +145,20 @@ export function stages(m) {
   ];
 }
 
-export const cardBlurb = 'Tensor parallel, pipeline parallel, expert parallel, and data-parallel attention move different bytes at different moments. KV-parallel is an attention choice on the same devices: each GPU keeps a sequence shard of the cache and one gather moves those cache bytes, a different quantity from an activation all-reduce or the expert-token all-to-all. Data-parallel attention still crosses nothing. The ring that passes keys or queries around one sequence is the context-parallelism page.';
+export function kvpTradeClause(m) {
+  if (m.attn !== 'kvp' || !(m.attnWire > 0)) return '';
+  return 'KV-parallel attention moves cache bytes for a sequence shard, a different quantity from the MoE wire. ';
+}
+
+export function kvpClosing(m) {
+  const tail = 'Tensor, pipeline, and data-parallel attention do not use that gather. The ring that passes keys or queries is the context-parallelism page.';
+  if (m.attn === 'kvp' && m.attnWire > 0) {
+    return `KV-parallel attention shards the sequence and gathers cache bytes. ${tail}`;
+  }
+  if (m.attn === 'kvp') {
+    return `KV-parallel attention on one GPU gathers no cache bytes. ${tail}`;
+  }
+  return `KV-parallel attention gathers cache bytes only when that choice is selected and the strip has more than one GPU. ${tail}`;
+}
+
+export const cardBlurb = 'Tensor parallel, pipeline parallel, expert parallel, and data-parallel attention move different bytes at different moments. KV-parallel is an attention choice on the same devices: each GPU keeps a sequence shard of the cache. A gather of those cache bytes happens only when more than one GPU is in the strip, and that quantity differs from an activation all-reduce and from the expert-token all-to-all. With one GPU the gather is zero. Data-parallel attention still crosses nothing. The ring that passes keys or queries around one sequence is the context-parallelism page.';

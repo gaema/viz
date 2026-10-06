@@ -2,7 +2,7 @@
 // The next step is drawn from the new mask alone.
 import { mount } from '../framework/layout.js';
 import { T } from '../framework/theme.js';
-import { diffusionAt, maskSentence, DEMO_TOKENS } from './math.js';
+import { diffusionAt, maskSentence, positionScoreSentence, pendingScoreClaim, DEMO_TOKENS } from './math.js';
 
 mount({
   mount: 'body',
@@ -40,9 +40,9 @@ mount({
       ctx.fillText(String(i), x + cw / 2, y + h + 22);
     }
     ctx.textAlign = 'left';
-    ctx.fillText('pending score at 0 includes every position', pad, H * 0.12);
-    const score = pending.masked ? pending.scores[pending.mask.indexOf(true)] : 0;
-    page.setReadout(`next step ${maskSentence(pending)}. position 0 score ${score}. no causal cache is passed on.`);
+    const claim = pendingScoreClaim(at.mask);
+    if (claim) ctx.fillText(claim, pad, H * 0.12);
+    page.setReadout(`next step ${maskSentence(pending)}. ${positionScoreSentence(pending)}. no causal cache is passed on.`);
     page.probe = { pending, mask: at.mask };
   },
 });

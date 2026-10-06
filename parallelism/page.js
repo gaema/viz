@@ -42,7 +42,8 @@
 //    ?budget, ?hover=x,y.
 //
 // KV-parallel attention is one of the attention choices: each device keeps a
-// sequence shard of the cache and one gather moves those cache bytes. It is
+// sequence shard of the cache. The gather of those cache bytes is drawn only
+// when more than one GPU is in the strip. With one GPU nothing crosses. It is
 // not the ring that passes keys or queries on the context-parallelism page.
 //
 // Public sources for the mechanisms: the vLLM parallelism-and-scaling serving
@@ -54,7 +55,7 @@
 // instead and spends the parallelism on the experts.
 import { mount } from '../framework/layout.js';
 import { T, alphaOf, inkOn, rgbaToken } from '../framework/theme.js';
-import { BPE, clamp, ATTN_MODES, MOE_MODES, NAME, SHORT, fmtB, build, stages, cardBlurb } from './math.js';
+import { BPE, clamp, ATTN_MODES, MOE_MODES, NAME, SHORT, fmtB, build, stages, kvpTradeClause, kvpClosing, cardBlurb } from './math.js';
 
 // ---- drawing helpers ------------------------------------------------------
 function roundRect(ctx, x, y, w, h, r) {
@@ -558,8 +559,8 @@ mount({
     o += `MEM   peak per GPU ${fmtB(m.peak)} of ${st.budget} GB — ${m.fits ? 'fits' : 'DOES NOT FIT'}; ${dupTxt}; KV ${fmtB(m.kvTotal)} total`;
     o += m.attn === 'tp' && m.kvHeads <= 1 ? `, and tensor parallel cannot shard a single-head latent cache — every rank keeps a whole copy.\n` : `.\n`;
     o += m.anyPP ? `PIPE  ${(100 * m.bubble).toFixed(0)}% bubble at ${st.micro} micro-batch${st.micro > 1 ? 'es' : ''} across ${m.N} stages; pipelining buys cheap comms and buys nothing for single-token latency.\n`
-      : `TRADE ${m.attn === 'tp' || m.moe === 'tp' ? 'an all-reduce sits on the critical path of every sublayer of every layer, so a slower fabric shows up directly as latency. ' : ''}${m.attn === 'kvp' ? 'KV-parallel attention moves cache bytes for a sequence shard, a different quantity from the MoE wire. ' : ''}${m.attn === 'dp' ? 'attention crosses nothing, at the price of a whole copy of the attention weights per rank. ' : ''}${m.moe === 'ep' ? 'expert memory scales with GPU count, but the all-to-all is routing-dependent and load-imbalanced.' : ''}\n`;
-    o += `KV-parallel attention, when that choice is selected, shards the sequence and gathers cache bytes. Tensor, pipeline, and data-parallel attention do not use that gather. The ring that passes keys or queries is the context-parallelism page.`;
+      : `TRADE ${m.attn === 'tp' || m.moe === 'tp' ? 'an all-reduce sits on the critical path of every sublayer of every layer, so a slower fabric shows up directly as latency. ' : ''}${kvpTradeClause(m)}${m.attn === 'dp' ? 'attention crosses nothing, at the price of a whole copy of the attention weights per rank. ' : ''}${m.moe === 'ep' ? 'expert memory scales with GPU count, but the all-to-all is routing-dependent and load-imbalanced.' : ''}\n`;
+    o += kvpClosing(m);
     page.setReadout(o);
   },
 }).then((page) => {

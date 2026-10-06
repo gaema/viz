@@ -7,7 +7,7 @@
 import { mount } from '../framework/layout.js';
 import { softmax, seededRandn } from '../framework/tensor.js';
 import { T, alphaOf } from '../framework/theme.js';
-import { auxMix, biasRun, moveSentence, compareCaptions, cardBlurb } from './math.js';
+import { auxMix, biasRun, biasBarLoad, moveSentence, compareCaptions, cardBlurb } from './math.js';
 
 
 
@@ -77,11 +77,13 @@ mount({
       const logits = Array.from(cur.skew, (s) => Math.log(Math.max(s, 1e-9)));
       biasRow = biasRun(logits, st.k | 0, +st.step, TOKENS, Math.max(1, st.rounds | 0));
     }
+    const target = biasRow
+      ? biasBarLoad(biasRow)
+      : Float32Array.from(loss.eff, (x) => x * TOKENS);
     const eff = biasRow
-      ? Float32Array.from(biasRow.load, (x) => x / (biasRow.load.reduce((a, b) => a + b, 0) || 1))
+      ? Float32Array.from(biasRow.load, (x) => x / TOKENS)
       : loss.eff;
     const cap = Math.max(1, Math.ceil(st.cap * TOKENS / E));
-    const target = Float32Array.from(eff, (x) => x * TOKENS);
     for (let e = 0; e < E; e++) displayed[e] += (target[e] - displayed[e]) * 0.18;   // ease toward target
 
     // metrics (from the settled target, not the easing display)

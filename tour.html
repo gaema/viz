@@ -193,7 +193,7 @@ const STOPS = [
   ['J','ring-attention','A context too long for any single chip, handled by passing pieces around a ring so each chip only ever holds one at a time — as long as the passing hides behind the arithmetic.'],
   ['J','context-extension','Models advertise longer and longer context. This is the trick behind it, and the resolution it quietly trades away to get there.'],
   ['J','constrained-decoding','When an app needs an answer in a strict format, it does not ask nicely — it makes every invalid word unpickable at each step. This is how ‘always valid JSON’ actually works.'],
-  ['J','parallelism','Tensor, pipeline, expert, and data parallel move different bytes. KV-parallel attention, when selected, gathers sequence shards of the cache. Data-parallel attention still crosses nothing.'],
+  ['J','parallelism','Tensor, pipeline, expert, and data parallel move different bytes. KV-parallel attention gathers sequence shards of the cache only when more than one device is in the strip. Data-parallel attention still crosses nothing.'],
   ['J','context-editing','A long-running agent fills up with stale tool output. Clearing it frees room — and quietly throws away the cached work that made the next turn cheap.'],
   ['J','prefix-routing','With several copies of a model running, sending you to the one that already remembers your prompt saves work — until everyone gets sent to the same one.'],
   ['J','hybrid-cache-allocator','Newer models mix two kinds of layer whose memory behaves completely differently, and a server has to hold both in one pool. Neither setting can win.'],

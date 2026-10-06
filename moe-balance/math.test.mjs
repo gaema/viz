@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { auxMix, biasRoute, moveSentence, compareCaptions } from './math.js';
+import { auxMix, biasRoute, biasRun, biasBarLoad, moveSentence, compareCaptions } from './math.js';
 
 let fail = 0;
 const ok = (c, m) => { if (c) console.log('ok ' + m); else { fail++; console.error('FAIL ' + m); } };
@@ -30,10 +30,22 @@ ok(loss1.lam === 1 && Math.abs(loss1.eff[0] - 1 / 3) < 1e-5 && Math.abs(loss1.ef
 ok(compareCaptions('loss').a.indexOf('λ=0') === 0, 'loss captions name λ');
 ok(compareCaptions('bias').a.indexOf('bias route') === 0, 'bias captions do not claim a λ collapse');
 
+const def = biasRun([1, 0.2, -1, 0.5, -0.4, 0.1], 2, 0.25, 120, 1);
+const bars = biasBarLoad(def);
+ok(def.picked.length === 2, 'default k keeps two experts');
+for (const i of def.picked) {
+  ok(def.load[i] === 120, 'default route load is the token count');
+  ok(bars[i] === def.load[i], 'the bar is that route load');
+}
+ok(!def.picked.some((i) => bars[i] === 60), 'default bars are not the renormalized half');
+
 const page = readFileSync(new URL('./page.js', import.meta.url), 'utf8');
 ok(page.includes('auxMix('), 'page calls auxMix');
 ok(page.includes('biasRun('), 'page calls biasRun');
+ok(page.includes('biasBarLoad('), 'page draws the route load');
+ok(!page.includes('biasRow.load.reduce'), 'page does not divide the route load by its sum');
 ok(page.includes("key: 'lam'"), 'compare key stays λ');
+ok(page.includes('the bias step sets these bars'), 'the label still names the token load');
 
 if (fail) { console.error(fail + ' failed'); process.exit(1); }
 console.log('PASS moe-balance');
