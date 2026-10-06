@@ -15,6 +15,33 @@ import { T, alphaOf } from '../framework/theme.js';
 
 const PAL = () => [T.accent, T.warn, T.ok, T.violet, T.bad, T.tealDeep, T.warn, T.violetDeep];
 const fmt = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + 'G' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : '' + Math.round(n);
+function parseMac(s) {
+  if (s.endsWith('G')) return Number(s.slice(0, -1)) * 1e9;
+  if (s.endsWith('M')) return Number(s.slice(0, -1)) * 1e6;
+  if (s.endsWith('k')) return Number(s.slice(0, -1)) * 1e3;
+  return Number(s);
+}
+function macText(n, digits) {
+  if (n >= 1e9) return (n / 1e9).toFixed(digits) + 'G';
+  if (n >= 1e6) return (n / 1e6).toFixed(digits) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(digits) + 'k';
+  return String(Math.round(n));
+}
+// The two MAC counts lengthen until fmt of their printed sum is fmt of the true sum.
+function macSum(dw, pw) {
+  const goal = fmt(dw + pw);
+  const start = (n) => (n >= 1e9 ? 2 : n >= 1e3 ? 1 : 0);
+  for (let ea = 0; ea <= 8; ea++) {
+    for (let eb = 0; eb <= 8; eb++) {
+      const a = dw >= 1e3 ? macText(dw, start(dw) + ea) : macText(dw, 0);
+      const b = pw >= 1e3 ? macText(pw, start(pw) + eb) : macText(pw, 0);
+      if (fmt(parseMac(a) + parseMac(b)) === goal) return { a, b, c: goal };
+    }
+  }
+  const a = fmt(dw);
+  const b = fmt(pw);
+  return { a, b, c: fmt(parseMac(a) + parseMac(b)) };
+}
 
 let stdInRect = null, stdOutRect = null, dragMode = '', lastY = 0;
 
@@ -60,14 +87,16 @@ mount({
     r.clear(T.n0);
     const k = st.k | 0, Cin = st.Cin | 0, Cout = st.Cout | 0, hw = st.HW | 0;
     const full = hw * hw * Cin * Cout * k * k, dw = hw * hw * Cin * k * k, pw = hw * hw * Cin * Cout, dwsep = dw + pw;
-    const shown = (full / dwsep).toFixed(2);
+    const mac = macSum(dw, pw);
+    // Four decimals: a step of 4 output channels still changes the printed ratio.
+    const shown = ((k * k * Cout) / (k * k + Cout)).toFixed(4);
     const inv = (dwsep / full).toFixed(2);
     const cmp = Number(shown) > 1 ? `full is ${shown}× the separable cost`
       : Number(shown) < 1 ? `separable is ${inv}× the full conv`
       : `full and separable cost the same`;
     const barWord = Number(shown) > 1 ? `${shown}× fewer` : Number(shown) < 1 ? `${inv}× more` : `same cost`;
     const pFull = Cin * Cout * k * k, pSep = Cin * k * k + Cin * Cout;
-    const pShown = (pFull / pSep).toFixed(2);
+    const pShown = (pFull / pSep).toFixed(4);
     const nIn = Math.min(Cin, 7), nOut = Math.min(Cout, 7), sz = 10, yc = 100;
     const stage = ((page.t || 0) % 3) < 1.5 ? 'dw' : 'pw';  // animate the two stages in turn
 
@@ -95,7 +124,7 @@ mount({
     drawKbadge(ctx, r, x0 + 207, yc - 42, 1, T.warn, `1×1 mix`);
     r.label('depthwise', x0 + 18, yc + di.h / 2 + 16, { color: T.ok, font: '9px ui-monospace, monospace' });
     r.label('pointwise', x0 + 200, yc + dou.h / 2 + 16, { color: T.warn, font: '9px ui-monospace, monospace' });
-    r.label(`depthwise ${fmt(dw)}  +  pointwise ${fmt(pw)}  =  ${fmt(dwsep)} MACs`, x0, yc + di.h / 2 + 32, { color: T.n14, font: '10px ui-monospace, monospace' });
+    r.label(`depthwise ${mac.a}  +  pointwise ${mac.b}  =  ${mac.c} MACs`, x0, yc + di.h / 2 + 32, { color: T.n14, font: '10px ui-monospace, monospace' });
 
     // ===== MAC comparison bars (bottom) =====
     const by = 206, bx = 20, bw = W - 40, maxv = Math.max(full, dwsep);

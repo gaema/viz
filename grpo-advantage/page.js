@@ -22,13 +22,14 @@
 //   A_i > 0 and rho_i > 1+eps   ->   clamped, contributes nothing
 //   A_i < 0 and rho_i < 1-eps   ->   clamped, contributes nothing
 //
-// THE FAILURE THIS PAGE IS BUILT AROUND: if every rollout in the group earns the
-// SAME reward -- all correct, or all wrong -- then every r_i equals mu, so every
-// A_i is EXACTLY zero and the group contributes no gradient at all. Dividing by
-// sigma does not rescue it (0 / (0 + 1e-4) is still 0). Drag the rewards until
-// the group agrees and the gradient signal reads 0.000. That is why dynamic
-// sampling -- filtering out the all-correct and all-wrong groups and sampling
-// replacements until the batch is full of groups that disagree -- exists.
+// THE FAILURE THIS PAGE IS BUILT AROUND: if every rollout earns the same reward,
+// every r_i equals mu, so every A_i is exactly zero and the group contributes
+// no gradient. Spread 0 is what makes "all correct" or "all wrong" that case.
+// Partial credit does not make those verdicts into exactly equal rewards.
+// The signal still reads 0.000 when the clip window drops every term, and
+// when every advantage rounds to 0.000. Dividing by sigma does not rescue a
+// true zero (0 / (0 + 1e-4) is still 0). Drag the rewards until they match
+// and the signal reads 0.000.
 //
 // WHAT THIS PAGE DOES NOT SHOW, deliberately: no policy update, no weights, no
 // training curve. A weight update over a transformer is not a thing a reader can
@@ -48,6 +49,57 @@ const STD_EPS = 1e-4;              // the +eps in A = (r - mu) / (sigma + eps)
 const f2 = (x) => x.toFixed(2);
 const f3 = (x) => x.toFixed(3);
 const pct = (x) => (x * 100).toFixed(1) + '%';
+// A signed advantage keeps the leading plus f3 does not emit. The digits in
+// each equation lengthen until f3 of the printed operation is this string.
+const signed3 = (x) => (x >= 0 ? '+' : '') + f3(x);
+
+function meanParts(rewards, S, mu) {
+  const goal = f3(mu);
+  const n = S || 1;
+  for (let d = 3; d <= 14; d++) {
+    const parts = rewards.map((r) => r.toFixed(d));
+    if (f3(parts.reduce((a, b) => a + Number(b), 0) / n) === goal) return parts;
+  }
+  return rewards.map((r) => String(r));
+}
+
+function diffShown(r, mu, raw) {
+  const goal = signed3(raw);
+  for (let d = 3; d <= 12; d++) {
+    for (let db = 3; db <= 12; db++) {
+      const a = r.toFixed(d);
+      const b = mu.toFixed(db);
+      if (signed3(Number(a) - Number(b)) === goal) return { a, b, v: goal };
+    }
+  }
+  const a = String(r);
+  const b = String(mu);
+  return { a, b, v: signed3(Number(a) - Number(b)) };
+}
+
+function quotShown(num, den, result) {
+  const goal = signed3(result);
+  for (let dn = 3; dn <= 12; dn++) {
+    for (let dd = 5; dd <= 12; dd++) {
+      const a = num.toFixed(dn);
+      const b = den.toFixed(dd);
+      if (signed3(Number(a) / Number(b)) === goal) return { a, b, v: goal };
+    }
+  }
+  const a = String(num);
+  const b = String(den);
+  return { a, b, v: signed3(Number(a) / Number(b)) };
+}
+
+function signalParts(absValues, signal) {
+  const goal = f3(signal);
+  const n = absValues.length || 1;
+  for (let d = 3; d <= 12; d++) {
+    const parts = absValues.map((v) => v.toFixed(d));
+    if (f3(parts.reduce((a, b) => a + Number(b), 0) / n) === goal) return { parts, v: goal };
+  }
+  return { parts: absValues.map((v) => String(v)), v: goal };
+}
 
 // ------------------------------------------------------------------ the group
 // A rollout is a sampled answer with a verifiable reward. Deterministic in the
@@ -120,14 +172,14 @@ function hatch(ctx, x, y, w, h) {
 mount({
   mount: 'body',
   title: 'group-relative advantage — the group is the baseline',
-  blurb: 'GRPO scores a whole GROUP of rollouts for one prompt with a verifiable reward, then sets each rollout\'s advantage to its reward minus the GROUP MEAN. No learned value network: the other samples are the baseline. Drag any reward bar and every advantage, the mean, the clipped fraction and the gradient signal recompute under your hand. Drag them until the group AGREES — all correct, or all wrong — and the signal reads exactly 0.000, because every reward then equals the mean. Mechanism: DeepSeekMath / GRPO, arXiv:2402.03300; the std-normalisation and length biases, Dr. GRPO, arXiv:2503.20783. No policy update, no weights and no training curve are shown — see the note under the chart.',
+  blurb: 'GRPO scores a whole GROUP of rollouts for one prompt with a verifiable reward, then sets each rollout\'s advantage to its reward minus the GROUP MEAN. No learned value network: the other samples are the baseline. Drag any reward bar and every advantage, the mean, the clipped fraction and the gradient signal recompute under your hand. Drag the reward bars until every score matches, or set partial-credit spread to 0 and mark every rollout correct or every rollout wrong. The signal then reads exactly 0.000, because every reward equals the mean. Marking every rollout correct while partial credit stays on does not make the rewards exactly equal. The signal still reads 0.000 when the clip window drops every term, and when every advantage rounds to 0.000. Mechanism: DeepSeekMath / GRPO, arXiv:2402.03300; the std-normalisation and length biases, Dr. GRPO, arXiv:2503.20783. No policy update, no weights and no training curve are shown — see the note under the chart.',
   prefer: 'canvas2d',
   aspect: '2 / 1',
   autoplay: true,
   compare: {
     key: 'pass', a: 0.5, b: 1,
-    labelA: 'a group that disagrees — real advantages, real gradient',
-    labelB: 'every rollout correct — every advantage exactly 0, no gradient',
+    labelA: 'each rollout is correct with probability 0.5',
+    labelB: 'every rollout is marked correct',
   },
   challenges: [
     {
@@ -406,18 +458,21 @@ mount({
       const j = Math.floor((py - rowsRect.y) / rowH);
       if (j >= 0 && j < S && py >= rowsRect.y && py <= rowsRect.y + rowsRect.h) {
         const row = m.rows[j];
+        const parts = meanParts(m.rows.map((x) => x.r), S, m.mu);
         if (px >= rx - 8 && px <= rx + rw + 40) {
           page.setTip(
             `rollout o${j} — verifier says ${row.r >= 0.5 ? 'CORRECT' : 'wrong'}\n` +
-            `reward r = ${f3(row.r)}\n` +
-            `group mean μ = (${m.rows.map((x) => f3(x.r)).join(' + ')}) / ${S} = ${f3(m.mu)}\n` +
+            `reward r = ${parts[j]}\n` +
+            `group mean μ = (${parts.join(' + ')}) / ${S} = ${f3(m.mu)}\n` +
             `drag ↔ to change this reward · click the ✓/✗ tag to flip it`);
         } else if (px >= ax && px <= ax + aw) {
+          const dlt = diffShown(row.r, m.mu, row.raw);
+          const q = quotShown(row.raw, m.sigma + STD_EPS, row.A);
           page.setTip(
             `rollout o${j} advantage\n` +
-            `r − μ = ${f3(row.r)} − ${f3(m.mu)} = ${(row.raw >= 0 ? '+' : '') + f3(row.raw)}\n` +
+            `r − μ = ${dlt.a} − ${dlt.b} = ${dlt.v}\n` +
             (st.norm
-              ? `÷ (σ + 1e−4) = ${f3(row.raw)} / ${(m.sigma + STD_EPS).toFixed(5)} = ${(row.A >= 0 ? '+' : '') + f3(row.A)}\n`
+              ? `÷ (σ + 1e−4) = ${q.a} / ${q.b} = ${q.v}\n`
               : `A = ${(row.A >= 0 ? '+' : '') + f3(row.A)}  (no std normalisation)\n`) +
             (Math.abs(row.A) < 1e-9
               ? 'exactly zero — this rollout earned the group mean, so it moves nothing'
@@ -433,10 +488,11 @@ mount({
               : 'unclamped: the ρ·A branch wins, so this rollout still pushes the policy'));
         }
       } else if (py >= by && py <= by + 34 && px >= gx && px <= gx + gw + 90) {
+        const sig = m.nLive ? signalParts(m.rows.filter((x) => !x.clamped).map((x) => Math.abs(x.A)), m.signal) : null;
         page.setTip(
           `gradient signal = mean |A| over the ${m.nLive} unclipped rollout${m.nLive === 1 ? '' : 's'}\n` +
-          (m.nLive
-            ? `= (${m.rows.filter((x) => !x.clamped).map((x) => Math.abs(x.A).toFixed(3)).join(' + ')}) / ${m.nLive} = ${f3(m.signal)}`
+          (sig
+            ? `= (${sig.parts.join(' + ')}) / ${m.nLive} = ${sig.v}`
             : 'every rollout is clamped, so the group moves nothing this step') +
           (agree ? '\nevery reward equals μ, so every A is exactly 0 — this group is filtered out by dynamic sampling' : ''));
       }

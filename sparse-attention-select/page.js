@@ -84,6 +84,34 @@ function crossover(mode, k, d, di, c, ch, cap = 20000) {
 
 const fmt = (x) => (x >= 1e9 ? (x / 1e9).toFixed(2) + ' G' : x >= 1e6 ? (x / 1e6).toFixed(2) + ' M' : x >= 1e3 ? (x / 1e3).toFixed(1) + ' k' : String(Math.round(x)));
 const pct = (x) => (100 * x).toFixed(1) + '%';
+function parseCost(s) {
+  const m = String(s).trim().match(/^([0-9.]+)\s*([kMG])?$/);
+  if (!m) return NaN;
+  const u = m[2] === 'k' ? 1e3 : m[2] === 'M' ? 1e6 : m[2] === 'G' ? 1e9 : 1;
+  return Number(m[1]) * u;
+}
+function costText(n, digits) {
+  if (n >= 1e9) return (n / 1e9).toFixed(digits) + ' G';
+  if (n >= 1e6) return (n / 1e6).toFixed(digits) + ' M';
+  if (n >= 1e3) return (n / 1e3).toFixed(digits) + ' k';
+  return String(Math.round(n));
+}
+// The two prefill totals lengthen until the percent of those printed counts
+// is the percent of the true counts.
+function costPair(c, f) {
+  const goal = pct(c / f);
+  const start = (n) => (n >= 1e6 ? 2 : n >= 1e3 ? 1 : 0);
+  for (let ec = 0; ec <= 8; ec++) {
+    for (let ef = 0; ef <= 8; ef++) {
+      const cS = c >= 1e3 ? costText(c, start(c) + ec) : costText(c, 0);
+      const fS = f >= 1e3 ? costText(f, start(f) + ef) : costText(f, 0);
+      if (pct(parseCost(cS) / parseCost(fS)) === goal) return { cS, fS, pct: goal };
+    }
+  }
+  const cS = fmt(c);
+  const fS = fmt(f);
+  return { cS, fS, pct: pct(parseCost(cS) / parseCost(fS)) };
+}
 
 // ---------------------------------------------------------------------------
 // Synthetic-but-real tensors. Deterministic per seed, so the picture reloads
@@ -324,6 +352,7 @@ mount({
     const C = costs(mode, N, st.k, st.d, st.di, st.c, st.hc);
     const F = costs('full', N, st.k, st.d, st.di, st.c, st.hc);
     const ratio = C.total / F.total;
+    const shown = costPair(C.total, F.total);
     const xN = crossover(mode, st.k, st.d, st.di, st.c, st.hc);
     const attendedTokens = mode === 'full' ? qi + 1 : Math.min((qi + 1), sl.keep * sl.grp);
     const idxScoresThisQuery = mode === 'full' ? 0 : mode === 'hca' ? 0 : sl.nEnt;
@@ -336,10 +365,10 @@ mount({
     if (mode === 'dsa' || mode === 'csa') line(`indexer found ${sl.recall}/${sl.recallOf} of the true top-k`, sl.recall === sl.recallOf ? T.ok : T.warn);
     y += 6;
     line(`whole prefill of N = ${N}`, T.n14, 12);
-    line(`full attention   ${fmt(F.total)} mult`, T.n11);
+    line(`full attention   ${shown.fS} mult`, T.n11);
     const rcol = mode === 'full' ? T.n11 : ratio < 1 ? T.ok : T.bad;
-    line(`this mode        ${fmt(C.total)} mult`, rcol);
-    line(`  = ${pct(ratio)} of full attention (lower is better; 100% = parity)`, rcol, 10.5);
+    line(`this mode        ${shown.cS} mult`, rcol);
+    line(`  = ${shown.pct} of full attention (lower is better; 100% = parity)`, rcol, 10.5);
     if (C.idx) line(`  indexer ${fmt(C.idx)} · attention ${fmt(C.attn)}${C.comp ? ` · compress ${fmt(C.comp)}` : ''}`, T.n10, 10.5);
     else if (C.comp) line(`  compress ${fmt(C.comp)} · attention ${fmt(C.attn)}`, T.n10, 10.5);
     if (mode !== 'full') {
@@ -392,7 +421,7 @@ mount({
     o += `q=${qi} of N=${N} · k=${st.k} · d=${st.d} · indexer dim=${st.di}` + (mode === 'csa' ? ` · compression ${st.c}` : mode === 'hca' ? ` · heavy compression ${st.hc}` : '') + '\n';
     o += `reads ${sl.keep} KV ${sl.grp > 1 ? 'compressed entries' : 'entries'} (${attendedTokens}/${qi + 1} tokens reached), scores ${idxScoresThisQuery} with the indexer; loses ${pct(sl.discarded)} of the true attention mass`;
     o += (mode === 'dsa' || mode === 'csa') ? `; the cheap score recovers ${sl.recall}/${sl.recallOf} of the true top-k.\n` : '.\n';
-    o += `prefill cost ${fmt(C.total)} vs ${fmt(F.total)} mult for full attention = ${pct(ratio)} of full attention (lower is better; 100% = parity). ` + (mode === 'full' ? '' : xN < 0 ? 'No crossover: the indexer never pays for itself at these settings.' : `Crossover N* = ${xN}; N=${N} is ${N >= xN ? 'above' : 'below'} it.`) + '\n';
+    o += `prefill cost ${shown.cS} vs ${shown.fS} mult for full attention = ${shown.pct} of full attention (lower is better; 100% = parity). ` + (mode === 'full' ? '' : xN < 0 ? 'No crossover: the indexer never pays for itself at these settings.' : `Crossover N* = ${xN}; N=${N} is ${N >= xN ? 'above' : 'below'} it.`) + '\n';
     o += !sl.needle || p > qi ? `needle @ p=${p} is ahead of the query — step the transport past it.`
       : mode === 'full' ? `needle @ p=${p}: read like every other token — this mode selects nothing away.`
       : mode === 'hca' ? `needle @ p=${p}: pooled into compressed entry ${sl.needle.entry.b} — present, but blurred together with its neighbours.`
