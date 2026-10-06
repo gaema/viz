@@ -155,6 +155,15 @@ function scan(mode, st) {
   return { states, b, w, r0 };
 }
 
+// The printed state is the one update of the gates, previous value, key, and value already on that line.
+function shownState(b, prev, sk, k, w, v) {
+  const bS = b.toFixed(2), pS = prev.toFixed(3), skS = sk.toFixed(3), kS = k.toFixed(3);
+  const wS = w.toFixed(2), vS = v.toFixed(3);
+  const kept = Number(bS) * (Number(pS) - Number(skS) * Number(kS));
+  const written = Number(wS) * Number(vS) * Number(kS);
+  return { bS, pS, skS, kS, wS, vS, sS: (kept + written).toFixed(4), keptS: kept.toFixed(4), writtenS: written.toFixed(4) };
+}
+
 const pct = (x) => (Number.isFinite(x) ? `${(x * 100).toFixed(1)}%` : '--');
 
 // One 0..1 rate as a horizontal fill bar. Returns its rect for hit-testing.
@@ -401,11 +410,12 @@ mount({
       if (hs) {
         const i = hs.r, j = hs.c, k = K.subarray(t * d, t * d + d), v = V.subarray(t * d, t * d + d);
         const prev = t > 0 ? run.states[t - 1].S[i * d + j] : 0;
+        const g = shownState(run.b[i], prev, cs.Sk[i], k[j], run.w[i], v[i]);
         page.setTip(
-          `S[val ${i}, key ${j}] = ${cs.S[i * d + j].toFixed(4)}\n` +
+          `S[val ${i}, key ${j}] = ${g.sS}\n` +
           `  = b[${i}]·(Sprev − (Sprev·k)[${i}]·k[${j}]) + w[${i}]·v[${i}]·k[${j}]\n` +
-          `  = ${run.b[i].toFixed(2)}·(${prev.toFixed(3)} − ${cs.Sk[i].toFixed(3)}·${k[j].toFixed(3)}) + ${run.w[i].toFixed(2)}·${v[i].toFixed(3)}·${k[j].toFixed(3)}\n` +
-          `  kept ${cs.Er[i * d + j].toFixed(4)} + written ${cs.Wr[i * d + j].toFixed(4)}`);
+          `  = ${g.bS}·(${g.pS} − ${g.skS}·${g.kS}) + ${g.wS}·${g.vS}·${g.kS}\n` +
+          `  kept ${g.keptS} + written ${g.writtenS}`);
       } else {
         let hit = false;
         for (const h of gateHits) {

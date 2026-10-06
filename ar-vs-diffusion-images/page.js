@@ -375,6 +375,11 @@ let budgetBar = null, orderStrip = null, stepStrip = null;
 let dragging = null;                                  // 'budget' | 'steps' | 'order'
 
 const diffSteps = (st) => (st.fair ? clamp(Math.round(st.budget / (GRID * GRID)), 1, 16) : clamp(st.dsteps | 0, 1, 16));
+// The gap beside the two printed patch means is those two strings.
+function shownGap(now, target) {
+  const aS = now.toFixed(3), bS = target.toFixed(3);
+  return { aS, bS, dS: Math.abs(Number(aS) - Number(bS)).toFixed(3) };
+}
 
 function build(st) {
   const N = diffSteps(st);
@@ -701,9 +706,10 @@ mount({
         let big = 0, bigK = 0;
         for (let k = 1; k <= dN; k++) { const d = Math.abs(at(dif.frames[k]) - at(dif.frames[k - 1])); if (d > big) { big = d; bigK = k; } }
         const tv = (() => { let m = 0; for (let j = 0; j < PATCH; j++) for (let i = 0; i < PATCH; i++) for (let ch = 0; ch < CH; ch++) m += target[(((rr * PATCH + j) * IMG) + (cc * PATCH + i)) * CH + ch]; return m / PDIM; })();
+        const gap = shownGap(at(difNow), tv);
         tip = `region (${rr},${cc})   no token, no order — updated on EVERY step\n`
           + `steps applied so far: ${dN}/${dif.steps}, each one a whole-canvas pass\n`
-          + `mean latent now ${at(difNow).toFixed(3)}   target ${tv.toFixed(3)}   |Δ| ${Math.abs(at(difNow) - tv).toFixed(3)}\n`
+          + `mean latent now ${gap.aS}   target ${gap.bS}   |Δ| ${gap.dS}\n`
           + (dN > 0 ? `largest move so far: step ${bigK} moved it ${big.toFixed(3)}` : 'still at the noise sample');
       } else if (inRect(budgetBar, p.x, p.y)) {
         tip = `shared budget ${B} token-updates — drag me\n`

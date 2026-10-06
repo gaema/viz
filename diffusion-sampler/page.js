@@ -136,6 +136,17 @@ function offManifold(x, y) {
   return Math.sqrt(best);
 }
 
+// The Euler step beside the printed position, velocity, and step size is those strings.
+function shownEuler(x, u, h) {
+  const xS = x.toFixed(3), uS = u.toFixed(3), hS = h.toFixed(4);
+  return { xS, uS, hS, yS: (Number(xS) + Number(uS) * Number(hS)).toFixed(3) };
+}
+// The distance a step moves is the printed speed times the printed step size.
+function shownMove(mag, h) {
+  const mS = mag.toFixed(3), hS = h.toFixed(4);
+  return { mS, hS, dS: (Number(mS) * Number(hS)).toFixed(4) };
+}
+
 // Summary metrics for a set of trajectories against a deterministic reference.
 function metrics(trajs, refs) {
   let dref = 0, off = 0, straight = 0, n = trajs.length;
@@ -400,19 +411,21 @@ mount({
         if (Math.hypot(pt.x - q.x, pt.y - q.y) < 9) {
           const x = tr[2 * si], y = tr[2 * si + 1], f = field(x, y, tcur, st.path);
           const g = st.sde ? st.churn * f.s : 0;
-          tip = `particle ${p} @ step ${si}/${N}   x = (${x.toFixed(3)}, ${y.toFixed(3)})\n`
-            + `u(x, t=${tcur.toFixed(3)}) = (${f.ux.toFixed(3)}, ${f.uy.toFixed(3)})   h = 1/${N} = ${h.toFixed(4)}\n`
-            + `x + u·h = (${(x + f.ux * h).toFixed(3)}, ${(y + f.uy * h).toFixed(3)})${st.sde ? '' : '   ← the whole update (ODE)'}\n`
+          const ex = shownEuler(x, f.ux, h), ey = shownEuler(y, f.uy, h);
+          tip = `particle ${p} @ step ${si}/${N}   x = (${ex.xS}, ${ey.xS})\n`
+            + `u(x, t=${tcur.toFixed(3)}) = (${ex.uS}, ${ey.uS})   h = 1/${N} = ${ex.hS}\n`
+            + `x + u·h = (${ex.yS}, ${ey.yS})${st.sde ? '' : '   ← the whole update (ODE)'}\n`
             + (st.sde ? `+ ½g²·score·h + g√h·z,  g = ${st.churn.toFixed(2)}·σ = ${g.toFixed(3)}\n` : '')
             + (si < N ? `next: (${tr[2 * si + 2].toFixed(3)}, ${tr[2 * si + 3].toFixed(3)})` : `endpoint · off-manifold ${offManifold(x, y).toFixed(3)}`);
         }
       }
       if (!tip) for (const c of arrowCells) {
         if (Math.abs(pt.x - c.px) < stepX / 2 && Math.abs(pt.y - c.py) < stepY / 2) {
+          const mv = shownMove(c.mag, h);
           tip = `field at x = (${c.mx.toFixed(2)}, ${c.my.toFixed(2)}), t = ${tcur.toFixed(3)}\n`
-            + `u = (${c.f.ux.toFixed(3)}, ${c.f.uy.toFixed(3)})   |u| = ${c.mag.toFixed(3)}\n`
+            + `u = (${c.f.ux.toFixed(3)}, ${c.f.uy.toFixed(3)})   |u| = ${mv.mS}\n`
             + `E[data | x] = (${c.f.e1x.toFixed(3)}, ${c.f.e1y.toFixed(3)})\n`
-            + `score = (${c.f.sx.toFixed(2)}, ${c.f.sy.toFixed(2)})   a step of h=${h.toFixed(4)} moves ${(c.mag * h).toFixed(4)}`;
+            + `score = (${c.f.sx.toFixed(2)}, ${c.f.sy.toFixed(2)})   a step of h=${mv.hS} moves ${mv.dS}`;
           break;
         }
       }

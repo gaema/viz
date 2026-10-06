@@ -43,6 +43,11 @@ const methodColor = (id) => T[(METHODS.find((m) => m.id === id) || METHODS[0]).t
 
 const fmt = (x) => (x === 0 ? '0' : Math.abs(x) < 1e-3 || Math.abs(x) >= 1e5 ? x.toExponential(2) : String(Number(x.toPrecision(4))));
 const ifmt = (x) => Math.round(x).toLocaleString('en-US');
+// The scaled angle beside the printed frequency and the printed factor is those strings.
+function shownFreq(th, fac) {
+  const thS = fmt(th), facS = fac.toFixed(2);
+  return { thS, facS, effS: fmt(Number(thS) / Number(facS)) };
+}
 
 // --- the math ---------------------------------------------------------------
 
@@ -415,7 +420,8 @@ mount({
       if (pt.x >= specX && pt.x <= specX + specW && pt.y >= specTop && pt.y <= facBot) {
         const i = Math.floor((pt.x - specX) / colW);
         const row = A.rows[Math.max(0, Math.min(A.np - 1, i))];
-        tip = `pair ${row.i}   θ${row.i} = ${fmt(row.th)}   →  θ′ = ${fmt(row.eff)}  (÷${row.fac.toFixed(2)})\n` +
+        const fq = shownFreq(row.th, row.fac);
+        tip = `pair ${row.i}   θ${row.i} = ${fq.thS}   →  θ′ = ${fq.effS}  (÷${fq.facS})\n` +
               `wavelength ${fmt(row.lam)} tok  →  ${fmt(row.lamEff)} tok\n` +
               `turns inside trained L: ${row.turns.toFixed(2)}   angles ever seen: 0…${fmt(row.cover)} rad\n` +
               `angle at p=${ifmt(pos)}: ${fmt(row.angle)} rad  (mod 2π = ${row.wrapped.toFixed(3)})\n` +
@@ -443,6 +449,7 @@ mount({
     page.setReadout(o);
   },
 }).then((page) => {
+  window.__ctxExtPage = page;
   const q = new URLSearchParams(location.search);
   const t = page.controls._transport;
 
