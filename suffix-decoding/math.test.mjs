@@ -118,11 +118,18 @@ for (const [name, text] of [['blurb', cardBlurb], ['plain', plain], ['readme', r
 }
 const acc75 = fourSeed(defaults, 0.75);
 const verdict75 = curveVerdict(acc75, draftMean(0.72, 0.75, defaults.plen));
-ok(!verdict75.ahead && verdict75.tpf !== '1.00', 'the default curve point is behind the draft and above plain decode');
+ok(!verdict75.ahead && !verdict75.tie && verdict75.tpf !== '1.00', 'the default curve point is behind the draft and above plain decode');
 ok(verdict75.text.includes(`${verdict75.accepted} accepted is ${verdict75.tpf} tokens per forward`), 'the verdict states the printed tokens per forward');
-ok(page.includes('curveVerdict(') && page.includes('verdict.text'), 'the page serves that verdict');
+ok(page.includes('curveVerdict(') && page.includes('verdict.text') && page.includes('verdict.tie'), 'the page serves that verdict');
 const verdictHi = curveVerdict(fourSeed(defaults, 1), draftMean(0.72, 1, defaults.plen));
-ok(verdictHi.ahead && verdictHi.text.includes(`${verdictHi.accepted} accepted versus ${verdictHi.draft}`), 'full repetition is ahead of the modelled draft');
+ok(verdictHi.ahead && !verdictHi.tie && verdictHi.text.includes(`${verdictHi.accepted} accepted versus ${verdictHi.draft}`), 'full repetition is ahead of the modelled draft');
+const tieRho = 0.07;
+const tieIdx = Math.max(0, Math.min(20, Math.round(tieRho * 20)));
+const verdictTie = curveVerdict(fourSeed(defaults, tieIdx / 20), draftMean(0.35, tieRho, defaults.plen));
+ok(verdictTie.accepted === verdictTie.draft, 'repetitiveness 0.07 at draft agreement 0.35 prints equal operands');
+ok(verdictTie.tie && !verdictTie.ahead, 'a printed tie is a tie');
+ok(verdictTie.text.includes(`ties the modelled draft here — ${verdictTie.accepted} accepted versus ${verdictTie.draft}`), 'the verdict names the tie');
+ok(!verdictTie.text.includes('ahead'), 'the tie verdict does not say ahead');
 
 if (fail) { console.error(fail + ' failed'); process.exit(1); }
 console.log('PASS suffix-decoding');

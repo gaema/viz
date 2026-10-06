@@ -469,7 +469,7 @@ mount({
     vline(data.spec === 'jacobi'
       ? 'Jacobi lookahead proposes the window even when the tree has no match; only a prefix the reference itself emits is kept'
       : verdict.text,
-      49, '10.5px ui-monospace, monospace', data.spec === 'jacobi' ? T.n14 : (verdict.ahead ? T.okDeep : T.bad));
+      49, '10.5px ui-monospace, monospace', data.spec === 'jacobi' ? T.n14 : (verdict.tie ? T.n11 : (verdict.ahead ? T.okDeep : T.bad)));
     if (rd && data.spec !== 'jacobi') {
       // Extra text is indexed at the head of the corpus. It changes this round
       // only when it changes a continuation count. The offered line is the
