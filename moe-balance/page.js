@@ -7,7 +7,7 @@
 import { mount } from '../framework/layout.js';
 import { softmax, seededRandn } from '../framework/tensor.js';
 import { T, alphaOf } from '../framework/theme.js';
-import { auxMix, biasRun, biasBarLoad, shownDrops, moveSentence, compareCaptions, cardBlurb } from './math.js';
+import { auxMix, biasRun, biasBarLoad, shownDrops, moveSentence, compareCaptions, lossReadout, loadShare, cardBlurb } from './math.js';
 
 
 
@@ -149,11 +149,11 @@ mount({
 
     // metrics panel
     const py = topBars + 6;
-    const lamState = lam < 0.2 ? 'COLLAPSED' : lam < 0.7 ? 'partial' : 'BALANCED';
+    const report = biasRow ? null : lossReadout({ lam, load: Array.from(load), starved: starved.length, tokens: TOKENS, experts: E });
     const lines = [
       biasRow
         ? ['balance route', 'selection bias, auxiliary weight 0', T.teal]
-        : ['balance λ', `${lam.toFixed(2)}  (${lamState})`, lam < 0.2 ? T.bad : lam > 0.7 ? T.ok : T.warn],
+        : ['balance λ', `${lam.toFixed(2)}  (${report.label})`, report.near ? T.ok : report.starved ? T.bad : T.warn],
       biasRow
         ? ['aux weight', '0', T.n12]
         : ['aux loss  E·Σfₑ·Pₑ (f = kept/total, drops out)', `${aux.toFixed(3)}`, aux > 1.4 ? T.bad : aux > 1.12 ? T.warn : T.ok],
@@ -179,7 +179,8 @@ mount({
       const e = Math.floor((page.pointer.x - barsX) / slot);
       if (e >= 0 && e < E && page.pointer.y >= topBars && page.pointer.y <= baseY) {
         const over = !biasRow && load[e] > cap ? `, dropped ${load[e] - cap}` : '';
-        page.setTip(`expert ${e}: ${load[e]} tokens (${(eff[e] * 100).toFixed(1)}%)\n${biasRow ? 'selection count' : `capacity ${cap}`}${over}${starved.includes(e) ? '\nSTARVING (≈ no tokens → no gradient)' : ''}${biasRow ? '\nthe bias step sets this bar' : '\ndrag ↕ to shift load'}`);
+        const share = loadShare(load[e], TOKENS);
+        page.setTip(`expert ${e}: ${share.sentence}\n${biasRow ? 'selection count' : `capacity ${cap}`}${over}${starved.includes(e) ? '\nSTARVING (≈ no tokens → no gradient)' : ''}${biasRow ? '\nthe bias step sets this bar' : '\ndrag ↕ to shift load'}`);
       }
     }
 
@@ -189,11 +190,8 @@ mount({
       o = `selection bias, auxiliary weight 0. kept experts ${biasRow.picked.join(',')}. ${moves}    tier:${r.name}\n`;
       o += `combine weights use the raw scores of the selected experts only. λ is not the route in this mode.`;
     } else {
-      o = `MoE balance: λ=${lam.toFixed(2)} (${lamState}).  aux=${aux.toFixed(3)} (1.0=uniform; f counts kept tokens only, drops are out), CV=${cv.toFixed(2)}, ${starved.length} starved, ${drops} dropped.    tier:${r.name}\n`;
-      o += lam < 0.2
-        ? `no balance loss → the router collapses onto its favorites; ${starved.length} expert${starved.length === 1 ? '' : 's'} starve (no tokens, no gradient). Raise λ or drag a starved bar up.`
-        : lam > 0.7 ? `strong balance loss → load near uniform (${Math.round(TOKENS / E)}/expert); no starvation.`
-          : `partial balance: load is spreading toward uniform but still skewed.`;
+      o = `MoE balance: λ=${lam.toFixed(2)} (${report.label}).  aux=${aux.toFixed(3)} (1.0=uniform; f counts kept tokens only, drops are out), CV=${cv.toFixed(2)}, ${starved.length} starved, ${drops} dropped.    tier:${r.name}\n`;
+      o += report.sentence;
     }
     if (st.shared) o += `  shared expert: every token (always active) — absorbs common patterns so routed experts specialize.`;
     page.setReadout(o);

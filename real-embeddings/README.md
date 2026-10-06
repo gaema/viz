@@ -54,7 +54,7 @@ model running under WASM/WebGPU inside transformers.js.
 (`re-embed`, `load real model`), drawn with `render.heatmap`/`grid` + `ctx`. The
 real run is async and never throws into `mount` — failures degrade to the
 synthetic stand-in. Two **challenges** (`?ch=N`): switch to the real model,
-type a tight single-theme cluster (min pairwise cosine ≥ 0.30). Headless hooks:
+type a tight single-theme cluster (min pairwise cosine ≥ 0.30). The nested prefix picture is constructed and does not count. Headless hooks:
 `?words=a,b,c` (override the list), `?real=0` (suppress the download — fast
 deterministic synthetic capture), `?hover=x,y` (fake cursor for the tooltip).
 Source: [`page.js`](page.js).

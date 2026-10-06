@@ -77,7 +77,36 @@ export function moveSentence(move) {
 
 export function compareCaptions(balance) {
   if (balance === 'bias') return { a: 'bias route, auxiliary weight 0', b: 'bias route, auxiliary weight 0' };
-  return { a: 'λ=0 — router collapse (skewed)', b: 'λ=1 — balanced (uniform)' };
+  return { a: 'λ=0 — balance weight off', b: 'λ=1 — balance weight full' };
+}
+
+// The λ caption names the mix weight. The load sentence names the bars after
+// that mix and after a drag. A high λ is not a promise that the bars are even.
+export function lossReadout({ lam, load, starved, tokens, experts }) {
+  const per = tokens / experts;
+  const perText = String(Math.round(per));
+  let dev = 0;
+  for (let i = 0; i < load.length; i++) dev = Math.max(dev, Math.abs(load[i] - per));
+  const near = dev <= Math.max(1, per * 0.15) && starved === 0;
+  const starveText = `${starved} expert${starved === 1 ? '' : 's'} starve`;
+  const shape = near
+    ? `load is near uniform (${perText}/expert); ${starveText}`
+    : `load is not uniform (${perText} would be even); ${starveText}`;
+  let pull;
+  if (lam < 0.2) pull = 'λ is low, so most of the mix is the router preference, and a drag rescales each bar after that.';
+  else if (lam > 0.7) pull = 'λ is high, so most of the mix is the even target, and a drag rescales each bar after that.';
+  else pull = 'λ is partial, so the router preference and the even target are both in the mix, and a drag rescales each bar after that.';
+  const label = near ? 'near uniform' : starved ? 'starved' : 'skewed';
+  return { near, label, perText, sentence: `${shape}. ${pull}` };
+}
+
+// The hover percent is the printed token count over the printed batch, so the
+// two numbers on that line are one quantity.
+export function loadShare(load, tokens) {
+  const n = String(load | 0);
+  const t = String(tokens | 0);
+  const pct = (Number(n) / Number(t) * 100).toFixed(1);
+  return { n, t, pct, sentence: `${n} / ${t} tokens (${pct}%)` };
 }
 
 export const cardBlurb = 'Two routes share this picture. Auxiliary-loss mode mixes the router from its skewed preference at λ=0 toward uniform at λ=1; dropped tokens are the part of a bar above the capacity line, and dragging a bar rescales that mix. Selection-bias mode adds a per-expert offset used only to choose the top-k. The combine weight is the softmax of the raw scores of the selected experts, the auxiliary-loss weight is 0, an overloaded expert bias decreases by the step, and an underloaded expert bias increases by the step. The λ compare panes follow λ only in auxiliary-loss mode; in selection-bias mode both panes are the bias route.';

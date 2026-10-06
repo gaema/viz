@@ -61,6 +61,20 @@ ok(page.includes('the Jacobi window is the last context token plus a position in
 ok(readme.includes(windowSentence), 'readme names the Jacobi window');
 ok(!invariant.test(cardBlurb) && !invariant.test(page) && !invariant.test(readme), 'served card does not say the Jacobi window is invariant');
 ok(/Jacobi mode does not move with that/.test(readme), 'the accepted-length claim stays about the curve handle');
+const defaults = { spec: 'suffix', plen: 6, depth: 6, corpus: 12, rounds: 12, seed: 5, extra: '' };
+const at75 = simulate(defaults, 0.75);
+const offered75 = `${at75.rounds[0].match.pat.join(' ')} ${at75.rounds[0].truth.slice(0, 8).join(' ')}`;
+const pasted75 = simulate({ ...defaults, extra: offered75 }, 0.75);
+ok(at75.rounds[0].acc === 4 && pasted75.rounds[0].acc === 4, 'the page-default offered paste leaves round 1 at 4');
+const at0 = simulate(defaults, 0);
+const offered0 = `${at0.rounds[0].match.pat.join(' ')} ${at0.rounds[0].truth.slice(0, 8).join(' ')}`;
+const pasted0 = simulate({ ...defaults, extra: offered0 }, 0);
+const cont0 = simulate({ ...defaults, extra: at0.rounds[0].truth.slice(0, 8).join(' ') }, 0);
+ok(at0.rounds[0].acc === 1 && pasted0.rounds[0].acc === 3 && cont0.rounds[0].acc === 3, 'at repetitiveness 0 the continuation alone also moves round 1 to 3');
+ok(readme.includes('leaves round 1 at 4 accepted'), 'readme keeps the measured default paste');
+ok(readme.includes('move it to 3'), 'readme keeps the measured zero-repetitiveness paste');
+ok(!readme.includes('goes from 1 accepted to 6') && !readme.includes('does nothing'), 'readme does not state a fixed paste jump');
+ok(!page.includes('from 1 to 6') && !page.includes('stayed at 1'), 'page does not state a fixed paste jump');
 
 if (fail) { console.error(fail + ' failed'); process.exit(1); }
 console.log('PASS suffix-decoding');

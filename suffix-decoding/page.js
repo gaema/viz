@@ -475,11 +475,10 @@ mount({
         : 'the suffix tree is behind here — nothing to copy, so it falls back toward plain decode'),
       49, '10.5px ui-monospace, monospace', data.spec === 'jacobi' ? T.n14 : (win ? T.okDeep : T.bad));
     if (rd && data.spec !== 'jacobi') {
-      // The paste has to carry the CONTEXT as well as the continuation. Pasting
-      // the continuation alone adds one sighting hanging off nothing, and it
-      // loses to better-attested continuations of the same context: measured,
-      // round 1 stayed at 1 accepted. Pasting context + continuation is what
-      // actually constitutes a repeat, and it took round 1 from 1 to 6.
+      // Extra text is indexed at the head of the corpus. It changes this round
+      // only when it changes a continuation count. The offered line is the
+      // matched context plus the tokens that followed it. Jacobi mode does not
+      // read that line.
       vline(`try it: paste “${rd.match.pat.join(' ')} ${rd.truth.slice(0, 8).join(' ')}” into “extra corpus text” — a repeat of this exact context`,
         63, '9px ui-monospace, monospace', T.gold);
     }

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { auxMix, biasRoute, biasRun, biasBarLoad, shownDrops, moveSentence, compareCaptions } from './math.js';
+import { softmax, seededRandn } from '../framework/tensor.js';
+import { auxMix, biasRoute, biasRun, biasBarLoad, shownDrops, moveSentence, compareCaptions, lossReadout, loadShare } from './math.js';
 
 let fail = 0;
 const ok = (c, m) => { if (c) console.log('ok ' + m); else { fail++; console.error('FAIL ' + m); } };
@@ -28,7 +29,33 @@ const loss1 = auxMix(skew, 1, null);
 ok(loss0.lam === 0 && Math.abs(loss0.eff[0] / loss0.eff[1] - 0.7 / 0.2) < 1e-4, 'λ=0 keeps the skewed route');
 ok(loss1.lam === 1 && Math.abs(loss1.eff[0] - 1 / 3) < 1e-5 && Math.abs(loss1.eff[2] - 1 / 3) < 1e-5, 'λ=1 is uniform');
 ok(compareCaptions('loss').a.indexOf('λ=0') === 0, 'loss captions name λ');
+ok(!compareCaptions('loss').a.includes('collapse') && !compareCaptions('loss').b.includes('uniform'), 'loss captions do not call the bars collapsed or uniform');
 ok(compareCaptions('bias').a.indexOf('bias route') === 0, 'bias captions do not claim a λ collapse');
+
+function buildSkew(seed, E) {
+  const aff = seededRandn(seed | 0, E, { std: 1.5 });
+  return softmax(Float32Array.from(aff, (x) => x * 1.6));
+}
+const wide = auxMix(Array.from(buildSkew(39, 8)), 0.75, null);
+const wideLoad = Array.from(wide.eff, (x) => Math.round(x * 120));
+const wideStarved = Array.from(wide.eff).filter((x) => x < 0.4 / 8).length;
+const wideReport = lossReadout({ lam: 0.75, load: wideLoad, starved: wideStarved, tokens: 120, experts: 8 });
+ok(wideReport.near === false, 'λ=0.75 on eight experts is not near uniform');
+ok(!wideReport.sentence.includes('no starvation') && !wideReport.sentence.includes('near uniform'), 'a high λ does not claim an even load');
+ok(wideReport.sentence.includes(`${wideStarved} expert`), 'the readout counts the starved experts');
+ok(wideReport.sentence.includes('most of the mix is the even target'), 'a high λ still names the mix weight');
+const drag = new Float32Array(8).fill(1);
+drag[0] = 0.04;
+const dragged = auxMix(Array.from(buildSkew(5, 8)), 1, drag);
+const dragStarved = Array.from(dragged.eff).filter((x) => x < 0.4 / 8).length;
+const dragReport = lossReadout({ lam: 1, load: Array.from(dragged.eff, (x) => Math.round(x * 120)), starved: dragStarved, tokens: 120, experts: 8 });
+ok(dragStarved > 0, 'a drag at λ=1 can starve an expert');
+ok(dragReport.sentence.includes(`${dragStarved} expert`) && !dragReport.sentence.includes('no starvation'), 'the starved drag is counted');
+const even = lossReadout({ lam: 1, load: [20, 20, 20, 20, 20, 20], starved: 0, tokens: 120, experts: 6 });
+ok(even.near && even.sentence.includes('near uniform (20/expert)') && even.sentence.includes('0 experts starve'), 'an even load is near uniform and starves nobody');
+const share = loadShare(47, 120);
+ok(share.pct === (47 / 120 * 100).toFixed(1) && share.pct === '39.2', 'the hover percent is the printed count over the batch');
+ok(share.sentence === '47 / 120 tokens (39.2%)', 'the hover prints the batch beside the count');
 
 const def = biasRun([1, 0.2, -1, 0.5, -0.4, 0.1], 2, 0.25, 120, 1);
 const bars = biasBarLoad(def);
@@ -49,6 +76,9 @@ ok(page.includes('biasBarLoad('), 'page draws the route load');
 ok(!page.includes('biasRow.load.reduce'), 'page does not divide the route load by its sum');
 ok(page.includes("key: 'lam'"), 'compare key stays λ');
 ok(page.includes('the bias step sets these bars'), 'the label still names the token load');
+ok(page.includes('lossReadout('), 'page uses the shipped load sentence');
+ok(page.includes('loadShare('), 'page uses the shipped hover share');
+ok(!page.includes('no starvation'), 'page does not claim a high λ has no starvation');
 ok(page.includes('shownDrops('), 'page uses the shipped drop count');
 ok(page.includes("biasRow ? 'bias' : 'loss'"), 'bias mode passes the bias balance into the drop count');
 

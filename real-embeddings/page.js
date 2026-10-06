@@ -189,7 +189,8 @@ mount({
     r.clear(T.n0);
     if (page.state.nested) {
       const row = nestedRead(page.state.ndim | 0, page.state.ncut | 0);
-      page.probe = { source: 'nested', n: 3, minSim: Number(row.fTail), maxSim: Number(row.pTail) };
+      if ((page.state.ncut | 0) !== row.cut) page.controls.set('ncut', row.cut, { silent: true });
+      page.probe = { source: 'nested', n: 3 };
       ctx.save();
       ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
       ctx.fillStyle = T.teal; ctx.fillText('constructed nested vectors — not the loaded model', 14, 10);
@@ -206,7 +207,7 @@ mount({
         ctx.fillStyle = T.n14; ctx.fillText(b[1].toFixed(3), 410, y);
       });
       ctx.restore();
-      page.setReadout(`constructed nested vectors, not the loaded model. ${nestedSentence(row)}. coarse prefix cosine ${row.pCoarse}.`);
+      page.setReadout(`constructed nested vectors, not the loaded model. prefix cut ${row.cut} of ${row.dim}. ${nestedSentence(row)}. coarse prefix cosine ${row.pCoarse}.`);
       return;
     }
     const n = M.words.length;
@@ -273,9 +274,11 @@ mount({
     { goal: 'Ground the page in a REAL model — switch off the synthetic stand-in (needs network; click “load real model”).',
       hint: 'The banner turns green “● real model …” once ≈23 MB has downloaded. Works online.',
       check: (api) => ({ solved: api.probe.source === 'real', detail: `source = ${api.probe.source}` }) },
-    { goal: 'Type a TIGHT cluster: replace the words so every word is closely related — minimum pairwise cosine ≥ 0.30.',
-      hint: 'Try one theme, e.g. “king, queen, prince, monarch, royal, throne”. The default mixes four themes, so its minimum cosine is near 0.',
-      check: (api) => ({ solved: api.probe.n >= 2 && api.probe.minSim >= 0.30, detail: `min pairwise cosine = ${(+api.probe.minSim).toFixed(2)} (need ≥ 0.30)` }) },
+    { goal: 'Type a TIGHT cluster: replace the words so every word is closely related — minimum pairwise cosine ≥ 0.30. The nested prefix picture is constructed and does not count.',
+      hint: 'Turn nested prefix off. Try one theme, e.g. “king, queen, prince, monarch, royal, throne”. The default mixes four themes, so its minimum cosine is near 0.',
+      check: (api) => api.probe.source === 'nested'
+        ? { solved: false, detail: 'nested prefix is a constructed picture; this challenge reads the typed words' }
+        : { solved: api.probe.n >= 2 && api.probe.minSim >= 0.30, detail: `min pairwise cosine = ${(+api.probe.minSim).toFixed(2)} (need ≥ 0.30)` } },
   ],
 }).then((page) => {
   window.__realEmbPage = page;
