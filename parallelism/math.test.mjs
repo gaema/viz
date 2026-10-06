@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { build, stages, kvpTradeClause, kvpClosing, cardBlurb } from './math.js';
+import { build, stages, attnComputeCaption, kvpTradeClause, kvpClosing, cardBlurb } from './math.js';
 
 let fail = 0;
 const ok = (c, m) => { if (c) console.log('ok ' + m); else { fail++; console.error('FAIL ' + m); } };
@@ -54,9 +54,28 @@ const tpOne = build({ ...base, gpus: 1, attn: 'tp' });
 ok(kvpClosing(tpOne).includes('only when'), 'another attention mode does not say the current view gathers');
 ok(cardBlurb.includes('With one GPU the gather is zero'), 'blurb stays true on a one-GPU strip');
 
+const DP_CAP = 'each GPU runs the WHOLE attention sublayer, on ITS OWN requests and ITS OWN KV';
+const kvp4 = build({ ...base, gpus: 4, attn: 'kvp' });
+const dp4 = build({ ...base, gpus: 4, attn: 'dp' });
+const tp4 = build({ ...base, attn: 'tp' });
+const pp4 = build({ ...base, attn: 'pp' });
+ok(kvp4.N > 1 && kvp4.gpus[0].aw === kvp4.attnBytes / kvp4.N, 'KV-parallel weights are a 1/N slice');
+ok(kvp4.gpus[0].kv === kvp4.kvTotal / kvp4.N, 'KV-parallel cache is a 1/N sequence shard');
+const kvpCap = attnComputeCaption(kvp4);
+ok(kvpCap !== DP_CAP, 'KV-parallel N>1 is not the data-parallel compute caption');
+ok(!/WHOLE attention sublayer, on ITS OWN requests/.test(kvpCap), 'KV-parallel caption does not claim own requests');
+ok(kvpCap.includes(`1/${kvp4.N} head slice`) && kvpCap.includes(`1/${kvp4.N} sequence shard`), 'KV-parallel caption names the head slice and the sequence shard');
+ok(attnComputeCaption(dp4) === DP_CAP, 'data-parallel compute caption stays');
+ok(attnComputeCaption(tp4) === `each GPU multiplies its 1/${tp4.N} slice of every attention matrix — the result is PARTIAL`, 'tensor-parallel compute caption stays');
+ok(attnComputeCaption(pp4) === 'the GPU that owns this layer runs the whole attention sublayer', 'pipeline compute caption stays');
+const kvp1 = build({ ...base, gpus: 1, attn: 'kvp' });
+ok(attnComputeCaption(kvp1) !== DP_CAP && attnComputeCaption(kvp1).includes('1/1'), 'one GPU KV-parallel caption stays a 1/1 slice');
+
 const page = readFileSync(new URL('./page.js', import.meta.url), 'utf8');
 ok(page.includes("from './math.js'"), 'page imports the shipped math');
 ok(page.includes('kvpTradeClause(') && page.includes('kvpClosing('), 'page uses the shipped gather sentences');
+ok(page.includes('attnComputeCaption('), 'page uses the shipped attention compute caption');
+ok(!page.includes(DP_CAP), 'page does not inline the data-parallel compute caption');
 ok(!page.includes('when that choice is selected, shards the sequence and gathers cache bytes'), 'page does not claim the gather unconditionally');
 ok(!page.includes('not drawn here') && !page.includes('not shown here'), 'page does not say the sequence split is absent');
 

@@ -145,6 +145,20 @@ export function stages(m) {
   ];
 }
 
+export function attnComputeCaption(m) {
+  const n = m.N;
+  if (m.attn === 'tp') {
+    return `each GPU multiplies its 1/${n} slice of every attention matrix — the result is PARTIAL`;
+  }
+  if (m.attn === 'pp') {
+    return 'the GPU that owns this layer runs the whole attention sublayer';
+  }
+  if (m.attn === 'kvp') {
+    return `each GPU multiplies its 1/${n} head slice of the attention weights on its 1/${n} sequence shard of the cache`;
+  }
+  return 'each GPU runs the WHOLE attention sublayer, on ITS OWN requests and ITS OWN KV';
+}
+
 export function kvpTradeClause(m) {
   if (m.attn !== 'kvp' || !(m.attnWire > 0)) return '';
   return 'KV-parallel attention moves cache bytes for a sequence shard, a different quantity from the MoE wire. ';

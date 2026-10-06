@@ -55,7 +55,7 @@
 // instead and spends the parallelism on the experts.
 import { mount } from '../framework/layout.js';
 import { T, alphaOf, inkOn, rgbaToken } from '../framework/theme.js';
-import { BPE, clamp, ATTN_MODES, MOE_MODES, NAME, SHORT, fmtB, build, stages, kvpTradeClause, kvpClosing, cardBlurb } from './math.js';
+import { BPE, clamp, ATTN_MODES, MOE_MODES, NAME, SHORT, fmtB, build, stages, attnComputeCaption, kvpTradeClause, kvpClosing, cardBlurb } from './math.js';
 
 // ---- drawing helpers ------------------------------------------------------
 function roundRect(ctx, x, y, w, h, r) {
@@ -413,9 +413,7 @@ mount({
       ctx.restore();
     } else if (stage.kind === 'compute') {
       bandLabel(stage.role === 'attn'
-        ? (m.attn === 'tp' ? `each GPU multiplies its 1/${m.N} slice of every attention matrix — the result is PARTIAL`
-          : m.attn === 'pp' ? 'the GPU that owns this layer runs the whole attention sublayer'
-            : 'each GPU runs the WHOLE attention sublayer, on ITS OWN requests and ITS OWN KV')
+        ? attnComputeCaption(m)
         : stage.role === 'router'
           ? `the router scores every token against all ${m.E} experts and keeps its top ${m.k} — this is what decides the traffic that follows`
           : (m.moe === 'tp' ? `each GPU multiplies its 1/${m.N} slice of every expert matrix — the result is PARTIAL`
