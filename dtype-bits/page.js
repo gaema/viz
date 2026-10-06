@@ -216,6 +216,65 @@ function fmt(x) {
 }
 const fmtBits = (b) => (Number.isInteger(b) ? String(b) : b.toFixed(2));
 
+// A product on a label is the product of the strings that label prints.
+// The reconstructed value stays the true product; a factor gains digits
+// until the printed product displays as that value.
+function scaleFor(mult, scale) {
+  const mS = String(mult);
+  const goal = fmt(mult * scale);
+  const trial = (s) => fmt(Number(mS) * Number(s)) === goal;
+  if (trial(fmt(scale))) return { mS, sS: fmt(scale), vS: goal };
+  for (let d = 1; d <= 16; d++) {
+    const prec = String(Number(scale.toPrecision(d)));
+    if (trial(prec)) return { mS, sS: prec, vS: goal };
+  }
+  for (let d = 1; d <= 16; d++) {
+    const exp = scale.toExponential(d);
+    if (trial(exp)) return { mS, sS: exp, vS: goal };
+  }
+  const sS = fmt(scale);
+  return { mS, sS, vS: fmt(Number(mS) * Number(sS)) };
+}
+function shownDiff(a, b) {
+  const goal = fmt(a - b);
+  const dig = (x, d) => (d < 0 ? fmt(x) : String(Number(x.toPrecision(d))));
+  const ds = [-1];
+  for (let d = 1; d <= 16; d++) ds.push(d);
+  for (const da of ds) for (const db of ds) {
+    const aS = dig(a, da), bS = dig(b, db);
+    if (fmt(Number(aS) - Number(bS)) === goal) return { aS, bS, eS: goal };
+  }
+  const aS = String(a), bS = String(b);
+  return { aS, bS, eS: fmt(Number(aS) - Number(bS)) };
+}
+function pairFor(a, b) {
+  const goal = fmt(a * b);
+  const dig = (x, d) => (d < 0 ? fmt(x) : String(Number(x.toPrecision(d))));
+  const ds = [-1];
+  for (let d = 1; d <= 12; d++) ds.push(d);
+  for (const da of ds) for (const db of ds) {
+    const aS = dig(a, da), bS = dig(b, db);
+    if (fmt(Number(aS) * Number(bS)) === goal) return { aS, bS, vS: goal };
+  }
+  const aS = fmt(a), bS = fmt(b);
+  return { aS, bS, vS: fmt(Number(aS) * Number(bS)) };
+}
+function blockLines(q) {
+  const rows = q.els.map((e) => pairFor(e.elemVal, q.scale));
+  let scaleText = fmt(q.scale);
+  const ds = [-1];
+  for (let d = 1; d <= 14; d++) ds.push(d);
+  for (const d of ds) {
+    const cand = d < 0 ? fmt(q.scale) : String(Number(q.scale.toPrecision(d)));
+    if (rows.every((row, i) => fmt(Number(row.aS) * Number(cand)) === fmt(q.els[i].val))) {
+      scaleText = cand;
+      rows.forEach((row, i) => { row.bS = cand; row.vS = fmt(q.els[i].val); });
+      break;
+    }
+  }
+  return { scaleText, rows };
+}
+
 // ---- encode / decode -------------------------------------------------------
 // The highest FINITE code of a float format: which (ef, mant) pair the top of
 // the range actually is depends on what the format reserves for Inf/NaN.
@@ -444,11 +503,33 @@ function buildSteps() {
     for (let j = 0; j < N; j++) {
       const bit = bitOf(pattern, N - 1 - j);
       const place = signed && j === 0 ? -P2(N - 1) : P2(N - 1 - j);
+      const before = partial;
       partial += bit * place * raw.scale;
       const shown = partial - (dt.zp || 0) * raw.scale;
-      steps.push({ rev: j + 1, partial: shown, label: signed && j === 0
-        ? `sign bit = ${bit} → ${bit ? `−${fmt(P2(N - 1))}` : '0'} ×${fmt(raw.scale)} → ${fmt(shown)}`
-        : `bit ${j} = ${bit}${bit ? ` → +${fmt(P2(N - 1 - j))}×${fmt(raw.scale)}` : ''}${dt.zp ? ` (−zp ${dt.zp})` : ''} → ${fmt(shown)}` });
+      // This bit is the whole value so far, so the arrow is that product.
+      const alone = !!bit && before === 0 && !dt.zp;
+      let label;
+      if (alone) {
+        const m = scaleFor(place, raw.scale);
+        label = signed && j === 0
+          ? `sign bit = ${bit} → ${m.mS} × ${m.sS} → ${m.vS}`
+          : `bit ${j} = ${bit} → +${m.mS}×${m.sS} → ${m.vS}`;
+      } else if (bit) {
+        // The place×scale term is this bit's contribution. The value so far
+        // also contains the earlier bits, so it is not that product.
+        const m = scaleFor(place, raw.scale);
+        const zpNote = dt.zp ? ` (−zp ${dt.zp})` : '';
+        const term = signed && j === 0
+          ? `${m.mS} × ${m.sS} = ${m.vS}`
+          : `+${m.mS}×${m.sS} = ${m.vS}`;
+        const head = signed && j === 0 ? `sign bit = ${bit}` : `bit ${j} = ${bit}`;
+        label = `${head} → ${term}; value so far ${fmt(shown)}${zpNote}`;
+      } else {
+        label = signed && j === 0
+          ? `sign bit = ${bit} → 0 × ${fmt(raw.scale)} → ${fmt(shown)}`
+          : `bit ${j} = ${bit}${dt.zp ? ` (−zp ${dt.zp})` : ''} → ${fmt(shown)}`;
+      }
+      steps.push({ rev: j + 1, partial: shown, label });
     }
   }
   return steps.map((s) => ({ ...s, decoded }));
@@ -458,10 +539,11 @@ function buildSteps() {
 function buildBlockSteps(state) {
   const key = blockOf(state), bk = BLOCKS[key];
   const q = quantBlock(bk, synthBlock(bk.n, state.value));
+  const lines = blockLines(q);
   const steps = [{ rev: 1, partial: 0, label: `${key.toUpperCase()} — ${q.scaleLabel}` }];
   for (let i = 0; i < bk.n; i++) {
-    const e = q.els[i];
-    steps.push({ rev: i + 2, partial: e.val, label: `element ${i}: stored ${e.bin} → ${q.kind === 'bfp' ? `(−1)^s·m = ${fmt(e.elemVal)}` : `${fmt(e.elemVal)}`} × scale ${fmt(q.scale)} → ${fmt(e.val)}` });
+    const e = q.els[i], row = lines.rows[i];
+    steps.push({ rev: i + 2, partial: e.val, label: `element ${i}: stored ${e.bin} → ${q.kind === 'bfp' ? `(−1)^s·m = ${row.aS}` : row.aS} × scale ${row.bS} → ${row.vS}` });
   }
   return steps;
 }
@@ -612,6 +694,7 @@ function drawBlock(page) {
   const key = blockOf(st), bk = BLOCKS[key];
   const vals = synthBlock(bk.n, st.value);
   const q = quantBlock(bk, vals);
+  const lines = blockLines(q);
   const s = page.step();
   const rev = s ? s.rev : bk.n + 1;
 
@@ -649,7 +732,7 @@ function drawBlock(page) {
   ctx.fillRect(pad, scY, scW, scH);
   ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
   ctx.fillStyle = inkOn(fieldFill('scale', 1)); ctx.font = 'bold 11px ui-monospace, monospace';
-  ctx.fillText(`scale ${rev >= 1 ? fmt(q.scale) : '·'}`, pad + 8, scY + scH / 2 - 6);
+  ctx.fillText(`scale ${rev >= 1 ? lines.scaleText : '·'}`, pad + 8, scY + scH / 2 - 6);
   ctx.font = '10px ui-monospace, monospace';
   ctx.fillText(rev >= 1 ? q.scaleBin : '········', pad + 8, scY + scH / 2 + 8);
   ctx.fillStyle = T.n11; ctx.font = '10px ui-monospace, monospace';
@@ -695,7 +778,7 @@ function drawBlock(page) {
     while (fs >= 6.5 && ctx.measureText(e.bin).width > cw - 8);
     ctx.fillText(e.bin, x + cw / 2, cy - 10);
     ctx.font = (cw < 44 ? '9px' : '11.5px') + ' ui-monospace, monospace';
-    ctx.fillText(fmt(e.val), x + cw / 2, cy + 4);
+    ctx.fillText(lines.rows[i].vS, x + cw / 2, cy + 4);
     if (chh > 40) {
       ctx.fillStyle = alphaOf(ink, 0.66); ctx.font = '8.5px ui-monospace, monospace';
       ctx.fillText(`(${fmt(vals[i])})`, x + cw / 2, cy + 17);
@@ -716,23 +799,30 @@ function drawBlock(page) {
   if (p.over) {
     const hit = blkCells.find((c) => p.x >= c.x && p.x < c.x + c.w && p.y >= c.y && p.y < c.y + c.h);
     if (hit) {
-      const e = q.els[hit.i], orig = vals[hit.i];
+      const e = q.els[hit.i], orig = vals[hit.i], row = lines.rows[hit.i];
+      const oS = fmt(orig);
+      const errS = fmt(Math.abs(Number(oS) - Number(row.vS)));
       let tip = `element ${hit.i}${hit.i === 0 ? ' (the value slider)' : ''}\nstored bits: ${e.bin}  (${bk.elemBits} b)`;
       tip += q.kind === 'bfp'
-        ? `\nsign ${e.s} · magnitude ${e.m} → ${fmt(e.elemVal)} quanta`
-        : `\nelement value = ${fmt(e.elemVal)}  (${DT[bk.elem].label})`;
-      tip += `\n× shared scale ${fmt(q.scale)} → ${fmt(e.val)}`;
-      tip += `\noriginal ${fmt(orig)} · |error| ${fmt(Math.abs(orig - e.val))}`;
+        ? `\nsign ${e.s} · magnitude ${e.m} → ${row.aS} quanta`
+        : `\nelement value = ${row.aS}  (${DT[bk.elem].label})`;
+      tip += `\n× shared scale ${row.bS} → ${row.vS}`;
+      tip += `\noriginal ${oS} · |error| ${errS}`;
       page.setTip(tip);
     } else if (blkScaleRect && p.x >= blkScaleRect.x && p.x < blkScaleRect.x + blkScaleRect.w && p.y >= blkScaleRect.y && p.y < blkScaleRect.y + blkScaleRect.h) {
-      page.setTip(`${q.scaleLabel}\nstored bits ${q.scaleBin} (${bk.scaleBits} b)\nblock absmax ${fmt(q.amax)} over ${bk.n} elements\n${q.rule}`);
+      const shortScale = fmt(q.scale);
+      const rule = q.rule.endsWith(shortScale) ? q.rule.slice(0, -shortScale.length) + lines.scaleText : q.rule;
+      page.setTip(`${q.scaleLabel}\nstored bits ${q.scaleBin} (${bk.scaleBits} b)\nblock absmax ${fmt(q.amax)} over ${bk.n} elements\n${rule}`);
     }
   }
 
-  const err0 = Math.abs(vals[0] - q.els[0].val);
+  const e0 = lines.rows[0], o0 = fmt(vals[0]);
+  const err0 = fmt(Math.abs(Number(o0) - Number(e0.vS)));
   page.probe = { view: 'block', dec: q.els[0].val, effBits: effBits(bk), blockKey: key };
   let out = `${key.toUpperCase()} · ${bk.n} elements / block · ${bk.elemBits} b element + ${bk.scaleBits} b shared scale = ${effBits(bk).toFixed(2)} bits/element    tier:${r.name}\n`;
-  out += `${q.rule}    block absmax = ${fmt(q.amax)}    element 0: ${fmt(vals[0])} → ${fmt(q.els[0].val)} (|error| ${fmt(err0)})`;
+  const shortScale = fmt(q.scale);
+  const rule = q.rule.endsWith(shortScale) ? q.rule.slice(0, -shortScale.length) + lines.scaleText : q.rule;
+  out += `${rule}    block absmax = ${fmt(q.amax)}    element 0: ${o0} → ${e0.vS} (|error| ${err0})`;
   out += s ? `\n${s.label}` : '\n(hover an element for its reconstruction · hover the scale for the block accounting · scrub to reveal the scale then each element)';
   if (DT[st.dtype] && DT[st.dtype].kind !== 'block') out += `\nfocus dtype "${st.dtype}" is not block-scaled — showing ${key}; pick a block-scaled dtype to change it.`;
   page.setReadout(out);
@@ -1005,16 +1095,20 @@ mount({
             else if (lab.name === 'exponent') tip = `exponent e = ${cur.raw.ef}, bias ${dt.bias} → 2^(e−bias) = 2^${cur.raw.ef - dt.bias} = ${fmt(P2(cur.raw.ef - dt.bias))}\nmax finite ${fmt(maxFinite(dt))} · ${dt.nan === 'none' ? 'no Inf, no NaN (every code is a number)' : dt.nan === 'e4m3' ? 'only mantissa-all-ones at max exponent is NaN — no Inf' : 'all-ones exponent = Inf / NaN'}`;
             else tip = `mantissa m = ${cur.raw.mant}/${fmt(P2(dt.M))}\nvalue = (−1)^s · 2^(e−bias) · 1.m = ${fmt(decoded)}`;
           } else if (lab.name === 'sign') tip = `sign bit → two's-complement code ${cur.raw.code}`;
-          else tip = `(code ${cur.raw.code}${dt.zp ? ` − zero-point ${dt.zp}` : ''}) × scale ${fmt(cur.raw.scale)} → ${fmt(decoded)}`;
+          else {
+            const mult = cur.raw.code - (dt.zp || 0);
+            const m = scaleFor(mult, cur.raw.scale);
+            tip = `(code ${cur.raw.code}${dt.zp ? ` − zero-point ${dt.zp}` : ''}) × scale ${m.sS} → ${m.vS}`;
+          }
         }
       }
       if (tip) page.setTip(tip);
     }
 
-    const err = st.value - decoded;
+    const diff = shownDiff(st.value, decoded);
     const ulp = dt.kind === 'int' ? cur.raw.scale : Math.abs(decoded) * P2(-dt.M) || P2(1 - dt.bias - dt.M);
     const scaleNote = dt.kind === 'int' ? `    ${intScaleText(dt)}` : `    ulp ≈ ${fmt(ulp)}`;
-    let out = `value = ${fmt(st.value)}    ${dt.label}    ${dt.bits} bits${dt.container ? ` in a ${dt.container}-bit container` : ''}    decoded = ${fmt(decoded)}    error = ${fmt(err)}${scaleNote}    tier:${r.name}\n`;
+    let out = `value = ${diff.aS}    ${dt.label}    ${dt.bits} bits${dt.container ? ` in a ${dt.container}-bit container` : ''}    decoded = ${diff.bS}    error = ${diff.eS}${scaleNote}    tier:${r.name}\n`;
     out += s ? `${s.label}\nreconstructed so far = ${fmt(partial)}` : '(click a bit to flip it · press ▶ or scrub to reveal bits and rebuild the value)';
     page.setReadout(out);
   },

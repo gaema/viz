@@ -222,7 +222,7 @@ function buildSteps(st) {
   const totalLane = revLane;
   s.spl.combines.forEach((c, k) => steps.push({
     kind: 'combine', lvl: c.lvl, out: c.out, revLane: totalLane, revComb: k + 1,
-    label: `combine level ${c.lvl}: ${fmt(c.a)} + ${fmt(c.b)} → ${fmt(c.v)}   (rounded to float32)`,
+    label: `combine level ${c.lvl}: ${exact(c.a)} + ${exact(c.b)} → ${exact(c.v)}   (rounded to float32)`,
   }));
   steps.push({
     kind: 'done', revLane: totalLane, revComb: s.spl.combines.length,
@@ -377,7 +377,10 @@ function drawReduce(page) {
       if (ready && nw >= 30) { ctx.fillStyle = inkOn(fill); ctx.font = (nw < 52 ? '8.5px' : '10px') + ' ui-monospace, monospace'; ctx.fillText(fmt(node.v), x + nw / 2, y + nh / 2); }
       const kids = lv === 0
         ? `elements ${node.lo}..${node.hi - 1}, summed left to right in this lane`
-        : `children: ${s.spl.levels[lv - 1].filter((c) => c.lo >= node.lo && c.hi <= node.hi).map((c) => fmt(c.v)).join('  +  ')}`;
+        : `children: ${(() => {
+            const ch = s.spl.levels[lv - 1].filter((c) => c.lo >= node.lo && c.hi <= node.hi);
+            return ch.length === 2 ? `${exact(ch[0].v)}  +  ${exact(ch[1].v)}` : ch.map((c) => fmt(c.v)).join('  +  ');
+          })()}`;
       nodeHits.push({ x, y, w: nw, h: nh, tip: `${lv === 0 ? `lane ${j}` : `combine, level ${lv}`}\n${kids}\npartial = ${exact(node.v)}\nbits ${bitStr(node.v)}` });
     }
   }
