@@ -197,4 +197,23 @@ export function shownTpf(accepted) {
   return { aS, tpf: (Number(aS) + 1).toFixed(2) };
 }
 
-export const cardBlurb = 'Two ways to propose tokens without a draft model. Suffix mode indexes text already seen in a depth-bounded suffix tree and walks the most frequent continuation; repetition makes that match longer, and novel prose backs off toward one token. Jacobi mode writes a lookahead window and pools n-grams from that trajectory even when the tree has no match, then keeps only the prefix the reference itself would emit. The Jacobi window is the last context token plus a position index, not a copy of a repeated n-gram. Either mode verifies by the longest agreeing prefix.';
+// Names the printed accept against the printed draft and against plain decode.
+// Behind the draft is still above one token per forward until the printed
+// accept itself rounds to zero.
+export function curveVerdict(accepted, draft) {
+  const shown = shownTpf(accepted);
+  const dS = Number(draft).toFixed(2);
+  const ahead = Number(shown.aS) >= Number(dS);
+  const plain = '1.00';
+  let text;
+  if (ahead) {
+    text = `the suffix tree is ahead of the modelled draft here — ${shown.aS} accepted versus ${dS}, and it paid for no second model`;
+  } else if (Number(shown.tpf) > Number(plain)) {
+    text = `the suffix tree is behind the modelled draft here — ${shown.aS} accepted is ${shown.tpf} tokens per forward, above plain decode's ${plain}`;
+  } else {
+    text = `the suffix tree matches plain decode here — ${shown.tpf} tokens per forward`;
+  }
+  return { ahead, text, accepted: shown.aS, tpf: shown.tpf, draft: dS };
+}
+
+export const cardBlurb = 'Two ways to propose tokens without a draft model. Suffix mode indexes text already seen in a depth-bounded suffix tree and walks the most frequent continuation. Averaging four seeds, accepted length is longer when the text is fully repeated than when it is novel, and that curve is not higher at every step between them. One run on screen can stay flat or get shorter. Jacobi mode writes a lookahead window and pools n-grams from that trajectory even when the tree has no match, then keeps only the prefix the reference itself would emit. The Jacobi window is the last context token plus a position index, not a copy of a repeated n-gram. Either mode verifies by the longest agreeing prefix.';

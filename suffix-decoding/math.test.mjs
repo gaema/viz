@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import {
   buildTree, longestSuffixMatch, jacobiPropose, verifyPrefix, jacobiBill,
-  simulate, shownTpf, cardBlurb,
+  simulate, shownTpf, draftMean, curveVerdict, cardBlurb,
 } from './math.js';
+import { PLAIN } from '../framework/plain.js';
 
 let fail = 0;
 const ok = (c, m) => { if (c) console.log('ok ' + m); else { fail++; console.error('FAIL ' + m); } };
@@ -81,6 +82,47 @@ ok(anecLo.mean > anecHi.mean, 'seed 19 falls as repetitiveness rises');
 ok(page.includes(`${anecLo.mean.toFixed(2)} at repetitiveness 0.30`), 'the comment quotes the low-repetitiveness mean');
 ok(page.includes(`${anecHi.mean.toFixed(2)} at repetitiveness 0.95`), 'the comment quotes the high-repetitiveness mean');
 ok(!page.includes('0.71 at repetitiveness 0.95') && !page.includes('1.43 at 0.30'), 'the comment does not keep the unmatched pair');
+
+function matchMean(row) {
+  return row.rounds.reduce((s, rd) => s + rd.match.len, 0) / row.rounds.length;
+}
+function fourSeed(st, rho) {
+  let s = 0;
+  for (let k = 0; k < 4; k++) s += simulate({ ...st, seed: (st.seed | 0) + k * 17 }, rho).mean;
+  return s / 4;
+}
+const flatMatch = [0.30, 0.40, 0.50, 0.60, 0.70].map((rho) => matchMean(simulate(defaults, rho)));
+ok(flatMatch.every((m) => m === flatMatch[0]), 'the on-screen match stays flat from 0.30 through 0.70');
+ok(matchMean(simulate(defaults, 0.80)) < flatMatch[0], 'the on-screen match is shorter at 0.80');
+const flatAcc = [0.30, 0.50, 0.70, 0.90].map((rho) => simulate(defaults, rho).mean);
+ok(flatAcc.every((m) => m === flatAcc[0]), 'the on-screen accepted length stays flat from 0.30 to 0.90');
+ok(matchMean(anecLo) > matchMean(anecHi), 'seed 19 match shortens as repetitiveness rises');
+let prevCurve = null;
+let notHigherEvery = false;
+for (let i = 0; i <= 20; i++) {
+  const acc = fourSeed(defaults, i / 20);
+  if (prevCurve != null && !(acc > prevCurve)) notHigherEvery = true;
+  prevCurve = acc;
+}
+ok(notHigherEvery, 'the four-seed curve is not higher at every step');
+ok(fourSeed(defaults, 1) > fourSeed(defaults, 0), 'the repeated end is longer than the novel end');
+const plain = PLAIN['suffix-decoding'];
+const falseClaim = /makes that match longer|better with repetition|backs off toward one|nothing to copy|falls back toward plain decode|Repetition lengthens/;
+for (const [name, text] of [['blurb', cardBlurb], ['plain', plain], ['readme', readme], ['page', page]]) {
+  ok(!falseClaim.test(text), `${name} does not claim repetition always lengthens the match`);
+}
+for (const [name, text] of [['blurb', cardBlurb], ['plain', plain], ['readme', readme]]) {
+  ok(text.includes('not higher at every step'), `${name} says the curve is not higher at every step`);
+  ok(text.includes('can stay flat or get shorter'), `${name} says one run can stay flat or get shorter`);
+  ok(text.includes('longer when the text is fully repeated'), `${name} names the repeated end`);
+}
+const acc75 = fourSeed(defaults, 0.75);
+const verdict75 = curveVerdict(acc75, draftMean(0.72, 0.75, defaults.plen));
+ok(!verdict75.ahead && verdict75.tpf !== '1.00', 'the default curve point is behind the draft and above plain decode');
+ok(verdict75.text.includes(`${verdict75.accepted} accepted is ${verdict75.tpf} tokens per forward`), 'the verdict states the printed tokens per forward');
+ok(page.includes('curveVerdict(') && page.includes('verdict.text'), 'the page serves that verdict');
+const verdictHi = curveVerdict(fourSeed(defaults, 1), draftMean(0.72, 1, defaults.plen));
+ok(verdictHi.ahead && verdictHi.text.includes(`${verdictHi.accepted} accepted versus ${verdictHi.draft}`), 'full repetition is ahead of the modelled draft');
 
 if (fail) { console.error(fail + ' failed'); process.exit(1); }
 console.log('PASS suffix-decoding');

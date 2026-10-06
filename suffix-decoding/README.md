@@ -34,14 +34,12 @@ Source: **SuffixDecoding**, <https://arxiv.org/abs/2411.04975>.
  index the new tokens straight back into the tree, so the structure grows as
  the generation goes.
 
-**In suffix mode, the property that makes the tree interesting** is that it gets
-*better with repetition*, precisely where a draft model gains nothing: an agent
-loop re-emitting a similar tool call, a document being quoted back, structured
-output with a fixed skeleton. On genuinely novel prose the tree has no recurring
-continuation and suffix mode backs off toward one token per forward. Both
-regimes are reachable from the repetitiveness handle, and the suffix-mode
-accepted-length curve moves across them. Jacobi mode does not move with that
-handle.
+**In suffix mode, the property that makes the tree interesting** is the four-seed curve.
+Accepted length is longer when the text is fully repeated than when it is novel: an agent
+loop re-emitting a similar tool call, a document being quoted back, structured output with a fixed skeleton.
+That curve is not higher at every step between them.
+One run on screen can stay flat or get shorter.
+Both ends are reachable from the repetitiveness handle. Jacobi mode does not move with that handle.
 
 ## Real vs modelled -- stated on the page too
 

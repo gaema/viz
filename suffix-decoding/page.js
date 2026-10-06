@@ -16,8 +16,8 @@
 // no draft forward passes. Suffix mode is only as good as what has been seen
 // before. Jacobi mode is a second proposal source on this page: a lookahead
 // window written from a trajectory, verified by the same agreeing prefix, and
-// it still proposes when the suffix tree has no match. Repetition lengthens
-// the suffix-tree match. The Jacobi window is the last context token plus a
+// it still proposes when the suffix tree has no match.
+// The Jacobi window is the last context token plus a
 // position index, not a copy of a repeated n-gram.
 //
 // WHAT IS REAL HERE AND WHAT IS MODELLED -- the page says this on screen too:
@@ -39,7 +39,7 @@
 // proposed token for why it was proposed and whether it survived.
 import { mount } from '../framework/layout.js';
 import { T, alphaOf, inkOn, rgbaToken } from '../framework/theme.js';
-import { simulate, draftMean, shownTpf, MIN_COUNT, cardBlurb } from './math.js';
+import { simulate, draftMean, shownTpf, curveVerdict, MIN_COUNT, cardBlurb } from './math.js';
 
 const PHASES = ['match', 'propose', 'verify', 'commit'];
 const PHASE_TEXT = [
@@ -451,7 +451,7 @@ mount({
     // narrow canvas these strings are longer than the panel, and an unclamped
     // label does not wrap, it runs off the edge and is simply lost.
     const vx = pad + tw + 40, vw = W - vx - pad;
-    const win = curveAt >= dm;
+    const verdict = curveVerdict(curveAt, dm);
     const vline = (text, dy, font, color) => {
       ctx.save(); ctx.font = font;
       r.label(fit(ctx, text, vw), vx, ctlY + dy, { color, font });
@@ -468,9 +468,8 @@ mount({
       35, '9.5px ui-monospace, monospace', T.n11);
     vline(data.spec === 'jacobi'
       ? 'Jacobi lookahead proposes the window even when the tree has no match; only a prefix the reference itself emits is kept'
-      : (win ? 'the suffix tree is ahead here — and it paid for no second model at all'
-        : 'the suffix tree is behind here — nothing to copy, so it falls back toward plain decode'),
-      49, '10.5px ui-monospace, monospace', data.spec === 'jacobi' ? T.n14 : (win ? T.okDeep : T.bad));
+      : verdict.text,
+      49, '10.5px ui-monospace, monospace', data.spec === 'jacobi' ? T.n14 : (verdict.ahead ? T.okDeep : T.bad));
     if (rd && data.spec !== 'jacobi') {
       // Extra text is indexed at the head of the corpus. It changes this round
       // only when it changes a continuation count. The offered line is the
