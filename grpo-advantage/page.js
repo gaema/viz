@@ -101,6 +101,34 @@ function signalParts(absValues, signal) {
   return { parts: absValues.map((v) => String(v)), v: goal };
 }
 
+// The readout's last sentence is about the advantages already printed above it.
+// A spelled ±0.000 is that rounding, so the sentence must not call it non-zero.
+function readoutText(m, st, S, G, tierName) {
+  const agree = m.sigma < 1e-12;
+  let out = `${st.norm ? 'A_i = (r_i − μ) / (σ + 1e−4)' : 'A_i = r_i − μ'}    μ = (1/${S}) Σ r_i = ${f3(m.mu)}    σ = ${f3(m.sigma)}    no value network — the baseline IS the other ${S - 1} sample${S === 2 ? '' : 's'}    tier:${tierName}\n`;
+  out += `scored ${S}/${G}:  A = [ ${m.rows.map((x) => (x.A >= 0 ? '+' : '') + f3(x.A)).join(', ')} ]   ·   clipped ${pct(m.clipFrac)}   ·   gradient signal = ${f3(m.signal)}\n`;
+  if (agree) {
+    out += `EVERY rollout scored ${f3(m.mu)} — the group AGREES, so every advantage is exactly 0.000 and this group contributes NO gradient at all. Dividing by σ does not rescue it: 0/(0+1e−4) is still 0. This is the case dynamic sampling exists to throw away — filter out the all-correct and all-wrong groups and sample replacements until the batch is full of groups that disagree.`;
+  } else if (m.nLive === 0) {
+    const shown = m.rows.map((x) => f3(x.A));
+    const zeroN = shown.filter((s) => s === '0.000' || s === '-0.000').length;
+    if (zeroN === shown.length) {
+      out += 'every rollout is outside the clip window, and every advantage rounds to 0.000, so the step moves nothing.';
+    } else if (zeroN === 0) {
+      out += 'every rollout is outside the clip window on the side the advantage pushes, so every term is constant in ρ — the advantages are non-zero but the step moves nothing. Widen ε or reduce the drift.';
+    } else {
+      out += `every rollout is outside the clip window on the side the advantage pushes, so every term is constant in ρ. ${zeroN} of ${shown.length} advantages round to 0.000, and the step moves nothing. Widen ε or reduce the drift.`;
+    }
+  } else if (m.sigma < 0.05) {
+    out += `σ = ${f3(m.sigma)} — the group nearly agrees, so the advantages are tiny${st.norm ? `, and dividing by σ+1e−4 blows them back up ${m.scale.toFixed(1)}×. That is the std-normalisation bias: a prompt the model has almost mastered is weighted as heavily as one it is genuinely learning from.` : '. Turn on std normalisation to see them amplified back to full size — which is the bias Dr. GRPO objects to.'}`;
+  } else {
+    const nUp = m.rows.filter((x) => x.A > 0 && !x.clamped).length;
+    const nDn = m.rows.filter((x) => x.A < 0 && !x.clamped).length;
+    out += `the group disagrees (σ = ${f3(m.sigma)}), so ${m.nLive} of ${S} rollouts carry gradient: ${nUp} above the mean ${nUp === 1 ? 'is' : 'are'} pushed up, ${nDn} below ${nDn === 1 ? 'is' : 'are'} pushed down, and the baseline itself is never learned — it is just the other samples.`;
+  }
+  return out;
+}
+
 // ------------------------------------------------------------------ the group
 // A rollout is a sampled answer with a verifiable reward. Deterministic in the
 // seed, so one URL replays one exact picture.
@@ -499,20 +527,7 @@ mount({
     }
 
     // ------------------------------------------------------------- readout
-    let out = `${st.norm ? 'A_i = (r_i − μ) / (σ + 1e−4)' : 'A_i = r_i − μ'}    μ = (1/${S}) Σ r_i = ${f3(m.mu)}    σ = ${f3(m.sigma)}    no value network — the baseline IS the other ${S - 1} sample${S === 2 ? '' : 's'}    tier:${r.name}\n`;
-    out += `scored ${S}/${G}:  A = [ ${m.rows.map((x) => (x.A >= 0 ? '+' : '') + f3(x.A)).join(', ')} ]   ·   clipped ${pct(m.clipFrac)}   ·   gradient signal = ${f3(m.signal)}\n`;
-    if (agree) {
-      out += `EVERY rollout scored ${f3(m.mu)} — the group AGREES, so every advantage is exactly 0.000 and this group contributes NO gradient at all. Dividing by σ does not rescue it: 0/(0+1e−4) is still 0. This is the case dynamic sampling exists to throw away — filter out the all-correct and all-wrong groups and sample replacements until the batch is full of groups that disagree.`;
-    } else if (m.nLive === 0) {
-      out += `every rollout is outside the clip window on the side the advantage pushes, so every term is constant in ρ — the advantages are non-zero but the step moves nothing. Widen ε or reduce the drift.`;
-    } else if (m.sigma < 0.05) {
-      out += `σ = ${f3(m.sigma)} — the group nearly agrees, so the advantages are tiny${st.norm ? `, and dividing by σ+1e−4 blows them back up ${m.scale.toFixed(1)}×. That is the std-normalisation bias: a prompt the model has almost mastered is weighted as heavily as one it is genuinely learning from.` : '. Turn on std normalisation to see them amplified back to full size — which is the bias Dr. GRPO objects to.'}`;
-    } else {
-      const nUp = m.rows.filter((x) => x.A > 0 && !x.clamped).length;
-      const nDn = m.rows.filter((x) => x.A < 0 && !x.clamped).length;
-      out += `the group disagrees (σ = ${f3(m.sigma)}), so ${m.nLive} of ${S} rollouts carry gradient: ${nUp} above the mean ${nUp === 1 ? 'is' : 'are'} pushed up, ${nDn} below ${nDn === 1 ? 'is' : 'are'} pushed down, and the baseline itself is never learned — it is just the other samples.`;
-    }
-    page.setReadout(out);
+    page.setReadout(readoutText(m, st, S, G, r.name));
   },
 }).then((page) => {
   window.__grpoPage = page;
