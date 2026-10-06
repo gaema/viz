@@ -1,13 +1,9 @@
-// real-embeddings concept page — real-model grounding.
+// real-embeddings concept page — real-model grounding, plus a nested-prefix demo.
 //
-// The synthetic `embedding/` page shows the *mechanism* (a token id is a row
-// lookup in E[V×D]); the numbers there come from a seed. This page shows the
-// numbers are *real*: it fetches a small trained sentence-embedding model
-// (all-MiniLM-L6-v2, ≈23 MB) at runtime via transformers.js (a CDN ES module —
-// no build, no server compute, same ethos as every other page) and runs it
-// in-browser on words you type. The cosine-similarity heatmap and the 2D MDS
-// scatter then show *real* semantic geometry — "king"≈"queen", "paris"≈"tokyo",
-// not an artifact of the demo.
+// Default path: a trained sentence-embedding model (all-MiniLM-L6-v2) fetched
+// at runtime, or a labelled synthetic stand-in before that download. The nested
+// toggle draws a different vector, built so the leading prefix is the coarse
+// part. That vector is not a truncation of the loaded model.
 //
 // Math: each word → a unit vector v (mean-pooled, L2-normalized). cosine(i,j) =
 // vᵢ·vⱼ (a dot product, since the vectors are unit norm) — the exact same
@@ -25,6 +21,7 @@
 import { mount } from '../framework/layout.js';
 import { ramps, cellAt } from '../framework/render.js';
 import { T, rgbaToken } from '../framework/theme.js';
+import { nestedRead, nestedSentence, cardBlurb } from './math.js';
 
 const TFJS = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2';
 const MODEL = 'Xenova/all-MiniLM-L6-v2';
@@ -175,10 +172,13 @@ mount({
   mount: 'body',
   slug: 'real-embeddings',
   title: 'real embeddings — a trained model’s semantic geometry',
-  blurb: 'The synthetic embedding page shows the row-lookup mechanism on seeded numbers; this one runs a REAL trained model (all-MiniLM-L6-v2) in your browser — fetched at runtime via transformers.js, no build — and embeds the words you type. The cosine-similarity heatmap and the 2D map below are real semantic geometry: words that mean similar things (king·queen, paris·tokyo) sit close, with no demo trickery. Type your own words. Offline, it renders a clearly-labelled synthetic stand-in and swaps in the real vectors once the model downloads.',
+  blurb: cardBlurb,
   prefer: 'canvas2d',
   aspect: '2 / 1',
   controls: (c, page) => {
+    c.toggle('nested', { label: 'nested prefix', value: false });
+    c.stepper('ndim', { label: 'nested dim', min: 2, max: 16, value: 4 });
+    c.stepper('ncut', { label: 'prefix cut', min: 1, max: 15, value: 2 });
     c.text('words', { label: 'words (comma-sep)', value: DEFAULT, placeholder: 'king, queen, paris, …', rebuild: false });
     c.button('re-embed', () => reembed(page, page.state.words));
     c.button('load real model', () => ensureModel(page));
@@ -187,6 +187,28 @@ mount({
   draw: (page) => {
     const r = page.renderer, ctx = page.ctx;
     r.clear(T.n0);
+    if (page.state.nested) {
+      const row = nestedRead(page.state.ndim | 0, page.state.ncut | 0);
+      page.probe = { source: 'nested', n: 3, minSim: Number(row.fTail), maxSim: Number(row.pTail) };
+      ctx.save();
+      ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillStyle = T.teal; ctx.fillText('constructed nested vectors — not the loaded model', 14, 10);
+      const bars = [
+        ['prefix, tail-only pair', Number(row.pTail), T.teal],
+        ['full vector, tail-only pair', Number(row.fTail), T.accent],
+        ['prefix, coarse pair', Number(row.pCoarse), T.n9],
+      ];
+      bars.forEach((b, i) => {
+        const y = 48 + i * 36;
+        ctx.fillStyle = T.n12; ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'left';
+        ctx.fillText(b[0], 14, y);
+        ctx.fillStyle = b[2]; ctx.fillRect(220, y, Math.max(2, b[1] * 180), 16);
+        ctx.fillStyle = T.n14; ctx.fillText(b[1].toFixed(3), 410, y);
+      });
+      ctx.restore();
+      page.setReadout(`constructed nested vectors, not the loaded model. ${nestedSentence(row)}. coarse prefix cosine ${row.pCoarse}.`);
+      return;
+    }
     const n = M.words.length;
     // expose probe for challenges
     const ext = M.sim ? simExtremes(M.sim, n) : { minSim: 1, maxSim: 1 };
@@ -267,5 +289,8 @@ mount({
   page.redraw();
   // Kick off the real model unless explicitly suppressed (?real=0 keeps the
   // synthetic stand-in — used for fast, deterministic headless capture).
+  if (q.get('nested') === '1') page.controls.set('nested', true);
+  if (q.has('ndim')) page.controls.set('ndim', parseInt(q.get('ndim'), 10));
+  if (q.has('ncut')) page.controls.set('ncut', parseInt(q.get('ncut'), 10));
   if (q.get('real') === '1' || q.get('autoload') === '1') ensureModel(page);   // large download: opt-in only
 });

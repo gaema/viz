@@ -41,9 +41,9 @@
 //    ?kv, ?d, ?layers, ?experts, ?topk, ?reqs, ?seq, ?skew, ?micro, ?link,
 //    ?budget, ?hover=x,y.
 //
-// OUT OF SCOPE, one line: CONTEXT parallelism -- splitting a single SEQUENCE
-// across ranks so one long prompt's attention is computed cooperatively -- is a
-// different axis from all four of these and is not drawn here.
+// KV-parallel attention is one of the attention choices: each device keeps a
+// sequence shard of the cache and one gather moves those cache bytes. It is
+// not the ring that passes keys or queries on the context-parallelism page.
 //
 // Public sources for the mechanisms: the vLLM parallelism-and-scaling serving
 // docs, Meta's engineering write-up on tensor / context / expert parallelism
@@ -54,167 +54,7 @@
 // instead and spends the parallelism on the experts.
 import { mount } from '../framework/layout.js';
 import { T, alphaOf, inkOn, rgbaToken } from '../framework/theme.js';
-
-// ---- fixed model conventions (stated on screen, not hidden) ---------------
-const BPE = 2;            // bytes per bf16 activation / weight element
-const GQA = 8;            // query heads per KV head, for the grouped-KV option
-const HEAD = 128;         // attention head dim
-const D_LATENT = 576;     // latent-KV cache width per layer (compressed KV + rope part)
-
-const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
-const ATTN_MODES = ['tp', 'pp', 'dp'];
-const MOE_MODES = ['tp', 'pp', 'ep'];
-
-const NAME = {
-  tp: 'tensor parallel', pp: 'pipeline parallel',
-  ep: 'expert parallel', dp: 'data-parallel (replicated)',
-};
-const SHORT = { tp: 'TP', pp: 'PP', ep: 'EP', dp: 'DP' };
-
-function fmtB(b) {
-  if (!isFinite(b)) return '–';
-  if (b >= 1e12) return (b / 1e12).toFixed(2) + ' TB';
-  if (b >= 1e9) return (b / 1e9).toFixed(2) + ' GB';
-  if (b >= 1e6) return (b / 1e6).toFixed(1) + ' MB';
-  if (b >= 1e3) return (b / 1e3).toFixed(1) + ' kB';
-  return b.toFixed(0) + ' B';
-}
-// Split M things over N ranks the way a scheduler does: the remainder lands on
-// the low ranks, so a rank CAN come up empty (which is the dummy-forward case).
-const share = (M, N) => Array.from({ length: N }, (_, i) => Math.floor(M / N) + (i < M % N ? 1 : 0));
-
-// ---- the model ------------------------------------------------------------
-// Every number below is computed from the controls; nothing is annotated.
-function build(st) {
-  const N = clamp(st.gpus | 0, 1, 8);
-  const d = st.d | 0, L = st.layers | 0, E = st.experts | 0;
-  const k = Math.min(st.topk | 0, E);
-  const B = st.reqs | 0;                 // requests in flight = tokens per decode step
-  const S = st.seq | 0;                  // context length per request
-  const dff = Math.round(d / 2);         // fine-grained expert intermediate width
-  const attn = ATTN_MODES.includes(st.attn) ? st.attn : 'tp';
-  const moe = MOE_MODES.includes(st.moe) ? st.moe : 'ep';
-  const latent = st.kv === 'latent';
-
-  // parameters per layer
-  const attnParams = latent
-    ? 2 * d * d + 2 * d * D_LATENT              // q/o full, plus the down/up latent projections
-    : 2 * d * d + 2 * d * (d / GQA);            // q/o full, k/v grouped
-  const moeParams = E * 3 * d * dff;            // gate + up + down per expert
-  const attnBytes = L * attnParams * BPE;
-  const moeBytes = L * moeParams * BPE;
-
-  // KV cache. A grouped-KV cache shards across TP ranks only as far as it has
-  // KV HEADS to give away; a latent cache is ONE head, so tensor parallel
-  // cannot split it at all and every rank keeps a whole copy.
-  const kvHeads = latent ? 1 : Math.max(1, Math.round(d / HEAD / GQA));
-  const kvPerTok = latent ? L * D_LATENT * BPE : 2 * L * kvHeads * HEAD * BPE;
-  const kvTotal = B * S * kvPerTok;
-
-  const layersOn = share(L, N);
-  const expertsOn = share(E, N);
-  const toksOn = share(B, N);                   // request ownership under DP attention
-
-  // per-GPU memory
-  const gpus = [];
-  for (let r = 0; r < N; r++) {
-    const aw = attn === 'dp' ? attnBytes
-      : attn === 'tp' ? attnBytes / N
-        : attnBytes * (layersOn[r] / L);
-    const mw = moe === 'ep' ? L * expertsOn[r] * 3 * d * dff * BPE
-      : moe === 'tp' ? moeBytes / N
-        : moeBytes * (layersOn[r] / L);
-    const kv = attn === 'dp' ? toksOn[r] * S * kvPerTok
-      : attn === 'tp' ? kvTotal / Math.min(N, kvHeads)
-        : kvTotal * (layersOn[r] / L);
-    const over = st.overhead * 1e9;             // runtime + activation workspace
-    gpus.push({ r, aw, mw, kv, over, total: aw + mw + kv + over, layers: layersOn[r], experts: expertsOn[r], toks: toksOn[r] });
-  }
-
-  // router: expert popularity with a skew, experts dealt round-robin to ranks.
-  const w = new Float64Array(E); let sw = 0;
-  for (let e = 0; e < E; e++) { w[e] = Math.pow(1 / (1 + e), st.skew); sw += w[e]; }
-  for (let e = 0; e < E; e++) w[e] /= sw;
-  const pRank = new Float64Array(N);
-  for (let e = 0; e < E; e++) pRank[e % N] += w[e];
-
-  // all-to-all volume matrix (token-assignments per layer), src rank -> dst rank
-  const a2a = [];
-  let crossTok = 0, recvMax = 0;
-  const recv = new Float64Array(N);
-  for (let s = 0; s < N; s++) {
-    const row = new Float64Array(N);
-    for (let r2 = 0; r2 < N; r2++) {
-      row[r2] = toksOn[s] * k * pRank[r2];
-      recv[r2] += row[r2];
-      if (s !== r2) crossTok += row[r2];
-    }
-    a2a.push(row);
-  }
-  for (let r2 = 0; r2 < N; r2++) recvMax = Math.max(recvMax, recv[r2]);
-  const meanRecv = (B * k) / N;
-  const imbalance = meanRecv > 0 ? recvMax / meanRecv : 1;
-
-  // ---- bytes crossing the wire, per DECODE STEP (all L layers) ------------
-  // Ring all-reduce of a P-byte payload moves 2(N-1)/N * P per GPU, so the
-  // fleet-wide traffic is 2(N-1) * P.
-  const payload = B * d * BPE;                 // one sublayer's activation tensor
-  const allreduce = 2 * (N - 1) * payload;
-  const attnWire = N < 2 ? 0
-    : attn === 'tp' ? L * allreduce
-      : 0;                                      // dp: attention crosses NOTHING
-  const dispatch = crossTok * d * BPE;          // per layer
-  const moeWire = N < 2 ? 0
-    : moe === 'tp' ? L * allreduce
-      : moe === 'pp' ? 0
-        : L * 2 * dispatch;                     // ep: dispatch out + combine back
-  // Pipeline traffic is per BOUNDARY, not per sublayer. Under PP both sublayers
-  // of a layer sit on the same device, so a forward pass crosses N-1 boundaries
-  // and carries one payload each -- charging it inside attnWire AND moeWire
-  // doubled it whenever both selects were 'pp', and contradicted the page's own
-  // band label ("<payload> per stage boundary · N-1 boundaries per pass").
-  const ppWire = N < 2 || (attn !== 'pp' && moe !== 'pp') ? 0 : (N - 1) * payload;
-  const wire = attnWire + moeWire + ppWire;
-  const wirePerGpu = wire / N;
-  const linkBps = st.link * 1e9;
-  const commMs = linkBps > 0 ? (wirePerGpu / linkBps) * 1000 : 0;
-
-  const anyPP = attn === 'pp' || moe === 'pp';
-  const bubble = anyPP && N > 1 ? (N - 1) / (st.micro + N - 1) : 0;
-
-  const budget = st.budget * 1e9;
-  const peak = Math.max(...gpus.map((g) => g.total));
-  const fits = peak <= budget;
-  const fleetWeights = gpus.reduce((a, g) => a + g.aw + g.mw, 0);
-  const modelWeights = attnBytes + moeBytes;
-
-  return {
-    N, d, L, E, k, B, S, dff, attn, moe, latent, kvHeads, kvPerTok, kvTotal,
-    attnBytes, moeBytes, gpus, w, pRank, a2a, recv, imbalance, crossTok,
-    payload, attnWire, moeWire, ppWire, wire, wirePerGpu, commMs, anyPP, bubble,
-    budget, peak, fits, fleetWeights, modelWeights, dup: fleetWeights / modelWeights,
-    layersOn, expertsOn, toksOn,
-  };
-}
-
-// ---- the sublayer walk ----------------------------------------------------
-// Always the same eight stages, so ?step=N is stable; the LABEL and the
-// collective drawn at each stage follow the chosen strategies.
-function stages(m) {
-  const a = m.attn, mo = m.moe;
-  const acomm = m.N < 2 ? 'none' : a === 'tp' ? 'allreduce' : a === 'pp' ? 'p2p' : 'none';
-  const mcomm = m.N < 2 ? 'none' : mo === 'tp' ? 'allreduce' : mo === 'pp' ? 'p2p' : 'alltoall';
-  return [
-    { kind: 'idle', part: 'in', role: 'in', label: 'layer input — where the activations already are' },
-    { kind: 'compute', part: 'attn', role: 'attn', label: `attention math (${NAME[a]})` },
-    { kind: acomm, part: 'attn', role: 'attn-comm', label: acomm === 'allreduce' ? 'attention ALL-REDUCE — every rank held a partial sum' : acomm === 'p2p' ? 'stage boundary — point-to-point activation send' : 'attention: NOTHING crosses the wire' },
-    { kind: mo === 'ep' && a === 'dp' ? 'sync' : 'compute', part: 'moe', role: 'router', label: mo === 'ep' && a === 'dp' ? 'router + rank sync (idle ranks run a dummy forward)' : 'router — each token picks its top-k experts' },
-    { kind: mcomm === 'alltoall' ? 'alltoall' : 'idle', part: 'moe', role: 'dispatch', label: mcomm === 'alltoall' ? 'ALL-TO-ALL dispatch — tokens travel to their experts' : 'no dispatch: the experts are already where the tokens are' },
-    { kind: 'compute', part: 'moe', role: 'expert', label: `expert math (${NAME[mo]})` },
-    { kind: mcomm, part: 'moe', role: 'moe-comm', label: mcomm === 'alltoall' ? 'ALL-TO-ALL combine — expert outputs travel home' : mcomm === 'allreduce' ? 'MoE ALL-REDUCE — every rank held a partial sum' : mcomm === 'p2p' ? 'stage boundary — point-to-point activation send' : 'MoE: nothing crosses the wire' },
-    { kind: 'idle', part: 'out', role: 'out', label: 'layer output — on to the next of ' + m.L + ' layers' },
-  ];
-}
+import { BPE, clamp, ATTN_MODES, MOE_MODES, NAME, SHORT, fmtB, build, stages, cardBlurb } from './math.js';
 
 // ---- drawing helpers ------------------------------------------------------
 function roundRect(ctx, x, y, w, h, r) {
@@ -259,7 +99,7 @@ function cycle(page, key, modes) {
 mount({
   mount: 'body',
   title: 'parallelism — what actually crosses the wire when one model is split across GPUs',
-  blurb: 'Four different things get called "parallelism", and they are not variants of each other: they move different bytes at different moments for different reasons. One transformer layer is drawn across an N-GPU strip, and you pick a strategy per sublayer. TENSOR parallel splits each matmul, so every sublayer ends in an all-reduce of activations — lowest latency, but it wants a fat link and degrades once the group spans a slower fabric. PIPELINE parallel splits layers, so only a point-to-point activation crosses at a stage boundary — cheap comms, but bubbles, and no help at all for single-token latency. EXPERT parallel gives each GPU a subset of the MoE experts and moves TOKENS in an all-to-all whose volume the ROUTER decides, so it is imbalanced by construction. DATA-PARALLEL attention replicates attention — nothing crosses for it at all — and pays in N copies of the weights, with idle ranks running dummy forward passes so the MoE collective still lines up. Drag the strip ↔ to change the GPU count and ↕ to skew the router; click a chip to switch that sublayer; hover a GPU for what it holds and an arrow for what is crossing. Context parallelism — splitting one SEQUENCE across ranks — is a separate axis and is not shown here.',
+  blurb: cardBlurb,
   prefer: 'canvas2d',
   aspect: '16 / 10',
   autoplay: true,
@@ -284,7 +124,7 @@ mount({
   ],
   controls: (c, page) => {
     c.stepper('gpus', { label: 'GPUs (N)', min: 1, max: 8, value: 4 });
-    c.select('attn', { label: 'attention sublayer', options: [{ value: 'tp', label: 'tensor parallel' }, { value: 'pp', label: 'pipeline parallel' }, { value: 'dp', label: 'data-parallel (replicated)' }], value: 'tp', rebuild: true });
+    c.select('attn', { label: 'attention sublayer', options: [{ value: 'tp', label: 'tensor parallel' }, { value: 'pp', label: 'pipeline parallel' }, { value: 'dp', label: 'data-parallel (replicated)' }, { value: 'kvp', label: 'KV-parallel' }], value: 'tp', rebuild: true });
     c.select('moe', { label: 'MoE sublayer', options: [{ value: 'tp', label: 'tensor parallel' }, { value: 'pp', label: 'pipeline parallel' }, { value: 'ep', label: 'expert parallel' }], value: 'ep', rebuild: true });
     c.select('kv', { label: 'KV cache form', options: [{ value: 'gqa', label: 'grouped KV heads' }, { value: 'latent', label: 'latent (single-head) KV' }], value: 'gqa', rebuild: true });
     c.slider('d', { label: 'hidden size d', min: 1024, max: 8192, step: 512, value: 4096, rebuild: true });
@@ -425,7 +265,7 @@ mount({
         ctx.fillText(text, c.x + c.w / 2, c.y + c.h / 2 + 0.5);
         ctx.restore();
       };
-      chip(chipA, COL_A, m.attn === 'pp' ? `attn ${SHORT[m.attn]} · L${g.layers}` : m.attn === 'dp' ? `attn DP · ${g.toks} req` : `attn TP 1/${m.N}`);
+      chip(chipA, COL_A, m.attn === 'pp' ? `attn ${SHORT[m.attn]} · L${g.layers}` : m.attn === 'dp' ? `attn DP · ${g.toks} req` : m.attn === 'kvp' ? `attn KV seq 1/${m.N}` : `attn TP 1/${m.N}`);
       chip(chipM, COL_M, m.moe === 'ep' ? `MoE EP · ${g.experts} exp` : m.moe === 'pp' ? `MoE PP · L${g.layers}` : `MoE TP 1/${m.N}`);
 
       // dummy-forward badge: a rank with no requests of its own still has to
@@ -593,6 +433,27 @@ mount({
             : stage.role === 'attn' && m.attn === 'dp' ? `${c.g.toks} req` : 'math';
         r.label(busy, c.cx, yMid + 4, { color: T.n12, font: '9.5px ui-monospace, monospace', align: 'center' });
       }
+    } else if (stage.kind === 'kvgather') {
+      const shard = m.kvTotal / m.N;
+      bandLabel(`KV gather · cache shard ${fmtB(shard)} per GPU · fabric ${fmtB(m.attnWire)} · cache bytes, not expert tokens`, T.teal);
+      for (let i = 0; i < m.N; i++) {
+        const a = cols[i], b = cols[(i + 1) % m.N];
+        const wrap = i === m.N - 1;
+        const lift = wrap ? bandH * 0.52 : 18;
+        ctx.save();
+        ctx.strokeStyle = alphaOf(T.teal, 0.9); ctx.lineWidth = 2.4; ctx.fillStyle = alphaOf(T.teal, 0.9);
+        curve(ctx, a.cx, yMid, b.cx, yMid, lift);
+        arrowHead(ctx, b.cx, yMid, wrap ? -0.6 : 0, 8);
+        ctx.restore();
+        packet(a.cx, yMid, b.cx, yMid, lift, T.teal, i / m.N);
+        wires.push({
+          x1: a.cx, y1: yMid, x2: b.cx, y2: yMid, lift, mid: { x: (a.cx + b.cx) / 2, y: yMid - lift * 0.5 },
+          why: `KV gather · GPU ${a.i} → GPU ${b.i}\n` +
+            `each rank holds a sequence shard of the cache, ${fmtB(shard)}.\n` +
+            `The exchange moves cache bytes so each rank sees the sequence its heads attend over.\n` +
+            `This is not the expert-token all-to-all.`,
+        });
+      }
     } else {
       bandLabel(stage.kind === 'none'
         ? (stage.part === 'attn' && m.attn === 'dp'
@@ -658,17 +519,19 @@ mount({
         for (const c of cols) {
           if (p.x >= c.x - 4 && p.x <= c.x + c.w + 4 && p.y >= c.top - 44 && p.y <= c.bot + 30) {
             const g = c.g;
-            const attnWhy = m.attn === 'tp' ? `1/${m.N} of every attention matrix (a shard of each head's projections)`
-              : m.attn === 'pp' ? `the WHOLE attention sublayer, for its ${g.layers} of ${m.L} layers`
-                : `a FULL COPY of every attention layer — ${m.N} copies exist across the strip`;
+            const attnWhy = m.attn === 'kvp' ? `1/${m.N} of the attention weights, a head slice on the same devices as the FFN`
+              : m.attn === 'tp' ? `1/${m.N} of every attention matrix (a shard of each head's projections)`
+                : m.attn === 'pp' ? `the WHOLE attention sublayer, for its ${g.layers} of ${m.L} layers`
+                  : `a FULL COPY of every attention layer — ${m.N} copies exist across the strip`;
             const moeWhy = m.moe === 'ep' ? `${g.experts} of the ${m.E} experts, in all ${m.L} layers`
               : m.moe === 'tp' ? `1/${m.N} of every expert matrix, in all ${m.L} layers`
                 : `every expert, for its ${g.layers} of ${m.L} layers`;
-            const kvWhy = m.attn === 'dp' ? `KV for its OWN ${g.toks} request(s) — request ownership, not sharding`
-              : m.attn === 'tp' ? (m.kvHeads <= 1
-                ? `a FULL COPY of the KV cache: a latent cache is ONE head, so tensor parallel has nothing to split — every rank keeps all of it`
-                : `KV split ${Math.min(m.N, m.kvHeads)} ways (only ${m.kvHeads} KV heads exist to give away)`)
-                : `KV for its ${g.layers} of ${m.L} layers, all ${m.B} requests`;
+            const kvWhy = m.attn === 'kvp' ? `KV for 1/${m.N} of the sequence — a sequence shard, not a head shard`
+              : m.attn === 'dp' ? `KV for its OWN ${g.toks} request(s) — request ownership, not sharding`
+                : m.attn === 'tp' ? (m.kvHeads <= 1
+                  ? `a FULL COPY of the KV cache: a latent cache is ONE head, so tensor parallel has nothing to split — every rank keeps all of it`
+                  : `KV split ${Math.min(m.N, m.kvHeads)} ways (only ${m.kvHeads} KV heads exist to give away)`)
+                  : `KV for its ${g.layers} of ${m.L} layers, all ${m.B} requests`;
             tip = `GPU ${c.i} holds\n` +
               `attention weights ${fmtB(g.aw)} — ${attnWhy}\n` +
               `expert weights    ${fmtB(g.mw)} — ${moeWhy}\n` +
@@ -695,8 +558,8 @@ mount({
     o += `MEM   peak per GPU ${fmtB(m.peak)} of ${st.budget} GB — ${m.fits ? 'fits' : 'DOES NOT FIT'}; ${dupTxt}; KV ${fmtB(m.kvTotal)} total`;
     o += m.attn === 'tp' && m.kvHeads <= 1 ? `, and tensor parallel cannot shard a single-head latent cache — every rank keeps a whole copy.\n` : `.\n`;
     o += m.anyPP ? `PIPE  ${(100 * m.bubble).toFixed(0)}% bubble at ${st.micro} micro-batch${st.micro > 1 ? 'es' : ''} across ${m.N} stages; pipelining buys cheap comms and buys nothing for single-token latency.\n`
-      : `TRADE ${m.attn === 'tp' || m.moe === 'tp' ? 'an all-reduce sits on the critical path of every sublayer of every layer, so a slower fabric shows up directly as latency. ' : ''}${m.attn === 'dp' ? 'attention crosses nothing, at the price of a whole copy of the attention weights per rank. ' : ''}${m.moe === 'ep' ? 'expert memory scales with GPU count, but the all-to-all is routing-dependent and load-imbalanced.' : ''}\n`;
-    o += `Context parallelism — splitting one SEQUENCE across ranks — is a different axis and is not drawn here.`;
+      : `TRADE ${m.attn === 'tp' || m.moe === 'tp' ? 'an all-reduce sits on the critical path of every sublayer of every layer, so a slower fabric shows up directly as latency. ' : ''}${m.attn === 'kvp' ? 'KV-parallel attention moves cache bytes for a sequence shard, a different quantity from the MoE wire. ' : ''}${m.attn === 'dp' ? 'attention crosses nothing, at the price of a whole copy of the attention weights per rank. ' : ''}${m.moe === 'ep' ? 'expert memory scales with GPU count, but the all-to-all is routing-dependent and load-imbalanced.' : ''}\n`;
+    o += `KV-parallel attention, when that choice is selected, shards the sequence and gathers cache bytes. Tensor, pipeline, and data-parallel attention do not use that gather. The ring that passes keys or queries is the context-parallelism page.`;
     page.setReadout(o);
   },
 }).then((page) => {

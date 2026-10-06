@@ -1,14 +1,13 @@
 // moe-balance concept page -- the MoE load-balance problem over a batch.
-// A balance knob λ interpolates routing from the router's skewed preference
-// (λ=0: a few experts hog everything, the rest STARVE -- rich-get-richer
-// collapse) to uniform (λ=1). Per-expert load bars with a capacity line +
-// dropped-token overflow, the Switch load-balance aux loss, CV, and starved
-// count. Direct manipulation: DRAG A BAR up/down to shift load onto/off that
-// expert (the others rebalance); drag the capacity line; the bars ease to
-// their targets (animate).
+// Auxiliary-loss mode: λ interpolates routing from the skewed preference
+// (λ=0) toward uniform (λ=1). Selection-bias mode: a per-expert offset is
+// used only for top-k, the combine weight stays the raw score, and the
+// auxiliary-loss weight is 0. Drag a bar in loss mode; the bias step is the
+// other control.
 import { mount } from '../framework/layout.js';
 import { softmax, seededRandn } from '../framework/tensor.js';
 import { T, alphaOf } from '../framework/theme.js';
+import { auxMix, biasRun, moveSentence, compareCaptions, cardBlurb } from './math.js';
 
 
 
@@ -29,18 +28,22 @@ const std = (a) => { const m = a.reduce((s, x) => s + x, 0) / a.length; return M
 mount({
   mount: 'body',
   title: 'moe-balance — load balancing, collapse, capacity',
-  blurb: 'The MoE balance problem. Without a balancing pressure the router collapses: a few experts take most tokens and the rest STARVE (no tokens → no gradients → stay bad → never picked — the rich-get-richer loop). The balance knob λ interpolates from the router\'s raw skewed preference (λ=0) to uniform (λ=1). Each expert holds ≈ factor·T/E; tokens to a full expert are dropped (red). The aux loss E·Σ fₑ·Pₑ, the load CV, and the starved count quantify the imbalance. Drag any bar up/down to shift load onto/off it (the others rebalance); drag the capacity line; hover a bar.',
+  blurb: cardBlurb,
   prefer: 'canvas2d',
   aspect: '2 / 1',
   compare: { key: 'lam', a: 0, b: 1, labelA: 'λ=0 — router collapse (skewed)', labelB: 'λ=1 — balanced (uniform)' },
   animate: true,
   challenges: [
-    { goal: 'Balance the experts — get the aux (imbalance) loss below 1.05.', hint: 'raise the balance knob λ toward 1 (or drag the tall bars down).', check: (api) => ({ solved: (api.probe.aux ?? 9) < 1.05, detail: `aux = ${(api.probe.aux ?? 9).toFixed(3)} (1.0 = perfectly balanced)` }) },
-    { goal: 'Overload an expert — cause at least one dropped token.', hint: 'lower the capacity factor, or drag one bar above the capacity line.', check: (api) => ({ solved: (api.probe.drops ?? 0) > 0, detail: `${api.probe.drops ?? 0} dropped` }) },
+    { goal: 'In auxiliary-loss mode, get the aux loss below 1.05. Selection-bias mode keeps the auxiliary weight at 0 and does not use λ for the route.', hint: 'stay on auxiliary loss and raise λ toward 1 (or drag the tall bars down).', check: (api) => ({ solved: api.probe.balance !== 'bias' && (api.probe.aux ?? 9) < 1.05, detail: `mode ${api.probe.balance}, aux = ${(api.probe.aux ?? 9).toFixed(3)}` }) },
+    { goal: 'Overload an expert — cause at least one dropped token.', hint: 'lower the capacity factor. In auxiliary-loss mode, drag one bar above the capacity line.', check: (api) => ({ solved: (api.probe.drops ?? 0) > 0, detail: `${api.probe.drops ?? 0} dropped` }) },
   ],
   controls: (c, page) => {
     c.stepper('E', { label: 'experts (E)', min: 3, max: 8, value: 6 });
+    c.select('balance', { label: 'balance route', options: [{ value: 'loss', label: 'auxiliary loss λ' }, { value: 'bias', label: 'selection bias' }], value: 'loss' });
     c.slider('lam', { label: 'balance loss λ', min: 0, max: 1, step: 0.05, value: 0 });
+    c.stepper('k', { label: 'experts kept (k)', min: 1, max: 4, value: 2 });
+    c.slider('step', { label: 'bias step', min: 0.05, max: 1, step: 0.05, value: 0.25 });
+    c.stepper('rounds', { label: 'bias steps', min: 1, max: 12, value: 1 });
     c.toggle('shared', { label: 'shared expert', value: false });
     c.slider('cap', { label: 'capacity factor', min: 1, max: 2, step: 0.05, value: 1.3 });
     c.slider('seed', { label: 'seed', min: 0, max: 99, step: 1, value: 5, rebuild: true });
@@ -65,11 +68,18 @@ mount({
     if (pendingShift && pendingShift.e < E) { userMult[pendingShift.e] = pendingShift.m; pendingShift = null; }
     r.clear(T.n0);
 
-    // effective routing = (skew lerp uniform by λ) modulated by drag, renormalized
+    // Loss mode: skew lerped toward uniform by λ, modulated by drag, renormalized.
+    // Bias mode: the offset chooses top-k; combine weights stay the raw scores.
     const inv = 1 / E;
-    const raw = Float32Array.from(cur.skew, (s, e) => ((1 - lam) * s + lam * inv) * userMult[e]);
-    let rs = 0; for (const x of raw) rs += x;
-    const eff = Float32Array.from(raw, (x) => x / rs);
+    const loss = auxMix(cur.skew, lam, userMult);
+    let biasRow = null;
+    if (st.balance === 'bias') {
+      const logits = Array.from(cur.skew, (s) => Math.log(Math.max(s, 1e-9)));
+      biasRow = biasRun(logits, st.k | 0, +st.step, TOKENS, Math.max(1, st.rounds | 0));
+    }
+    const eff = biasRow
+      ? Float32Array.from(biasRow.load, (x) => x / (biasRow.load.reduce((a, b) => a + b, 0) || 1))
+      : loss.eff;
     const cap = Math.max(1, Math.ceil(st.cap * TOKENS / E));
     const target = Float32Array.from(eff, (x) => x * TOKENS);
     for (let e = 0; e < E; e++) displayed[e] += (target[e] - displayed[e]) * 0.18;   // ease toward target
@@ -79,7 +89,14 @@ mount({
     let disp = 0, drops = 0; const dispatched = new Float32Array(E);
     for (let e = 0; e < E; e++) { dispatched[e] = Math.min(load[e], cap); disp += dispatched[e]; drops += Math.max(0, load[e] - cap); }
     let aux = 0; for (let e = 0; e < E; e++) aux += (disp ? dispatched[e] / disp : 0) * eff[e]; aux *= E;
-    page.probe = { aux, drops };
+    page.probe = { aux: biasRow ? 9 : aux, drops, balance: biasRow ? 'bias' : 'loss' };
+    if (typeof document !== 'undefined') {
+      const caps = compareCaptions(biasRow ? 'bias' : 'loss');
+      const capA = document.querySelector('.vz-cmp-cap-a');
+      const capB = document.querySelector('.vz-cmp-cap-b');
+      if (capA) capA.textContent = caps.a;
+      if (capB) capB.textContent = caps.b;
+    }
     const cv = std(load) / (load.reduce((s, x) => s + x, 0) / E || 1);
     const starved = []; for (let e = 0; e < E; e++) if (eff[e] < 0.4 * inv) starved.push(e);
 
@@ -92,7 +109,9 @@ mount({
     const sc = barsH / axisMax, capY = baseY - cap * sc;
     geom = { barsX, barsW, slot, bw, baseY, topBars, sc, capY, E };
 
-    r.label('per-expert load (tokens) — drag a bar ↕ to shift load', barsX, topBars - 12, { color: T.n14, font: '12px ui-monospace, monospace' });
+    r.label(biasRow
+      ? 'per-expert load (tokens) — the bias step sets these bars'
+      : 'per-expert load (tokens) — drag a bar ↕ to shift load', barsX, topBars - 12, { color: T.n14, font: '12px ui-monospace, monospace' });
     ctx.save();
     // baseline + capacity line
     ctx.strokeStyle = T.n4; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(barsX - 6, baseY); ctx.lineTo(barsX + barsW, baseY); ctx.stroke();
@@ -126,9 +145,13 @@ mount({
     const py = topBars + 6;
     const lamState = lam < 0.2 ? 'COLLAPSED' : lam < 0.7 ? 'partial' : 'BALANCED';
     const lines = [
-      ['balance λ', `${lam.toFixed(2)}  (${lamState})`, lam < 0.2 ? T.bad : lam > 0.7 ? T.ok : T.warn],
-      ['aux loss  E·Σfₑ·Pₑ (f = kept/total, drops out)', `${aux.toFixed(3)}`, aux > 1.4 ? T.bad : aux > 1.12 ? T.warn : T.ok],
-      ['  (1.0 = uniform)', '', T.n9],
+      biasRow
+        ? ['balance route', 'selection bias, auxiliary weight 0', T.teal]
+        : ['balance λ', `${lam.toFixed(2)}  (${lamState})`, lam < 0.2 ? T.bad : lam > 0.7 ? T.ok : T.warn],
+      biasRow
+        ? ['aux weight', '0', T.n12]
+        : ['aux loss  E·Σfₑ·Pₑ (f = kept/total, drops out)', `${aux.toFixed(3)}`, aux > 1.4 ? T.bad : aux > 1.12 ? T.warn : T.ok],
+      biasRow ? ['bias chooses, combine stays raw', '', T.n9] : ['  (1.0 = uniform)', '', T.n9],
       ['load CV', `${cv.toFixed(3)}`, cv > 0.5 ? T.bad : T.n12],
       ['starved experts', `${starved.length} / ${E}`, starved.length ? T.bad : T.ok],
       ['dropped tokens', `${drops}`, drops ? T.bad : T.ok],
@@ -145,15 +168,22 @@ mount({
     if (page.pointer.over && grab === null) {
       const e = Math.floor((page.pointer.x - barsX) / slot);
       if (e >= 0 && e < E && page.pointer.y >= topBars && page.pointer.y <= baseY) {
-        page.setTip(`expert ${e}: ${load[e]} tokens (${(eff[e] * 100).toFixed(1)}%)\ncapacity ${cap}${load[e] > cap ? `, dropped ${load[e] - cap}` : ''}${starved.includes(e) ? '\nSTARVING (≈ no tokens → no gradient)' : ''}\ndrag ↕ to shift load`);
+        page.setTip(`expert ${e}: ${load[e]} tokens (${(eff[e] * 100).toFixed(1)}%)\ncapacity ${cap}${load[e] > cap ? `, dropped ${load[e] - cap}` : ''}${starved.includes(e) ? '\nSTARVING (≈ no tokens → no gradient)' : ''}${biasRow ? '\nthe bias step sets this bar' : '\ndrag ↕ to shift load'}`);
       }
     }
 
-    let o = `MoE balance: λ=${lam.toFixed(2)} (${lamState}).  aux=${aux.toFixed(3)} (1.0=uniform; f counts kept tokens only, drops are out), CV=${cv.toFixed(2)}, ${starved.length} starved, ${drops} dropped.    tier:${r.name}\n`;
-    o += lam < 0.2
-      ? `no balance loss → the router collapses onto its favorites; ${starved.length} expert${starved.length === 1 ? '' : 's'} starve (no tokens, no gradient). Raise λ or drag a starved bar up.`
-      : lam > 0.7 ? `strong balance loss → load near uniform (${Math.round(TOKENS / E)}/expert); no starvation.`
-        : `partial balance: load is spreading toward uniform but still skewed.`;
+    let o;
+    if (biasRow) {
+      const moves = biasRow.moves.map(moveSentence).join(' ');
+      o = `selection bias, auxiliary weight 0. kept experts ${biasRow.picked.join(',')}. ${moves}    tier:${r.name}\n`;
+      o += `combine weights use the raw scores of the selected experts only. λ is not the route in this mode.`;
+    } else {
+      o = `MoE balance: λ=${lam.toFixed(2)} (${lamState}).  aux=${aux.toFixed(3)} (1.0=uniform; f counts kept tokens only, drops are out), CV=${cv.toFixed(2)}, ${starved.length} starved, ${drops} dropped.    tier:${r.name}\n`;
+      o += lam < 0.2
+        ? `no balance loss → the router collapses onto its favorites; ${starved.length} expert${starved.length === 1 ? '' : 's'} starve (no tokens, no gradient). Raise λ or drag a starved bar up.`
+        : lam > 0.7 ? `strong balance loss → load near uniform (${Math.round(TOKENS / E)}/expert); no starvation.`
+          : `partial balance: load is spreading toward uniform but still skewed.`;
+    }
     if (st.shared) o += `  shared expert: every token (always active) — absorbs common patterns so routed experts specialize.`;
     page.setReadout(o);
   },
@@ -161,6 +191,7 @@ mount({
   window.__mobPage = page;
   const q = new URLSearchParams(location.search);
   if (q.has('lam')) page.controls.set('lam', parseFloat(q.get('lam')));
+  if (q.get('balance') === 'bias' || q.get('balance') === 'loss') page.controls.set('balance', q.get('balance'));
   if (q.has('cap')) page.controls.set('cap', parseFloat(q.get('cap')));
   if (q.has('shared')) page.controls.set('shared', q.get('shared') !== '0');
   // ?shift=e,mult sets the drag multiplier for expert e (headless stand-in).

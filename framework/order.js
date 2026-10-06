@@ -61,6 +61,7 @@ export const ORDER = [
   // G -- Quantization / multimodal
   { slug: 'quantization', family: 'G' },
   { slug: 'ternary-weights', family: 'G' },
+  { slug: 'structured-sparsity', family: 'G' },
   { slug: 'vram-budget', family: 'G' },
   { slug: 'multimodal-inject', family: 'G' },
   { slug: 'vlm-connector', family: 'G' },
@@ -72,6 +73,7 @@ export const ORDER = [
   { slug: 'muon', family: 'H' },
   { slug: 'activation-recompute', family: 'H' },
   { slug: 'training-numerics', family: 'H' },
+  { slug: 'quantization-aware-training', family: 'H' },
   { slug: 'distillation', family: 'H' },
   // I -- Real-model grounding: real weights, fetched at runtime
   { slug: 'real-embeddings', family: 'I' },
@@ -111,6 +113,7 @@ export const ORDER = [
   { slug: 'kv-tiering', family: 'J' },
   { slug: 'suffix-decoding', family: 'J' },
   { slug: 'context-parallelism', family: 'J' },
+  { slug: 'ulysses', family: 'J' },
   { slug: 'dual-batch-overlap', family: 'J' },
   // K — Diffusion & generative
   { slug: 'diffusion-noise', family: 'K' },
@@ -124,6 +127,7 @@ export const ORDER = [
   { slug: 'video-time', family: 'K' },
   { slug: 'audio-tokens', family: 'K' },
   { slug: 'ar-vs-diffusion-images', family: 'K' },
+  { slug: 'diffusion-lm', family: 'K' },
   // L — Reasoning
   { slug: 'thinking-tokens', family: 'L' },
   { slug: 'pass-at-k', family: 'L' },

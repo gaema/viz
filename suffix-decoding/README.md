@@ -2,9 +2,12 @@
 
 > **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server (ES modules): `python3 -m http.server 8099`
 
-Interactive page: speculative decoding **without a second model**. The proposal
-comes from the text the system has already seen -- the prompt, the conversation,
-this generation's own output -- indexed in a depth-bounded **suffix tree**.
+Interactive page: speculative decoding **without a second model**. Suffix mode
+takes the proposal from the text the system has already seen -- the prompt, the
+conversation, this generation's own output -- indexed in a depth-bounded
+**suffix tree**. Jacobi mode writes a lookahead window and pools n-grams from
+that trajectory even when the tree has no match, then keeps only the prefix the
+reference itself would emit. Repetition does not feed the Jacobi window.
 **Anchor**: the companion to
 [speculative-decoding](../speculative-decoding/README.md), which owns the
 verify-and-accept mechanism this page reuses and deliberately does **not**
@@ -31,12 +34,14 @@ Source: **SuffixDecoding**, <https://arxiv.org/abs/2411.04975>.
  index the new tokens straight back into the tree, so the structure grows as
  the generation goes.
 
-**The property that makes it interesting** is that this gets *better with
-repetition*, precisely where a draft model gains nothing: an agent loop
-re-emitting a similar tool call, a document being quoted back, structured output
-with a fixed skeleton. On genuinely novel prose there is nothing to copy and it
-degrades to ordinary one-token-per-forward decoding. Both regimes are reachable
-from the repetitiveness handle, and the accepted-length curve moves across them.
+**In suffix mode, the property that makes the tree interesting** is that it gets
+*better with repetition*, precisely where a draft model gains nothing: an agent
+loop re-emitting a similar tool call, a document being quoted back, structured
+output with a fixed skeleton. On genuinely novel prose the tree has no recurring
+continuation and suffix mode backs off toward one token per forward. Both
+regimes are reachable from the repetitiveness handle, and the suffix-mode
+accepted-length curve moves across them. Jacobi mode does not move with that
+handle.
 
 ## Real vs modelled -- stated on the page too
 
@@ -64,7 +69,7 @@ the page (4 seeds × 12 rounds per point, proposal length 6, tree depth 6):
 | 0.80 | 2.73 | 2.56 |
 | 1.00 | 4.23 | 2.65 |
 
-The suffix tree moves **14.6×** across the range while the draft moves 1.20×,
+In suffix mode the tree moves **14.6×** across the range while the draft moves 1.20×,
 and the two curves cross between repetitiveness 0.75 and 0.80 (2.27 vs 2.54,
 then 2.73 vs 2.56). That crossing is the whole point:
 which one wins is a property of the *text*, not of the method.
@@ -75,13 +80,14 @@ which one wins is a property of the *text*, not of the method.
 |---|---|---|
 | 1 | scrub / step | transport steps the four phases (match · propose · verify · commit), autoplays and loops; `?step=N` |
 | 2 | hover-to-inspect | a tree child → its continuation, how often it was seen, and what share of the context's occurrences it accounts for; a proposed token → the match length and count that produced it, its rival candidates, and whether it survived; the occurrence map → what the node's count actually counts |
-| 3 | direct manipulation | canvas handles for **repetitiveness** and **proposal length**, plus an **editable corpus text** field -- paste the line the page offers (the matched context **plus** the continuation, which is what a repeat actually is) and the accepted length jumps: measured, round 1 goes from 1 accepted to 6. Pasting the continuation *without* its context does nothing, because one sighting hanging off nothing loses to better-attested continuations -- the page's hint gives you the form that works |
+| 3 | direct manipulation | canvas handles for **repetitiveness** and **proposal length**, plus an **editable corpus text** field. In suffix mode, paste the line the page offers (the matched context **plus** the continuation, which is what a repeat actually is) and the accepted length jumps: measured, round 1 goes from 1 accepted to 6. Pasting the continuation *without* its context does nothing, because one sighting hanging off nothing loses to better-attested continuations -- the page's hint gives you the form that works. Jacobi mode does not take that paste |
 | 4 | live animation | the match sweeps along the context each frame; the verify phase sweeps the one-forward bracket |
 | 5 | resize the problem | tree depth, lines already seen, rounds, proposal length |
 
 **A/B compare** renders novel text (repetitiveness 0.05) against an agent loop
-(0.90). **Challenge mode** asks for a mean accepted length above 3.0, and then
-for a configuration where the draft model wins.
+(0.90). **In suffix mode, challenge mode** asks for a mean accepted length above
+3.0, and then for a configuration where the draft model wins. Jacobi mode does
+not solve those two by turning the repetitiveness handle.
 
 ## Render tier
 
