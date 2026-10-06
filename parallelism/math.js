@@ -28,6 +28,18 @@ export function fmtB(b) {
   return b.toFixed(0) + ' B';
 }
 
+// The per-GPU time is the time of the bytes the label prints. fmtB rounds, so
+// the raw byte count can disagree with that label by enough to move the
+// millisecond at two decimals.
+export function shownPerGpu(bytes, linkGb) {
+  const label = fmtB(bytes);
+  const m = String(label).match(/([\d.]+)\s*(TB|GB|MB|kB|B)/);
+  const parsed = m ? Number(m[1]) * { TB: 1e12, GB: 1e9, MB: 1e6, kB: 1e3, B: 1 }[m[2]] : 0;
+  const link = Number(linkGb);
+  const ms = link > 0 ? (parsed / (link * 1e6)).toFixed(2) : '0.00';
+  return { label, ms };
+}
+
 const share = (M, N) => Array.from({ length: N }, (_, i) => Math.floor(M / N) + (i < M % N ? 1 : 0));
 
 export function build(st) {

@@ -30,12 +30,28 @@ ok(loss0.lam === 0 && Math.abs(loss0.eff[0] / loss0.eff[1] - 0.7 / 0.2) < 1e-4, 
 ok(loss1.lam === 1 && Math.abs(loss1.eff[0] - 1 / 3) < 1e-5 && Math.abs(loss1.eff[2] - 1 / 3) < 1e-5, 'λ=1 is uniform');
 ok(compareCaptions('loss').a.indexOf('λ=0') === 0, 'loss captions name λ');
 ok(!compareCaptions('loss').a.includes('collapse') && !compareCaptions('loss').b.includes('uniform'), 'loss captions do not call the bars collapsed or uniform');
+const readme = readFileSync(new URL('./README.md', import.meta.url), 'utf8');
+ok(!/no expert starves/i.test(readme), 'readme does not say a high λ starves nobody');
+ok(readme.includes('a drag can starve an expert'), 'readme says a drag can starve an expert');
+ok(readme.includes('does not force that on every seed'), 'readme does not make λ = 0 a universal collapse');
 ok(compareCaptions('bias').a.indexOf('bias route') === 0, 'bias captions do not claim a λ collapse');
 
 function buildSkew(seed, E) {
   const aff = seededRandn(seed | 0, E, { std: 1.5 });
   return softmax(Float32Array.from(aff, (x) => x * 1.6));
 }
+let evenAtFull = 0;
+let openAtZero = 0;
+for (let E = 3; E <= 8; E++) {
+  for (let seed = 0; seed <= 99; seed++) {
+    const full = auxMix(Array.from(buildSkew(seed, E)), 1, null);
+    if (Array.from(full.eff).filter((x) => x < 0.4 / E).length === 0) evenAtFull++;
+    const raw = auxMix(Array.from(buildSkew(seed, E)), 0, null);
+    if (Array.from(raw.eff).filter((x) => x < 0.4 / E).length === 0) openAtZero++;
+  }
+}
+ok(evenAtFull === 600, 'λ=1 with the drag at 1 starves nobody on the seed grid');
+ok(openAtZero > 0, 'λ=0 leaves at least one seed with no starved expert');
 const wide = auxMix(Array.from(buildSkew(39, 8)), 0.75, null);
 const wideLoad = Array.from(wide.eff, (x) => Math.round(x * 120));
 const wideStarved = Array.from(wide.eff).filter((x) => x < 0.4 / 8).length;
@@ -75,6 +91,8 @@ ok(page.includes('biasRun('), 'page calls biasRun');
 ok(page.includes('biasBarLoad('), 'page draws the route load');
 ok(!page.includes('biasRow.load.reduce'), 'page does not divide the route load by its sum');
 ok(page.includes("key: 'lam'"), 'compare key stays λ');
+ok(page.includes("compareCaptions('loss').a") && page.includes("compareCaptions('loss').b"), 'compare panes use the shipped captions');
+ok(!page.includes('router collapse') && !page.includes('balanced (uniform)'), 'page does not install the old compare captions');
 ok(page.includes('the bias step sets these bars'), 'the label still names the token load');
 ok(page.includes('lossReadout('), 'page uses the shipped load sentence');
 ok(page.includes('loadShare('), 'page uses the shipped hover share');

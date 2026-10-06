@@ -55,7 +55,7 @@
 // instead and spends the parallelism on the experts.
 import { mount } from '../framework/layout.js';
 import { T, alphaOf, inkOn, rgbaToken } from '../framework/theme.js';
-import { BPE, clamp, ATTN_MODES, MOE_MODES, NAME, SHORT, fmtB, build, stages, attnComputeCaption, kvpTradeClause, kvpClosing, cardBlurb } from './math.js';
+import { BPE, clamp, ATTN_MODES, MOE_MODES, NAME, SHORT, fmtB, shownPerGpu, build, stages, attnComputeCaption, kvpTradeClause, kvpClosing, cardBlurb } from './math.js';
 
 // ---- drawing helpers ------------------------------------------------------
 function roundRect(ctx, x, y, w, h, r) {
@@ -481,7 +481,8 @@ mount({
     ctx.fillStyle = alphaOf(COL_M, 0.8); ctx.fillRect(pad + aw, barY, mw, barH);
     ctx.fillStyle = alphaOf(T.n10, 0.8); ctx.fillRect(pad + aw + mw, barY, pw, barH);
     ctx.restore();
-    r.label(`wire / decode step: ${fmtB(m.wire)} fabric · ${fmtB(m.wirePerGpu)} per GPU · ${m.commMs.toFixed(2)} ms @ ${st.link} GB/s`,
+    const perGpu = shownPerGpu(m.wirePerGpu, st.link);
+    r.label(`wire / decode step: ${fmtB(m.wire)} fabric · ${perGpu.label} per GPU · ${perGpu.ms} ms @ ${st.link} GB/s`,
       pad, barY - 5, { color: T.n12, font: '10.5px ui-monospace, monospace' });
     // memory legend, right-aligned on the same line so it never crowds the strip
     {
@@ -552,7 +553,7 @@ mount({
     // The pipeline term is per BOUNDARY, so it belongs to neither sublayer and
     // is named separately -- otherwise the split reads "attention 0 B, MoE 0 B"
     // beside a non-zero total.
-    o += `WIRE  ${fmtB(m.wire)}/decode step across the fabric (${fmtB(m.wirePerGpu)} per GPU = ${m.commMs.toFixed(2)} ms at ${st.link} GB/s) — attention ${fmtB(m.attnWire)}, MoE ${fmtB(m.moeWire)}${m.ppWire ? `, pipeline boundaries ${fmtB(m.ppWire)}` : ''}`;
+    o += `WIRE  ${fmtB(m.wire)}/decode step across the fabric (${perGpu.label} per GPU = ${perGpu.ms} ms at ${st.link} GB/s) — attention ${fmtB(m.attnWire)}, MoE ${fmtB(m.moeWire)}${m.ppWire ? `, pipeline boundaries ${fmtB(m.ppWire)}` : ''}`;
     o += m.moe === 'ep' ? ` (all-to-all, busiest rank ${m.imbalance.toFixed(2)}× the mean — routing decides this, not the topology)\n` : '\n';
     o += `MEM   peak per GPU ${fmtB(m.peak)} of ${st.budget} GB — ${m.fits ? 'fits' : 'DOES NOT FIT'}; ${dupTxt}; KV ${fmtB(m.kvTotal)} total`;
     o += m.attn === 'tp' && m.kvHeads <= 1 ? `, and tensor parallel cannot shard a single-head latent cache — every rank keeps a whole copy.\n` : `.\n`;

@@ -2,9 +2,9 @@
 
 > **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server (ES modules): `python3 -m http.server 8099`
 
-Interactive page: the MoE **balance problem** over a whole batch -- without a
-balancing pressure the router *collapses* (a few experts get everything, the
-rest starve); the load-balance loss flattens the distribution. **Anchor**: A6
+Interactive page: the MoE **balance problem** over a whole batch. λ mixes the
+router preference toward an even target. Whether an expert starves is read off
+the bars after that mix and after a drag. **Anchor**: A6
 MoE variant; Family D, companion to [moe-routing](../moe-routing/README.md)
 (which shows a single token's top-k routing). See
 MoE.
@@ -15,12 +15,11 @@ A batch of `T` tokens is dispatched to `E` experts as a **load histogram** (the
 bars flow smoothly as the routing changes). A balance knob `λ` interpolates the
 effective routing:
 
-- **`λ = 0` (no balance loss)**: routing follows the router's raw preference, a
- skewed distribution -- a couple of experts take most tokens and the rest
- **starve** (≈ 0 load, marked). Starved experts never get gradients, so they
- stay bad and never get picked: the **rich-get-richer collapse**.
-- **`λ = 1` (strong balance loss)**: load is pushed toward uniform `T/E`; no
- expert starves.
+- **`λ = 0` (no balance loss)**: the mix is the router's raw preference. An
+ expert starves when its bar is under the line. λ = 0 does not force that on every seed.
+- **`λ = 1` (strong balance loss)**: the mix weight is the even target `T/E`.
+ With the drag left at 1, no expert is under the starvation line. A drag
+ rescales those bars, and a drag can starve an expert.
 
 Also shown:
 

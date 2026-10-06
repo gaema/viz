@@ -75,6 +75,12 @@ ok(readme.includes('leaves round 1 at 4 accepted'), 'readme keeps the measured d
 ok(readme.includes('move it to 3'), 'readme keeps the measured zero-repetitiveness paste');
 ok(!readme.includes('goes from 1 accepted to 6') && !readme.includes('does nothing'), 'readme does not state a fixed paste jump');
 ok(!page.includes('from 1 to 6') && !page.includes('stayed at 1'), 'page does not state a fixed paste jump');
+const anecLo = simulate({ ...defaults, seed: 19 }, 0.30);
+const anecHi = simulate({ ...defaults, seed: 19 }, 0.95);
+ok(anecLo.mean > anecHi.mean, 'seed 19 falls as repetitiveness rises');
+ok(page.includes(`${anecLo.mean.toFixed(2)} at repetitiveness 0.30`), 'the comment quotes the low-repetitiveness mean');
+ok(page.includes(`${anecHi.mean.toFixed(2)} at repetitiveness 0.95`), 'the comment quotes the high-repetitiveness mean');
+ok(!page.includes('0.71 at repetitiveness 0.95') && !page.includes('1.43 at 0.30'), 'the comment does not keep the unmatched pair');
 
 if (fail) { console.error(fail + ' failed'); process.exit(1); }
 console.log('PASS suffix-decoding');

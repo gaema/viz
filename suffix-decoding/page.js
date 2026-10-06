@@ -61,13 +61,10 @@ function ensureRun(st) {
   if (sig !== runSig) { run = simulate(st, +st.rho); runSig = sig; }
   return run;
 }
-// The curve averages SEEDS, the readout reports the single run on screen.
-// One run of a handful of rounds is a small sample: measured while building
-// this page, a single-seed curve was non-monotone by more than its own trend
-// (0.71 at repetitiveness 0.95 against 1.43 at 0.30), which is noise wearing
-// the shape of a finding. Averaging four seeds is what makes the curve a claim
-// rather than an anecdote — and the two numbers are labelled separately on
-// screen precisely because they are not the same measurement.
+// The curve averages seeds. The readout reports the single run on screen.
+// One seed at the page defaults is not monotone: seed 19 accepts 1.33 at repetitiveness 0.30 and 0.50 at repetitiveness 0.95.
+// Averaging four seeds is what makes the curve a claim rather than that one run.
+// The two numbers on screen are labelled separately because they are not the same measurement.
 const SWEEP_SEEDS = 4;
 
 function ensureSweep(st) {

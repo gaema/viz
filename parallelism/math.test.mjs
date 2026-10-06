@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { build, stages, attnComputeCaption, kvpTradeClause, kvpClosing, cardBlurb } from './math.js';
+import { build, stages, attnComputeCaption, kvpTradeClause, kvpClosing, cardBlurb, shownPerGpu } from './math.js';
 
 let fail = 0;
 const ok = (c, m) => { if (c) console.log('ok ' + m); else { fail++; console.error('FAIL ' + m); } };
@@ -75,6 +75,19 @@ const page = readFileSync(new URL('./page.js', import.meta.url), 'utf8');
 ok(page.includes("from './math.js'"), 'page imports the shipped math');
 ok(page.includes('kvpTradeClause(') && page.includes('kvpClosing('), 'page uses the shipped gather sentences');
 ok(page.includes('attnComputeCaption('), 'page uses the shipped attention compute caption');
+ok(page.includes('shownPerGpu('), 'page prints the per-GPU time from the shown bytes');
+function readerBytes(label) {
+  const m = String(label).match(/([\d.]+) (TB|GB|MB|kB|B)/);
+  return Number(m[1]) * { TB: 1e12, GB: 1e9, MB: 1e6, kB: 1e3, B: 1 }[m[2]];
+}
+for (const attn of ['tp', 'pp', 'dp', 'kvp']) {
+  for (const gpus of [1, 4, 8]) {
+    const row = build({ ...base, attn, gpus });
+    const shown = shownPerGpu(row.wirePerGpu, base.link);
+    const expect = row.wirePerGpu > 0 ? (readerBytes(shown.label) / (base.link * 1e6)).toFixed(2) : '0.00';
+    ok(shown.ms === expect, `${attn} N=${gpus} prints ${shown.label} = ${shown.ms} ms`);
+  }
+}
 ok(!page.includes(DP_CAP), 'page does not inline the data-parallel compute caption');
 ok(!page.includes('when that choice is selected, shards the sequence and gathers cache bytes'), 'page does not claim the gather unconditionally');
 ok(!page.includes('not drawn here') && !page.includes('not shown here'), 'page does not say the sequence split is absent');

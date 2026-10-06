@@ -31,7 +31,7 @@ mount({
   blurb: cardBlurb,
   prefer: 'canvas2d',
   aspect: '2 / 1',
-  compare: { key: 'lam', a: 0, b: 1, labelA: 'λ=0 — router collapse (skewed)', labelB: 'λ=1 — balanced (uniform)' },
+  compare: { key: 'lam', a: 0, b: 1, labelA: compareCaptions('loss').a, labelB: compareCaptions('loss').b },
   animate: true,
   challenges: [
     { goal: 'In auxiliary-loss mode, get the aux loss below 1.05. Selection-bias mode keeps the auxiliary weight at 0 and does not use λ for the route.', hint: 'stay on auxiliary loss and raise λ toward 1 (or drag the tall bars down).', check: (api) => ({ solved: api.probe.balance !== 'bias' && (api.probe.aux ?? 9) < 1.05, detail: `mode ${api.probe.balance}, aux = ${(api.probe.aux ?? 9).toFixed(3)}` }) },
