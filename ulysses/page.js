@@ -2,7 +2,7 @@
 // A head count that does not divide by the device count is refused on the readout.
 import { mount } from '../framework/layout.js';
 import { T } from '../framework/theme.js';
-import { ulyssesPlan, ulyssesSentence } from './math.js';
+import { ulyssesPlan, ulyssesSentence, gatheredSeqLabel } from './math.js';
 
 function pack(heads, seq, seed) {
   let x = seed | 0;
@@ -48,8 +48,7 @@ mount({
       if (plan.ok) {
         const per = Number(plan.per);
         ctx.fillText(per + ' heads', x + cw / 2, H * 0.45);
-        const [lo, hi] = plan.ranges[d];
-        ctx.fillText('seq ' + lo + '-' + (hi - 1), x + cw / 2, H * 0.78);
+        ctx.fillText(gatheredSeqLabel(plan), x + cw / 2, H * 0.78);
       } else {
         ctx.fillText('refused', x + cw / 2, H * 0.45);
       }

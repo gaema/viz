@@ -2,11 +2,11 @@
 
 > **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server (ES modules): `python3 -m http.server 8099`
 
-Interactive page: four different things get called "parallelism" when one model
-is served across several GPUs, and readers conflate them. They are not variants
-of each other -- they move different bytes, at different moments, for different
-reasons. One transformer layer is drawn across an N-GPU strip and you choose a
-strategy **per sublayer**, watching what leaves each device. **Anchor**: A4 KV
+Interactive page: tensor parallel, pipeline parallel, expert parallel,
+data-parallel attention move different bytes at different moments,
+KV-parallel attention is a separate choice on the same devices. One transformer
+layer is drawn across an N-GPU strip and you choose a strategy **per
+sublayer**, watching what leaves each device. **Anchor**: A4 KV
 cache / runtime shape (Family J, serving time). Companion to
 [moe-routing](../moe-routing/README.md), which is the router this page's
 all-to-all obeys, [mla](../mla/README.md), which is the latent cache that makes
@@ -22,6 +22,7 @@ rather than a model by *tensor*.
 | **Pipeline parallel** | whole **layers** | one **point-to-point** activation send per stage boundary | the cheapest comms on the page and it does not grow with layer count -- but the pipeline **bubbles**, and a single decode token can only be in one stage, so it does nothing for single-token latency |
 | **Expert parallel** | the MoE **experts** | an **all-to-all of TOKENS**, out to their experts and back | expert memory scales with GPU count, but the volume is set by the **router**, not the topology: it is load-imbalanced by construction and the step waits for the busiest rank |
 | **Data-parallel attention** | nothing -- attention is **replicated**; each rank owns its own requests and KV | **nothing at all**, for attention | N copies of the attention weights, and the ranks must still line up at the MoE boundary -- a rank with no requests of its own runs a **dummy forward pass** so the collective does not deadlock |
+| **KV-parallel attention** | a **sequence shard** of the cache, with a 1/N head slice of the attention weights on the same devices as the FFN | a **gather of those cache bytes**, only when more than one GPU is in the strip | a different quantity from an activation all-reduce and from the expert-token all-to-all. With one GPU the gather is zero |
 
 Two counters recompute live, per rank, from the controls -- nothing on the page
 is annotated:
@@ -52,10 +53,10 @@ You are meant to be able to build a **bad** configuration and see why it is bad:
 a two-GPU tensor-parallel split of a latent cache on a long context, a five-stage
 pipeline at one micro-batch, a heavily skewed router over few ranks.
 
-**Out of scope, in one line:** *context* parallelism -- splitting a single
-**sequence** across ranks so one long prompt's attention is computed
-cooperatively -- is a different axis from all four of these and is not drawn
-here.
+**The ring is a different page.** Passing keys or queries around one sequence
+is the context-parallelism page. KV-parallel attention on this page keeps a
+sequence shard of the cache and gathers those bytes when the strip has more
+than one GPU.
 
 ## Render tier
 

@@ -1,4 +1,5 @@
-import { ulyssesPlan, ulyssesSentence } from './math.js';
+import { readFileSync } from 'node:fs';
+import { ulyssesPlan, ulyssesSentence, gatheredSeqLabel } from './math.js';
 
 let fail = 0;
 const ok = (c, m) => { if (c) console.log('ok ' + m); else { fail++; console.error('FAIL ' + m); } };
@@ -40,6 +41,12 @@ for (let d = 0; d < plan.ranges.length; d++) {
     for (let h = 0; h < 4; h++) ok(plan.restored[d][p][h] === plan.ref[h][lo + p], `restored d${d} p${p} h${h}`);
   }
 }
+
+ok(gatheredSeqLabel(plan) === 'full sequence 0-3', 'the gathered heads see the whole sequence');
+ok(plan.ranges[0][1] < plan.ranges[plan.ranges.length - 1][1], 'the restored shard is not that whole sequence');
+const page = readFileSync(new URL('./page.js', import.meta.url), 'utf8');
+ok(page.includes('gatheredSeqLabel('), 'page draws the shipped sequence label');
+ok(!page.includes("seq ' + lo"), 'page does not label the gathered device with its restored shard');
 
 const refused = ulyssesPlan(3, 2, pack(3, 4, 1));
 identity(refused);

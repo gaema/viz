@@ -63,6 +63,12 @@ export function ulyssesPlan(heads, devices, qkv) {
   return { ok: true, heads: headsText, devices: devicesText, per: String(per), ref, local, restored, ranges };
 }
 
+export function gatheredSeqLabel(row) {
+  if (!row.ok || !row.ranges || !row.ranges.length) return 'refused';
+  const end = row.ranges[row.ranges.length - 1][1] - 1;
+  return `full sequence 0-${end}`;
+}
+
 export function ulyssesSentence(row) {
   if (!row.ok) return `${row.heads} % ${row.devices} = ${row.rem}`;
   return `${row.heads} / ${row.devices} = ${row.per}`;

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { auxMix, biasRoute, biasRun, biasBarLoad, moveSentence, compareCaptions } from './math.js';
+import { auxMix, biasRoute, biasRun, biasBarLoad, shownDrops, moveSentence, compareCaptions } from './math.js';
 
 let fail = 0;
 const ok = (c, m) => { if (c) console.log('ok ' + m); else { fail++; console.error('FAIL ' + m); } };
@@ -38,6 +38,9 @@ for (const i of def.picked) {
   ok(bars[i] === def.load[i], 'the bar is that route load');
 }
 ok(!def.picked.some((i) => bars[i] === 60), 'default bars are not the renormalized half');
+const cap = Math.ceil(1.3 * 120 / bars.length);
+ok(shownDrops('loss', bars, cap) > 0, 'those selection counts sit above a loss-mode capacity');
+ok(shownDrops('bias', bars, cap) === 0, 'bias mode does not report selection counts as drops');
 
 const page = readFileSync(new URL('./page.js', import.meta.url), 'utf8');
 ok(page.includes('auxMix('), 'page calls auxMix');
@@ -46,6 +49,8 @@ ok(page.includes('biasBarLoad('), 'page draws the route load');
 ok(!page.includes('biasRow.load.reduce'), 'page does not divide the route load by its sum');
 ok(page.includes("key: 'lam'"), 'compare key stays λ');
 ok(page.includes('the bias step sets these bars'), 'the label still names the token load');
+ok(page.includes('shownDrops('), 'page uses the shipped drop count');
+ok(page.includes("biasRow ? 'bias' : 'loss'"), 'bias mode passes the bias balance into the drop count');
 
 if (fail) { console.error(fail + ' failed'); process.exit(1); }
 console.log('PASS moe-balance');

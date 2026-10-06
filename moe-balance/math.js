@@ -51,6 +51,16 @@ export function biasBarLoad(row) {
   return Float32Array.from(row.load);
 }
 
+// Capacity overflow is an auxiliary-loss dispatch. Bias-mode bars are selection
+// counts (each picked expert is one per token), so they are not drops.
+export function shownDrops(balance, load, cap) {
+  if (balance === 'bias') return 0;
+  let drops = 0;
+  const c = cap | 0;
+  for (let i = 0; i < load.length; i++) drops += Math.max(0, Math.round(load[i]) - c);
+  return drops;
+}
+
 export function biasRun(logits, k, step, tokens, rounds) {
   let bias = logits.map(() => 0);
   let row = biasRoute(logits, bias, k, step, tokens);

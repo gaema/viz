@@ -17,7 +17,8 @@
 // before. Jacobi mode is a second proposal source on this page: a lookahead
 // window written from a trajectory, verified by the same agreeing prefix, and
 // it still proposes when the suffix tree has no match. Repetition lengthens
-// the suffix-tree match. It does not feed the Jacobi window.
+// the suffix-tree match. The Jacobi window is the last context token plus a
+// position index, not a copy of a repeated n-gram.
 //
 // WHAT IS REAL HERE AND WHAT IS MODELLED -- the page says this on screen too:
 //   REAL   suffix mode: the corpus, the suffix tree and its counts, the
@@ -28,7 +29,8 @@
 //          Both the corpus and the reference come from ONE seeded process with
 //          a repetitiveness parameter; the draft-model baseline curve is an
 //          analytic geometric accept model, drawn dashed and labelled "modelled".
-//          Repetition moves the suffix-tree curve. It does not feed Jacobi.
+//          Repetition moves the suffix-tree curve. The Jacobi window is the
+//          last context token plus a position index, not a copied n-gram.
 //
 // Interactive: the transport steps match / propose / verify / commit and loops;
 // drag the repetitiveness and proposal-length handles on the canvas; type into
@@ -464,7 +466,7 @@ mount({
     vline(`this run on screen: ${data.mean.toFixed(2)} over ${R} rounds · draft-model baseline here: ${dm.toFixed(2)} (modelled)`,
       22, '9.5px ui-monospace, monospace', T.n11);
     vline(data.spec === 'jacobi'
-      ? 'the Jacobi window costs no draft model; repetition does not change what it writes'
+      ? 'the Jacobi window is the last context token plus a position index; it does not copy a repeated n-gram'
       : `the draft would also cost ${L} draft forwards every round, plus the memory its weights sit in; the tree costs a lookup`,
       35, '9.5px ui-monospace, monospace', T.n11);
     vline(data.spec === 'jacobi'

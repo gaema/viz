@@ -7,7 +7,7 @@
 import { mount } from '../framework/layout.js';
 import { softmax, seededRandn } from '../framework/tensor.js';
 import { T, alphaOf } from '../framework/theme.js';
-import { auxMix, biasRun, biasBarLoad, moveSentence, compareCaptions, cardBlurb } from './math.js';
+import { auxMix, biasRun, biasBarLoad, shownDrops, moveSentence, compareCaptions, cardBlurb } from './math.js';
 
 
 
@@ -88,8 +88,9 @@ mount({
 
     // metrics (from the settled target, not the easing display)
     const load = Float32Array.from(target, (x) => Math.round(x));
-    let disp = 0, drops = 0; const dispatched = new Float32Array(E);
-    for (let e = 0; e < E; e++) { dispatched[e] = Math.min(load[e], cap); disp += dispatched[e]; drops += Math.max(0, load[e] - cap); }
+    let disp = 0; const dispatched = new Float32Array(E);
+    for (let e = 0; e < E; e++) { dispatched[e] = Math.min(load[e], cap); disp += dispatched[e]; }
+    const drops = shownDrops(biasRow ? 'bias' : 'loss', load, cap);
     let aux = 0; for (let e = 0; e < E; e++) aux += (disp ? dispatched[e] / disp : 0) * eff[e]; aux *= E;
     page.probe = { aux: biasRow ? 9 : aux, drops, balance: biasRow ? 'bias' : 'loss' };
     if (typeof document !== 'undefined') {
@@ -100,7 +101,8 @@ mount({
       if (capB) capB.textContent = caps.b;
     }
     const cv = std(load) / (load.reduce((s, x) => s + x, 0) / E || 1);
-    const starved = []; for (let e = 0; e < E; e++) if (eff[e] < 0.4 * inv) starved.push(e);
+    const starved = [];
+    if (!biasRow) for (let e = 0; e < E; e++) if (eff[e] < 0.4 * inv) starved.push(e);
 
     // layout
     const pad = 16, barsX = pad + 36, panelW = 210, px = page.W - panelW, barsW = px - barsX - 96;
@@ -117,18 +119,20 @@ mount({
     ctx.save();
     // baseline + capacity line
     ctx.strokeStyle = T.n4; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(barsX - 6, baseY); ctx.lineTo(barsX + barsW, baseY); ctx.stroke();
-    ctx.strokeStyle = T.bad; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(barsX - 6, capY); ctx.lineTo(barsX + E * slot, capY); ctx.stroke(); ctx.setLineDash([]);
-    r.label(`cap ${cap} (drag ↕)`, barsX + E * slot + 2, capY, { color: T.bad, font: '10px ui-monospace, monospace' });
-    // uniform reference line (T/E)
-    const uniY = baseY - (TOKENS / E) * sc; ctx.strokeStyle = alphaOf(T.ok, 0.5); ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(barsX - 6, uniY); ctx.lineTo(barsX + E * slot, uniY); ctx.stroke(); ctx.setLineDash([]);
-    r.label(`uniform ${Math.round(TOKENS / E)}`, barsX + E * slot + 2, uniY, { color: T.ok, font: '10px ui-monospace, monospace' });
+    if (!biasRow) {
+      ctx.strokeStyle = T.bad; ctx.setLineDash([5, 4]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(barsX - 6, capY); ctx.lineTo(barsX + E * slot, capY); ctx.stroke(); ctx.setLineDash([]);
+      r.label(`cap ${cap} (drag ↕)`, barsX + E * slot + 2, capY, { color: T.bad, font: '10px ui-monospace, monospace' });
+      const uniY = baseY - (TOKENS / E) * sc; ctx.strokeStyle = alphaOf(T.ok, 0.5); ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(barsX - 6, uniY); ctx.lineTo(barsX + E * slot, uniY); ctx.stroke(); ctx.setLineDash([]);
+      r.label(`uniform ${Math.round(TOKENS / E)}`, barsX + E * slot + 2, uniY, { color: T.ok, font: '10px ui-monospace, monospace' });
+    }
 
     ctx.font = '10px ui-monospace, monospace';
     for (let e = 0; e < E; e++) {
       const x = barsX + e * slot + (slot - bw) / 2, h = displayed[e] * sc, isStarved = starved.includes(e);
-      const loadH = Math.min(displayed[e], cap) * sc, dropH = Math.max(0, displayed[e] - cap) * sc;
+      const loadH = (biasRow ? displayed[e] : Math.min(displayed[e], cap)) * sc;
+      const dropH = biasRow ? 0 : Math.max(0, displayed[e] - cap) * sc;
       ctx.fillStyle = isStarved ? T.n5 : CAT()[e % CAT().length]; ctx.globalAlpha = isStarved ? 1 : 0.82; ctx.fillRect(x, baseY - loadH, bw, loadH); ctx.globalAlpha = 1;
-      if (dropH > 0) { ctx.fillStyle = T.bad; ctx.fillRect(x, baseY - loadH - dropH, bw, dropH); }
+      if (!biasRow && dropH > 0) { ctx.fillStyle = T.bad; ctx.fillRect(x, baseY - loadH - dropH, bw, dropH); }
       ctx.fillStyle = T.n14; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(String(load[e]), x + bw / 2, baseY - h - 3);
       ctx.fillStyle = isStarved ? T.bad : CAT()[e % CAT().length]; ctx.textBaseline = 'top'; ctx.fillText(`e${e}`, x + bw / 2, baseY + 4);
       if (isStarved) { ctx.fillStyle = T.bad; ctx.fillText('starving', x + bw / 2, baseY + 16); }
@@ -155,8 +159,12 @@ mount({
         : ['aux loss  E·Σfₑ·Pₑ (f = kept/total, drops out)', `${aux.toFixed(3)}`, aux > 1.4 ? T.bad : aux > 1.12 ? T.warn : T.ok],
       biasRow ? ['bias chooses, combine stays raw', '', T.n9] : ['  (1.0 = uniform)', '', T.n9],
       ['load CV', `${cv.toFixed(3)}`, cv > 0.5 ? T.bad : T.n12],
-      ['starved experts', `${starved.length} / ${E}`, starved.length ? T.bad : T.ok],
-      ['dropped tokens', `${drops}`, drops ? T.bad : T.ok],
+      biasRow
+        ? ['not selected', `${E - biasRow.picked.length} / ${E}`, T.n12]
+        : ['starved experts', `${starved.length} / ${E}`, starved.length ? T.bad : T.ok],
+      biasRow
+        ? ['capacity drops', 'auxiliary-loss mode', T.n12]
+        : ['dropped tokens', `${drops}`, drops ? T.bad : T.ok],
     ];
     ctx.save(); ctx.textAlign = 'left';
     for (let i = 0; i < lines.length; i++) {
@@ -170,7 +178,8 @@ mount({
     if (page.pointer.over && grab === null) {
       const e = Math.floor((page.pointer.x - barsX) / slot);
       if (e >= 0 && e < E && page.pointer.y >= topBars && page.pointer.y <= baseY) {
-        page.setTip(`expert ${e}: ${load[e]} tokens (${(eff[e] * 100).toFixed(1)}%)\ncapacity ${cap}${load[e] > cap ? `, dropped ${load[e] - cap}` : ''}${starved.includes(e) ? '\nSTARVING (≈ no tokens → no gradient)' : ''}${biasRow ? '\nthe bias step sets this bar' : '\ndrag ↕ to shift load'}`);
+        const over = !biasRow && load[e] > cap ? `, dropped ${load[e] - cap}` : '';
+        page.setTip(`expert ${e}: ${load[e]} tokens (${(eff[e] * 100).toFixed(1)}%)\n${biasRow ? 'selection count' : `capacity ${cap}`}${over}${starved.includes(e) ? '\nSTARVING (≈ no tokens → no gradient)' : ''}${biasRow ? '\nthe bias step sets this bar' : '\ndrag ↕ to shift load'}`);
       }
     }
 

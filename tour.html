@@ -199,7 +199,7 @@ const STOPS = [
   ['J','hybrid-cache-allocator','Newer models mix two kinds of layer whose memory behaves completely differently, and a server has to hold both in one pool. Neither setting can win.'],
   ['J','batch-invariance','The same question, asked twice with the same settings, can come back different — not from randomness in the model, but from who else happened to be served alongside you.'],
   ['J','kv-tiering','When a conversation outgrows fast memory it moves down to slower storage. Getting it back is then a race between fetching it and simply working it out again.'],
-  ['J','suffix-decoding','Suffix mode copies a seen continuation, and repetition lengthens that match. Jacobi mode proposes from a lookahead window even when the tree has no match. Repetition does not feed Jacobi.'],
+  ['J','suffix-decoding','Suffix mode copies a seen continuation, and repetition lengthens that match. Jacobi mode writes the last context token plus a position index even when the tree has no match. It does not copy a repeated n-gram.'],
   ['J','context-parallelism','Two ways to shuffle the same work between chips. Reading a full prompt makes moving the keys cheaper. Writing the reply makes moving the queries cheaper only while that batch sits left of the crossing.'],
   ['J','ulysses','One exchange gives each device the full sequence for a share of the heads. Attention on that share matches the single-device result. A head count that does not divide is refused.'],
   ['J','dual-batch-overlap','Chips sit idle while data moves between them. Running two halves of the work out of step lets one compute while the other talks — up to the point where splitting stops paying.'],

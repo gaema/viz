@@ -7,7 +7,7 @@ takes the proposal from the text the system has already seen -- the prompt, the
 conversation, this generation's own output -- indexed in a depth-bounded
 **suffix tree**. Jacobi mode writes a lookahead window and pools n-grams from
 that trajectory even when the tree has no match, then keeps only the prefix the
-reference itself would emit. Repetition does not feed the Jacobi window.
+reference itself would emit. The Jacobi window is the last context token plus a position index, not a copy of a repeated n-gram.
 **Anchor**: the companion to
 [speculative-decoding](../speculative-decoding/README.md), which owns the
 verify-and-accept mechanism this page reuses and deliberately does **not**
