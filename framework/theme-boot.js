@@ -96,4 +96,13 @@
   });
 
   window.vzTheme = { set: set, mode: function () { return mode; } };
+
+  // The site's favicon (the viz mark, light or dark by the OS scheme), from this script's own
+  // directory, for the classic pages that load this file.
+  var here = (document.currentScript && document.currentScript.src || '').replace(/[^/]*$/, '');
+  if (here && !document.querySelector("link[rel~='icon']")) {
+    var icon = document.createElement('link');
+    icon.rel = 'icon'; icon.type = 'image/svg+xml'; icon.href = here + 'favicon.svg';
+    document.head.appendChild(icon);
+  }
 })();

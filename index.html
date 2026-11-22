@@ -17,7 +17,17 @@
   .vz-top{position:sticky;top:0;z-index:20;background:var(--vz-n0);border-bottom:1px solid var(--vz-n4)}
   .vz-top-inner{max-width:1080px;margin:0 auto;padding:0 18px;display:flex;align-items:center;gap:16px;min-height:56px;flex-wrap:wrap}
   .vz-brandwrap{white-space:nowrap}
-  .vz-brand{font-weight:650;letter-spacing:-.01em;color:var(--vz-n14);text-decoration:none}
+  .vz-brand{font-weight:650;letter-spacing:-.01em;color:var(--vz-n14);text-decoration:none;display:inline-flex;align-items:center;gap:8px;vertical-align:middle}
+  /* The site's mark before its name: light and dark drawings, switched by the same three
+     states as the colours. Same rule as framework/layout.js. */
+  .vz-brand-mark{width:22px;height:22px;flex:none}
+  .vz-brand-mark.dk{display:none}
+  @media (prefers-color-scheme:dark){
+    :root:not([data-vz-theme="light"]) .vz-brand-mark.lt{display:none}
+    :root:not([data-vz-theme="light"]) .vz-brand-mark.dk{display:block}
+  }
+  :root[data-vz-theme="dark"] .vz-brand-mark.lt{display:none}
+  :root[data-vz-theme="dark"] .vz-brand-mark.dk{display:block}
   .vz-brand:hover{color:var(--vz-accent)}
   .vz-brand-home{color:var(--vz-n11);font-weight:400;text-decoration:none;white-space:nowrap}
   .vz-brand-home:hover{color:var(--vz-accent)}
@@ -85,7 +95,7 @@
 <body>
 <header class="vz-top">
   <div class="vz-top-inner">
-    <span class="vz-brandwrap"><a class="vz-brand" href="./">viz</a> <a class="vz-brand-home" href="https://gaema.ai">· gaema</a></span>
+    <span class="vz-brandwrap"><a class="vz-brand" href="./"><img class="vz-brand-mark lt" src="framework/mark-light.svg" alt=""><img class="vz-brand-mark dk" src="framework/mark-dark.svg" alt="">viz</a> <a class="vz-brand-home" href="https://gaema.ai">· gaema</a></span>
     <div class="vz-top-right">
       <select id="pick" class="vz-pick" aria-label="Choose a demo" hidden><option value="">All demos</option></select>
       <span data-mode-switch></span>

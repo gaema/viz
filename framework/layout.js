@@ -55,10 +55,20 @@ html,body{background:var(--vz-n0);margin:0}
 .vz-top{position:sticky;top:0;z-index:20;background:var(--vz-n0);border-bottom:1px solid var(--vz-n4)}
 .vz-top-inner{max-width:1100px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:16px;min-height:56px;flex-wrap:wrap;font:14px system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 .vz-brandwrap{white-space:nowrap}
-.vz-brand{font-weight:650;letter-spacing:-.01em;color:var(--vz-n14);text-decoration:none}
+.vz-brand{font-weight:650;letter-spacing:-.01em;color:var(--vz-n14);text-decoration:none;display:inline-flex;align-items:center;gap:8px;vertical-align:middle}
 .vz-brand:hover{color:var(--vz-accent)}
 .vz-brand-home{color:var(--vz-n11);font-weight:400;text-decoration:none;white-space:nowrap}
 .vz-brand-home:hover{color:var(--vz-accent)}
+/* The site's mark before its name: a light and a dark drawing, switched by the same three
+   states as the colours (OS preference, overridden by the toggle). Same rule on every site. */
+.vz-brand-mark{width:22px;height:22px;flex:none}
+.vz-brand-mark.dk{display:none}
+@media (prefers-color-scheme:dark){
+  :root:not([data-vz-theme="light"]) .vz-brand-mark.lt{display:none}
+  :root:not([data-vz-theme="light"]) .vz-brand-mark.dk{display:block}
+}
+:root[data-vz-theme="dark"] .vz-brand-mark.lt{display:none}
+:root[data-vz-theme="dark"] .vz-brand-mark.dk{display:block}
 .vz-top-right{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end;max-width:100%}
 .vz-pick{font:13px ui-monospace,monospace;color:var(--vz-n14);background:var(--vz-n0);border:1px solid var(--vz-n6);border-radius:8px;padding:6px 10px;cursor:pointer;max-width:min(15rem,100%);min-width:0}
 /* Portrait. The bar now carries one control more than it did -- brand, picker,
@@ -170,7 +180,20 @@ export function mountTopBar(currentSlug) {
 
   const brandwrap = document.createElement('span'); brandwrap.className = 'vz-brandwrap';
   const brand = document.createElement('a'); brand.className = 'vz-brand';
-  brand.href = '../index.html'; brand.textContent = 'viz';
+  brand.href = '../index.html';
+  for (const v of ['light', 'dark']) {             // the site's mark, resolved from this module's URL
+    const img = document.createElement('img');
+    img.className = 'vz-brand-mark ' + (v === 'light' ? 'lt' : 'dk');
+    img.src = new URL(`mark-${v}.svg`, import.meta.url).href; img.alt = '';
+    brand.append(img);
+  }
+  brand.append('viz');
+  if (!document.querySelector("link[rel~='icon']")) {
+    const icon = document.createElement('link');
+    icon.rel = 'icon'; icon.type = 'image/svg+xml';
+    icon.href = new URL('favicon.svg', import.meta.url).href;
+    document.head.append(icon);
+  }
   const home = document.createElement('a'); home.className = 'vz-brand-home';
   home.href = 'https://gaema.ai'; home.textContent = '· gaema';
   brandwrap.append(brand, document.createTextNode(' '), home);
