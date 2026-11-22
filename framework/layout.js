@@ -54,8 +54,10 @@ html,body{background:var(--vz-n0);margin:0}
    with the page column. */
 .vz-top{position:sticky;top:0;z-index:20;background:var(--vz-n0);border-bottom:1px solid var(--vz-n4)}
 .vz-top-inner{max-width:1100px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:16px;min-height:56px;flex-wrap:wrap;font:14px system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-.vz-brandwrap{white-space:nowrap}
-.vz-brand{font-weight:650;letter-spacing:-.01em;color:var(--vz-n14);text-decoration:none;display:inline-flex;align-items:center;gap:8px;vertical-align:middle}
+/* the wordmark is one flex row, items centred: that, not vertical-align, puts the name (an inline-flex
+   box holding the mark) and "· gaema" on one baseline. The gap is the space. */
+.vz-brandwrap{white-space:nowrap;display:inline-flex;align-items:center;gap:.3em}
+.vz-brand{font-weight:650;letter-spacing:-.01em;color:var(--vz-n14);text-decoration:none;display:inline-flex;align-items:center;gap:8px}
 .vz-brand:hover{color:var(--vz-accent)}
 .vz-brand-home{color:var(--vz-n11);font-weight:400;text-decoration:none;white-space:nowrap}
 .vz-brand-home:hover{color:var(--vz-accent)}
