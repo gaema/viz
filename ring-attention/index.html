@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ring-attention | viz</title>
+<meta name="description" content="One sequence sharded across devices, with cached keys rotating around a ring so every query eventually meets every key. Send the next block while computing the current one, or the ring stalls.">
+<link rel="canonical" href="https://viz.math.gaema.ai/ring-attention/">
 </head>
 <body>
 <!-- Concept page: ring attention -- one sequence sharded across N devices, KV

@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>context-parallelism | viz</title>
+<meta name="description" content="Given a sequence split across devices, move the cached keys or move the queries. Reading a full prompt makes moving the keys cheaper at every setting here. Writing the reply makes moving the queries cheaper only while that batch sits left of the crossing, and it does not when the KV shards persist.">
+<link rel="canonical" href="https://viz.math.gaema.ai/context-parallelism/">
 </head>
 <body>
 <!-- Concept page: context parallelism -- the serving choice on top of a sharded

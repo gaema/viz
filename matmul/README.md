@@ -3,7 +3,7 @@
 > **▶ [Open this demo](index.html)** · [all demos →](../index.html) · needs an http server (ES modules): `python3 -m http.server 8099`
 
 Interactive page: visualizes matrix multiply as the operation every other
-mechanism in the zoo reduces to. **Anchor**: foundational primitive (used by
+mechanism in this collection reduces to. **Anchor**: foundational primitive (used by
 every A1-A12 shape; Family A1).
 
 ## What it shows

@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>hybrid-cache-allocator | viz</title>
+<meta name="description" content="Two memory shapes in one pool: KV pages that grow with every token, and fixed state slabs claimed up front. One split cannot satisfy both — concurrency and context pull opposite ways.">
+<link rel="canonical" href="https://viz.math.gaema.ai/hybrid-cache-allocator/">
 </head>
 <body>
 <!-- Concept page: one serving memory pool holding TWO memory shapes at once --

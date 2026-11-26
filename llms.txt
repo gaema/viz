@@ -1,0 +1,158 @@
+# viz
+
+> viz is a free collection of 117 interactive, in-browser visualizations of the math inside neural networks: attention, KV caches, state-space scans, convolution, mixture-of-experts routing, normalization, quantization, diffusion sampling and more. Each page shows the linear algebra of one mechanism, step by step, with live controls.
+
+Start at https://viz.math.gaema.ai/ (all demos) or https://viz.math.gaema.ai/tour.html (a guided tour). The demos run in the browser and need JavaScript; each line below says what one of them shows. Content is licensed CC BY-SA 4.0.
+
+## A — Foundational primitives
+
+- [matmul -- C = A·B](https://viz.math.gaema.ai/matmul/): A neural network layer is, underneath, a grid of numbers multiplied by another grid of numbers.
+- [dot-product -- a·b](https://viz.math.gaema.ai/dot-product/): Take two lists of numbers, multiply them position by position, and add the results up.
+- [dtype-bits](https://viz.math.gaema.ai/dtype-bits/): Every number inside a model is stored in a fixed number of bits, and using fewer of them makes the model smaller and faster, which is how one squeezes onto a phone.
+- [softmax](https://viz.math.gaema.ai/softmax/): A model's raw output is a list of scores with no natural meaning: one word scored 8.3, another 2.1.
+
+## B — Attention
+
+- [qkv-projection](https://viz.math.gaema.ai/qkv-projection/): Before words can pay attention to each other, each one is turned into three different versions of itself, by running its numbers through three separate tables the model learned during training.
+- [scaled-dot-attention](https://viz.math.gaema.ai/scaled-dot-attention/): This is the step where words read each other.
+- [qk-norm](https://viz.math.gaema.ai/qk-norm/): A word can look important just because the numbers that describe it are large, even when it points somewhere else.
+- [multi-head](https://viz.math.gaema.ai/multi-head/): Comparing every word against every other word once gives the model exactly one notion of what "related" means.
+- [gqa-mqa](https://viz.math.gaema.ai/gqa-mqa/): While a model writes, it keeps notes on every word so far, and each of its attention heads normally keeps a private set.
+- [cross-layer-kv](https://viz.math.gaema.ai/cross-layer-kv/): A model stores notes for every layer, and those notes are most of the memory a long conversation costs.
+- [causal-mask](https://viz.math.gaema.ai/causal-mask/): A language model writes one word at a time, and it is never allowed to look at what comes after the position it is working on.
+- [fill-in-the-middle](https://viz.math.gaema.ai/fill-in-the-middle/): Training a model to fill a gap is different from training it to continue a sentence.
+- [attention-patterns](https://viz.math.gaema.ai/attention-patterns/): Letting every word compare itself against every earlier word gets expensive quickly: the work per word grows with how much text came before it, and the notes held in memory never stop growing.
+- [kv-cache](https://viz.math.gaema.ai/kv-cache/): When a chatbot writes a reply one word at a time, it would otherwise have to re-read the whole conversation from scratch before every single word.
+- [rope](https://viz.math.gaema.ai/rope/): Attention on its own is blind to word order.
+- [flash-attention](https://viz.math.gaema.ai/flash-attention/): Comparing every word against every other word produces a table with one entry per pair, and for a long document that table is far too large to hold in the fast memory next to the chip.
+- [sparse-attention-select](https://viz.math.gaema.ai/sparse-attention-select/): Once a model's memory stretches to hundreds of thousands of words, reading all of them again for every new word stops being affordable.
+- [attention-sinks](https://viz.math.gaema.ai/attention-sinks/): Attention weights are forced to add up to 100%, so a head with nothing it actually wants to read still has to put that share somewhere.
+- [sage attention](https://viz.math.gaema.ai/sage-attention/): Exact attention keeps every score at full precision.
+
+## C — Transformer block
+
+- [tokenization](https://viz.math.gaema.ai/tokenization/): A model does not read letters.
+- [embedding](https://viz.math.gaema.ai/embedding/): A computer can only do arithmetic, so the numbered token your text has been cut into has to become numbers the model can work with.
+- [mlp-gated](https://viz.math.gaema.ai/mlp-gated/): Once attention has let the words look at each other, each word is passed on its own through a small two-stage network, and this is where most of what a model knows is stored — usually around two-thirds of all its numbers.
+- [activations](https://viz.math.gaema.ai/activations/): Between the multiplying steps of a layer sits a small bend: a function that takes each number on its own and passes it through a curve.
+- [normalization](https://viz.math.gaema.ai/normalization/): Numbers passing through a deep network drift: run them through enough layers and they either grow without bound or fade away, and training stops working.
+- [residual-stream](https://viz.math.gaema.ai/residual-stream/): Running the length of a language model is one set of numbers per word that every layer shares.
+- [lm-head](https://viz.math.gaema.ai/lm-head/): When the model has finished thinking about your prompt it holds one long list of numbers, and it still has to turn that into an actual word.
+- [transformer-block](https://viz.math.gaema.ai/transformer-block/): A language model is built by stacking one repeating unit, and this is that unit.
+- [prefill-vs-decode](https://viz.math.gaema.ai/prefill-vs-decode/): Running a model happens in two quite different phases.
+- [sampling](https://viz.math.gaema.ai/sampling/): The model never picks a word.
+- [hyper-connections](https://viz.math.gaema.ai/hyper-connections/): Every model of this kind carries one shared running total per word that each layer reads from and adds back into, and that single channel forces a compromise.
+- [sequence-packing](https://viz.math.gaema.ai/sequence-packing/): Training rarely feeds one document per row.
+
+## D — Mixture of Experts
+
+- [moe-routing](https://viz.math.gaema.ai/moe-routing/): A mixture-of-experts layer replaces the single per-word network with many smaller ones, called experts, plus a small scoring network — the router — that reads each word and picks the two it judges best suited.
+- [moe-balance](https://viz.math.gaema.ai/moe-balance/): Splitting a layer into many specialist sub-networks only pays off if the work spreads across them.
+- [per-token-compute](https://viz.math.gaema.ai/per-token-compute/): A language model does exactly the same amount of work on every word, whether it is a comma or the crux of the sentence.
+- [expert-placement](https://viz.math.gaema.ai/expert-placement/): A model too large for one chip is split across several, and where it is made of specialist sub-networks the natural split is to give each chip a few of them.
+
+## E — Non-transformer sequence (SSM)
+
+- [ssm-scan](https://viz.math.gaema.ai/ssm-scan/): A model of the usual kind answers a question about earlier text by re-reading all of it, which gets slower the longer the text is.
+- [mamba-block](https://viz.math.gaema.ai/mamba-block/): Instead of re-reading every past word, a model can carry one small fixed-size running summary and update it as it goes.
+- [gated-deltanet](https://viz.math.gaema.ai/gated-deltanet/): Attention remembers every past word and re-reads them all.
+- [delta-rule-gates](https://viz.math.gaema.ai/delta-rule-gates/): Some models replace the ever-growing pile of notes on past words with a fixed-size memory that files a cue against its content.
+- [hybrid-by-layer](https://viz.math.gaema.ai/hybrid-by-layer/): A model is a stack of dozens of near-identical layers, and they do not all have to work the same way.
+
+## F — CNN / vision
+
+- [convolution](https://viz.math.gaema.ai/convolution/): An image is a grid of numbers, and this is how a vision model examines one.
+- [receptive-field](https://viz.math.gaema.ai/receptive-field/): A single image filter reads only three neighbouring positions, which is not enough to recognise anything.
+- [pooling](https://viz.math.gaema.ai/pooling/): After a filter has swept an image, the result is as large as the picture, which is more detail than the next stage needs.
+- [feature-maps](https://viz.math.gaema.ai/feature-maps/): A vision network does not look at a picture once; it builds a whole stack of pictures out of it, each made from the one below.
+- [batchnorm](https://viz.math.gaema.ai/batchnorm/): Numbers flowing through a deep network drift, one layer's outputs coming out ten times bigger than another's, and that makes training slow and fragile.
+- [residual-block](https://viz.math.gaema.ai/residual-block/): Make a network deeper and, past a point, it gets worse — not from memorising its training data, just worse at everything, which is not what more capacity is supposed to do.
+- [depthwise-separable](https://viz.math.gaema.ai/depthwise-separable/): An ordinary image filter does two jobs at once: it looks at a patch of the picture, and it blends together all the channels stacked at each pixel.
+- [patch-embedding](https://viz.math.gaema.ai/patch-embedding/): The kind of model behind a chatbot reads a list of items, so an image has to become a list before one can look at it.
+
+## G — Quantization / multimodal
+
+- [quantization](https://viz.math.gaema.ai/quantization/): A model is billions of numbers, and how many bits each one is stored in decides whether it fits on your machine.
+- [ternary-weights](https://viz.math.gaema.ai/ternary-weights/): Storing a weight as minus one, zero, or plus one turns a multiply into an add or a skip.
+- [structured-sparsity](https://viz.math.gaema.ai/structured-sparsity/): Every group of four neighbouring weights keeps at most two nonzeros, the two with the largest magnitude.
+- [vram-budget](https://viz.math.gaema.ai/vram-budget/): The size on a model's download page is not what it needs in order to run.
+- [multimodal-inject](https://viz.math.gaema.ai/multimodal-inject/): There is no separate picture input on a language model.
+- [vlm-connector](https://viz.math.gaema.ai/vlm-connector/): Attaching a picture uses up part of the same budget your words do, and how much is decided by one small piece sitting between the image network and the language model.
+- [rotation before quant](https://viz.math.gaema.ai/rotation-quant/): A few very large entries force a low-bit quantizer to spend its whole range on them, so everything else gets coarse.
+
+## H — End to end & training
+
+- [forward-pass](https://viz.math.gaema.ai/forward-pass/): This runs a whole small model from end to end, rather than taking one part of it apart on its own.
+- [backprop](https://viz.math.gaema.ai/backprop/): Most demonstrations show a model using what it already knows.
+- [lora](https://viz.math.gaema.ai/lora/): Changing a whole weight matrix means storing a new number for every entry.
+- [muon](https://viz.math.gaema.ai/muon/): Most optimizers scale each number on its own.
+- [activation recompute](https://viz.math.gaema.ai/activation-recompute/): A backward pass needs the activations the forward pass produced.
+- [training numerics](https://viz.math.gaema.ai/training-numerics/): Training in a narrow format such as fp8 cannot hold a tiny gradient or a huge one.
+- [quantization-aware-training](https://viz.math.gaema.ai/quantization-aware-training/): The forward pass stores a high-precision weight, rounds it onto a code, and multiplies that code by the scale.
+- [distillation](https://viz.math.gaema.ai/distillation/): A student can be trained to match the teacher's full distribution rather than a single correct label.
+
+## I — Real-model grounding
+
+- [real-embeddings](https://viz.math.gaema.ai/real-embeddings/): The default path turns each word you type into a row of numbers and draws how close every pair of rows is.
+- [real-attention](https://viz.math.gaema.ai/real-attention/): Inside a language model, each word looks at the other words and works out which of them matter to it.
+- [real-logits](https://viz.math.gaema.ai/real-logits/): Type the start of a sentence and a real GPT-2, running in your own browser, gives you its actual score for every one of the 50,257 word-pieces it knows, turned into percentages.
+- [logit-lens](https://viz.math.gaema.ai/logit-lens/): A model's answer is not decided in one go: it passes through twelve layers in turn, each adding its own correction.
+- [real-neurons](https://viz.math.gaema.ai/real-neurons/): Inside each of GPT-2's twelve layers sit 3,072 small units, and for any given word a few of them switch on hard while most stay near zero.
+- [real-quant](https://viz.math.gaema.ai/real-quant/): A trained model is an enormous pile of numbers, and storing each one less precisely makes the model smaller and faster at the cost of getting it slightly wrong.
+- [real-kv-cache](https://viz.math.gaema.ai/real-kv-cache/): When a model writes a reply it goes one word at a time, and rather than re-read everything for each new word it keeps notes on the conversation so far and adds one column to them per word.
+- [real-generate](https://viz.math.gaema.ai/real-generate/): A real GPT-2 writing text in your browser, one word-piece at a time, with the loop laid bare: score every possible next piece, pick one, stick it on the end, start again.
+- [real-vision](https://viz.math.gaema.ai/real-vision/): The same machinery that reads text can be pointed at a picture, and this page runs a real image classifier in your browser to show it.
+
+## J — Serving-time mechanisms
+
+- [paged-attention](https://viz.math.gaema.ai/paged-attention/): A chat service has to keep, for every conversation it is holding open, the notes the model made while reading everything said so far.
+- [radix-attention](https://viz.math.gaema.ai/radix-attention/): Many applications put the same long block of instructions at the top of every request, and the model's reading of that block comes out identical every time.
+- [kv-fusion](https://viz.math.gaema.ai/kv-fusion/): A prefix cache only helps when the reused text is at the very start of the request.
+- [rope-splice](https://viz.math.gaema.ai/rope-splice/): The notes a model stores about a word include where that word sat.
+- [unified-radix](https://viz.math.gaema.ai/unified-radix/): Some models do not keep one kind of memory.
+- [kv-fabric](https://viz.math.gaema.ai/kv-fabric/): Each machine can remember the prefixes it has already read, but a request only gets that memory if it is sent to the machine that holds it.
+- [continuous-batching](https://viz.math.gaema.ai/continuous-batching/): A busy server answers many people at once by working on a group of requests together, producing one word for each of them per pass over the model.
+- [chunked-prefill](https://viz.math.gaema.ai/chunked-prefill/): Reading a prompt and writing a reply are different jobs, and a server does one round of work at a time.
+- [speculative-decoding](https://viz.math.gaema.ai/speculative-decoding/): Writing one word at a time barely uses a graphics card.
+- [windowed-mtp](https://viz.math.gaema.ai/windowed-mtp/): A draft that guesses the next few words does not need the whole conversation in front of it.
+- [block diffusion draft](https://viz.math.gaema.ai/block-diffusion/): A block drafter does not guess one token at a time.
+- [kv-eviction](https://viz.math.gaema.ai/kv-eviction/): A model's notes on a conversation cannot grow forever, so eventually a server has to throw some of them away.
+- [disaggregation](https://viz.math.gaema.ai/disaggregation/): Reading your prompt and writing the reply want different machines.
+- [attn-expert-split](https://viz.math.gaema.ai/attn-expert-split/): There is a second way to put the two halves of a layer on different machines.
+- [kv-quant](https://viz.math.gaema.ai/kv-quant/): As a conversation grows so do the notes the model keeps about every word said so far, and past a few tens of thousands of words those notes take up more room than the model itself.
+- [mla](https://viz.math.gaema.ai/mla/): Ordinary attention keeps a separate set of notes for each of the model's attention heads — often more than a hundred of them — for every word in the conversation, and that pile is what makes very long context expensive.
+- [ring-attention](https://viz.math.gaema.ai/ring-attention/): Some documents are far too long to fit in the memory of any single chip.
+- [context-extension](https://viz.math.gaema.ai/context-extension/): A model is trained on documents up to some length, and positions past that are ones it has never seen.
+- [constrained-decoding](https://viz.math.gaema.ai/constrained-decoding/): When an app needs a model's answer in a strict format — one another program can read, such as JSON — it does not ask nicely.
+- [parallelism](https://viz.math.gaema.ai/parallelism/): A model too big for one chip has to be cut across several, and the cuts put different bytes on the wire.
+- [context-editing](https://viz.math.gaema.ai/context-editing/): An assistant that has been working for hours accumulates a huge record of everything it has read and every tool it has run, and eventually that record will not fit.
+- [prefix-routing](https://viz.math.gaema.ai/prefix-routing/): A busy service runs many identical copies of a model, and something has to decide which copy answers you.
+- [hybrid-cache-allocator](https://viz.math.gaema.ai/hybrid-cache-allocator/): Newer models alternate two kinds of layer, and the memory each one needs behaves in opposite ways.
+- [batch-invariance](https://viz.math.gaema.ai/batch-invariance/): Ask a service the same question twice, with everything set to be repeatable, and you can still get two different answers.
+- [kv-tiering](https://viz.math.gaema.ai/kv-tiering/): A running conversation keeps the notes the model made about everything said so far, and the fastest memory on a graphics card is small.
+- [suffix-decoding](https://viz.math.gaema.ai/suffix-decoding/): Two ways to propose several words without a second model, then keep only the prefix the target itself would have written.
+- [context-parallelism](https://viz.math.gaema.ai/context-parallelism/): When one prompt is too long for a single chip, the text is divided among several, and each chip holds some of the words but must compare them against all the others.
+- [ulysses](https://viz.math.gaema.ai/ulysses/): One exchange gives each device the full sequence for an equal share of the heads.
+- [dual-batch-overlap](https://viz.math.gaema.ai/dual-batch-overlap/): When a model's specialist sub-networks are spread over many chips, every step has to ship each word out to the chip holding its specialist and ship the answer back, and while that is in flight the arithmetic units sit doing nothing.
+
+## K — Diffusion & generative
+
+- [diffusion-noise](https://viz.math.gaema.ai/diffusion-noise/): An image generator starts from a screen of random speckle and cleans it up into a picture, and this is where that ability comes from.
+- [diffusion-sampler](https://viz.math.gaema.ai/diffusion-sampler/): Image generators show a "steps" number, and it is not a quality setting the model was trained with.
+- [guidance](https://viz.math.gaema.ai/guidance/): This is the dial that decides how literally an image generator follows your prompt.
+- [DiT](https://viz.math.gaema.ai/dit/): Current image and video generators are built from the same kind of network as a chatbot.
+- [latent-space](https://viz.math.gaema.ai/latent-space/): Generating a picture would be unaffordable if the model worked on the actual pixels, because each of the dozens of clean-up passes would have to touch every one of them.
+- [few-step-distillation](https://viz.math.gaema.ai/few-step-distillation/): Early image generators needed dozens of passes to make one picture; the ones that update while you type need one to four.
+- [self-forcing](https://viz.math.gaema.ai/self-forcing/): A fast video model is usually taught by watching the slow model, frame after frame.
+- [teacache](https://viz.math.gaema.ai/teacache/): Neighbouring sampler steps often move the sample by a small residual.
+- [video-time](https://viz.math.gaema.ai/video-time/): A few seconds of video costs far more to generate than a single picture, and the reason is arithmetic rather than anything exotic.
+- [audio tokens](https://viz.math.gaema.ai/audio-tokens/): A model produces one item at a time from a fixed list of possibilities, and sound is not that: it is a wave, tens of thousands of measurements a second.
+- [ar-vs-diffusion-images](https://viz.math.gaema.ai/ar-vs-diffusion-images/): There are two genuinely different ways to make a picture and it is not settled which is better.
+- [diffusion-lm](https://viz.math.gaema.ai/diffusion-lm/): A diffusion language model fills a masked sentence from both directions.
+
+## L — Reasoning
+
+- [thinking-tokens](https://viz.math.gaema.ai/thinking-tokens/): When a model "thinks before answering", nothing new is happening inside it.
+- [pass@k](https://viz.math.gaema.ai/pass-at-k/): Some models are trained on problems whose answers can be checked automatically: a sum that is right or wrong, a program that passes its tests.
+- [group-relative advantage](https://viz.math.gaema.ai/grpo-advantage/): This is the part of reasoning-model training you can actually watch.
+- [verifier selection](https://viz.math.gaema.ai/verifier-selection/): If you let a model try a problem several times, something still has to choose which answer comes back.

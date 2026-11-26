@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>parallelism | viz</title>
+<meta name="description" content="Tensor, pipeline, expert, and data parallel move different bytes. KV-parallel attention gathers sequence shards of the cache only when more than one device is in the strip. Data-parallel attention still crosses nothing. The ring that passes keys or queries is a different page.">
+<link rel="canonical" href="https://viz.math.gaema.ai/parallelism/">
 </head>
 <body>
 <!-- Concept page: the four things people call "parallelism" when one model is
