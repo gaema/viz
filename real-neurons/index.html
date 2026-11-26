@@ -6,6 +6,7 @@
 <title>real-neurons | viz</title>
 <meta name="description" content="Which of a layer’s three thousand neurons fire for which tokens, from a real forward pass. This is the raw material of mechanistic interpretability rather than a diagram of it.">
 <link rel="canonical" href="https://viz.math.gaema.ai/real-neurons/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Real-model grounding: REAL MLP neuron activations. Each transformer
@@ -15,6 +16,23 @@
      Serve over http:
        python3 -m http.server 8099
        open http://localhost:8099/real-neurons/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>real-neurons -- which MLP units fire</h1>
+<p class="vz-about-plain">Inside each of GPT-2's twelve layers sit 3,072 small units, and for any given word a few of them switch on hard while most stay near zero. This page runs a real GPT-2 in your browser and shows which ones fired for which words in a sentence you type, with the single strongest one ringed. Some turn out to respond to something you can name — a topic, a piece of grammar — and plenty respond to nothing you can put into words at all. That is the raw material of the research trying to work out what is actually stored in these things, and it is why "nobody fully knows what is inside" is a statement about scale rather than mystery. The weights are about 550 MB and download only on request.</p>
+<p>Interactive page: real <strong>MLP neuron activations</strong> in GPT-2. Each transformer block's MLP has 3072 "neurons" — the post-gelu units between the two projections, where most of a model's learned features live. <strong>Anchor</strong>: the MLP / gated-FFN concept (<a href="../mlp-gated/"><code>mlp-gated</code></a>). One of the <strong>real-model grounding</strong> pages, which run a real trained model instead of synthetic weights.</p>
+<h2>What it shows</h2>
+<p>Type a sentence. <code>GPT2.mlp</code> (in <a href="../real-attention/gpt2.js"><code>../real-attention/gpt2.js</code></a>) returns the post-gelu activations for every layer — <code>tokens × 3072</code>. For the chosen layer the page draws a heatmap of the <strong>most-active neurons</strong> (the columns) across the sentence (the rows), with the single strongest <code>(token, neuron)</code> firing ringed. Hover any cell for the activation.</p>
+<p>The point: <strong>different neurons fire for different tokens</strong> — some are token- or feature-specific. That selectivity is the raw material of mechanistic interpretability. Deeper layers fire harder (larger activations).</p>
+<h2>Verified against PyTorch</h2>
+<p><code>GPT2.mlp</code> is checked against a forward hook on <code>transformer.h[l].mlp.act</code> by <code>../real-attention/gpt2.test.mjs</code>: the last-token <strong>top-8 neuron ids and values</strong> at layers 0 / 5 / 11 match PyTorch (fixture <a href="../real-attention/gpt2-groundtruth.fixture.json"><code>gpt2-groundtruth.fixture.json</code></a>).</p>
+<h2>Render tier</h2>
+<p>T2 (Canvas2D activation heatmap; the "compute" tier is the GPT-2 forward in JS).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + <code>controls.text(&#x27;sentence&#x27;)</code> + <code>layer</code> / <code>top neurons</code> steppers "load real GPT-2". Reuses <code>gpt2.js</code> <code>mlp</code>; async, degrades to a labelled synthetic gelu-ish stand-in offline. Two <strong>challenges</strong> (<code>?ch=N</code>): load the real model, and find a strongly-firing neuron (peak activation ≥ 4, deeper layers). Headless hooks: <code>?text=</code>, <code>?ids=</code>, <code>?layer=</code>/<code>?topn=</code>, <code>?real=0</code>. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

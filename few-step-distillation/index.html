@@ -6,6 +6,7 @@
 <title>few-step-distillation | viz</title>
 <meta name="description" content="Training a student to jump most of a fifty-step path in one, which is why real-time generation exists. It is paid for in variety: hold the prompt, sweep the seed, watch outputs repeat.">
 <link rel="canonical" href="https://viz.math.gaema.ai/few-step-distillation/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: how a fifty-step sampler becomes a one-to-four-step one by
@@ -15,6 +16,55 @@
      browser):
        python3 -m http.server 8099
        open http://localhost:8099/few-step-distillation/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>few-step-distillation -- changing the model so four steps are enough</h1>
+<p class="vz-about-plain">Early image generators needed dozens of passes to make one picture; the ones that update while you type need one to four. That is not the same model run more coarsely — it is a second model, trained to copy where the slow one ends up and leap most of the way there at once. What it costs is variety, for a reason you can watch: the fast model has limited capacity, so its answer ends up a blend of many of the slow model's answers, and a blend of many answers is much the same answer whatever random starting point you hand it. Change the starting point and the careful model gives you different pictures while the fast one keeps returning near-twins.</p>
+<p>Interactive page: how a fifty-step sampler becomes a <strong>one-to-four-step</strong> one -- by training a <strong>different model</strong>, not by sampling the same one more coarsely -- and the specific thing that costs. <strong>Anchor</strong>: few-step generative sampling (consistency distillation; adversarial / distribution-matching distillation).</p>
+<h2>Scope -- and how this differs from <code>diffusion-sampler</code></h2>
+<p><a href="../diffusion-sampler/"><code>diffusion-sampler</code></a> owns step count as a <strong>discretisation dial on a fixed model</strong>: the same learned field, integrated with fewer, larger steps, so the whole story is integration error. This page is the other lever entirely -- <strong>the model is changed</strong> so that a handful of steps is enough. Nothing here is a coarser integration of the teacher; the student is a separate map, fitted from the teacher, with its own failure mode.</p>
+<p>Read them in that order if you can. The training objective and the noising schedule are <a href="../diffusion-noise/"><code>diffusion-noise</code></a>; conditioning guidance scale are <a href="../guidance/"><code>guidance</code></a>.</p>
+<h2>What is on screen</h2>
+<table><thead><tr><th>Element</th><th>What it is</th></tr></thead><tbody><tr><td>left panel</td><td>the <strong>teacher</strong>: N small Euler steps of the exact field, revealed by the transport</td></tr><tr><td>faint violet arrows</td><td>the velocity field <code>u(x, t)</code> at the current <code>t</code></td></tr><tr><td>green dots</td><td>the data manifold (the toy mixture's modes)</td></tr><tr><td>right panel</td><td>the <strong>student</strong>: 1..8 long jumps from the same start, same seed</td></tr><tr><td>hollow green rings (right)</td><td>where the teacher's many steps ended -- the student's jump should land there</td></tr><tr><td>dotted grey line (right)</td><td>the residual between the student's answer and the teacher's</td></tr><tr><td>dashed gold ties (consistency mode)</td><td>the <strong>training signal</strong>: several points of one trajectory, each tied to that trajectory's single shared endpoint</td></tr><tr><td>red rings + arrows (adversarial mode)</td><td>the <strong>training signal</strong>: the raw regression output, and the correction that puts it back on the data manifold</td></tr><tr><td>two rails in the right panel</td><td><strong>drag them</strong> -- jump count <code>K</code> (1..8) and distillation strength</td></tr><tr><td>bottom strip</td><td>the seed sweep: everything held fixed, one column per noise sample, teacher row above, student row below</td></tr></tbody></table>
+<h2>The math it runs</h2>
+<p>Nothing on the page is a neural network and nothing is faked. The toy distribution is two moons as an equal-weight mixture of narrow Gaussians, so the probability-flow velocity is closed form and the teacher trajectory is <strong>exact</strong> -- which is what makes the student's error a measurement rather than a drawing.</p>
+<pre><code>interpolant x_t = α(t)·x_data + σ(t)·x_noise, α = sin(½πt), σ = cos(½πt)
+E[x_data|x_t] = (1 − c·α)·M(x) + c·x, c = α·var/τ², τ² = α²var + σ²
+u(x, t) = α&#x27;·E1 + (σ&#x27;/σ)·(x − α·E1)
+teacher step x ← x + u·h, h = 1/N (N of these)</code></pre>
+<p>The <strong>student is fitted in the page</strong>, by distillation from that teacher:</p>
+<pre><code>1. draw M noise samples z_j, run the teacher to convergence: y_j
+2. f(x, t) = Σ_j w_j·y_j / Σ_j w_j
+ w_j = exp( −|x − (α(t)·y_j + σ(t)·z_j)|² / 2h(t)² )
+ h(t) = h₀·(σ(t) + 0.06)
+3. K-step sampling: x̂ ← f(x, t_k); re-noise x ← α(t_{k+1})·x̂ + σ(t_{k+1})·z; repeat</code></pre>
+<p>Two things are worth stating plainly about step 2, because they are what make the page measure the cost instead of asserting it:</p>
+<ul><li>The regression targets are indexed by <strong>where the trajectory is at time <code>t</code></strong>. That <em>is</em> the consistency training signal -- every point on one trajectory must map to that trajectory's endpoint -- and it is what the gold tie-lines draw.</li><li>The bandwidth is the student's <strong>capacity</strong>. It is scaled by the noise level <code>σ(t)</code> because that is what sets how hard the jump is: from pure noise the student must guess the whole endpoint, while from a mostly-denoised point it barely has to move. The first version of this page used a bandwidth fixed in <code>x</code>-space, and the page's own spread number then said more jumps made diversity <em>worse</em> -- which is not what shipped few-step samplers do. The noise-scaled form is both the physically right one and the one whose measurements behave.</li></ul>
+<h2>The cost, measured live</h2>
+<p>Hold everything fixed and <strong>sweep only the seed</strong>. That is the bottom strip: one column per noise sample, the teacher's answer above and the student's below, each cell tinted by the sample's own position so a repeated sample is a repeated colour. Four numbers, recomputed every frame:</p>
+<table><thead><tr><th>Metric</th><th>Meaning</th></tr></thead><tbody><tr><td><code>spread</code></td><td>RMS distance of the sample set from its own centroid, reported as a <strong>percent of the teacher's</strong> (lower = LESS variety; 100% = teacher parity)</td></tr><tr><td><code>repeats</code></td><td>share of samples that have a near-identical twin elsewhere in the row (within 0.08)</td></tr><tr><td><code>modes</code></td><td>how many distinct data modes the 16 samples reach, student vs teacher</td></tr><tr><td><code>ESS</code></td><td>effective sample size -- how many teacher endpoints each student answer is a weighted blend of. This is the mechanism: a low-capacity student averages, and an average of many endpoints is the same answer whatever the seed</td></tr></tbody></table>
+<p>Alongside them, the accuracy axis: mean <code>|student − teacher|</code> over the swept seeds, and mean off-manifold distance for both (its floor is the data's own mode width, 0.06, not zero).</p>
+<p><strong>The jump rail carries a paired control.</strong> Whenever <code>K &gt; 1</code> the page re-runs the <em>same fitted student on the same seeds at one jump</em> and prints both readings, so "more jumps helps" is never a slogan here -- a re-noise puts randomness back then the averaging is applied again, and which one wins depends on the strength. Read the two numbers.</p>
+<p><strong>The mode switch is a real trade, not a free win.</strong> The adversarial / distribution-matching term pulls each raw output most of the way to the nearest data mode -- the stand-in for a discriminator (ADD) or a distribution-matching loss (DMD2). It is aimed at off-manifold error and it moves that number hard. What it does to the <em>diversity</em> numbers is measured, not claimed: switch the training signal back and forth and compare the spread percent and the repeat count.</p>
+<h2>Interactions</h2>
+<table><thead><tr><th>Interaction</th><th>How</th></tr></thead><tbody><tr><td>step the run</td><td>transport play / pause / step / scrub; auto-plays and loops. The teacher advances one Euler step at a time; the student's jumps are revealed alongside</td></tr><tr><td><strong>drag the student's step count</strong></td><td>grab the <code>jumps K</code> rail in the right panel (1..8) -- or the matching slider</td></tr><tr><td><strong>drag the distillation strength</strong></td><td>grab the <code>strength</code> rail in the right panel; the kernel widens under your hand and the strip drains</td></tr><tr><td><strong>drag a starting point</strong></td><td>grab a hollow start marker in the teacher panel: that trajectory, its converged teacher endpoint, and the student's jumps from it all recompute</td></tr><tr><td>switch the training signal</td><td>consistency (self-consistency ties) vs adversarial / distribution-matching (manifold correction arrows) -- the drawing changes with the objective</td></tr><tr><td>hover for arithmetic</td><td>a teacher particle gives <code>x</code>, <code>u(x,t)</code>, <code>h</code> and <code>x + u·h</code>; a student jump gives the top kernel weights, the ESS, the raw output, the manifold correction and the re-noise; a strip cell gives the sample, the other model's sample from the same noise, and whether it is a repeat</td></tr><tr><td>resize the problem</td><td>teacher step count, trajectories shown, seed</td></tr></tbody></table>
+<h3>URL hooks</h3>
+<p>Every control is restorable from the query string, and the re-noise draws are seeded per <code>(seed, sample, jump)</code>, so one URL replays one exact run.</p>
+<pre><code>?step=3 pause the transport at teacher step 3
+?K=4 student jump count
+?bw=0.6 distillation strength (0 = high capacity, 1 = one answer for all)
+?mode=adversarial training signal: consistency | adversarial
+?tsteps=50&amp;seed=4 teacher step count, and which noise samples
+?P=6 trajectories drawn in the panels
+?signal=0 hide the training-signal drawing
+?drag=0,1.9,-1.4 move trajectory 0&#x27;s start (headless stand-in for a drag)
+?hover=560,470 place the cursor (headless stand-in for a hover)</code></pre>
+<h2>Sources</h2>
+<p>No number from any paper is reproduced on the page; everything on screen is measured in-page on the toy. These are cited for the claims the toy cannot measure -- what the shipped families actually train against.</p>
+<ul><li>Song, Dhariwal, Chen, Sutskever, <em>Consistency Models</em> -- &lt;https://arxiv.org/abs/2303.01469&gt;. Self-consistency as the training signal, and multistep consistency sampling (jump, re-noise, jump).</li><li>Luo et al., <em>Latent Consistency Models</em> -- &lt;https://arxiv.org/abs/2310.04378&gt;. The same idea in a latent space, which is how it reached image models people run.</li><li>Sauer, Lorenz, Blattmann, Rombach, <em>Adversarial Diffusion Distillation</em> -- &lt;https://arxiv.org/abs/2311.17042&gt;. The discriminator term, and the one-to-four step regime this page is named for.</li><li>Yin et al., <em>Improved Distribution Matching Distillation</em> (DMD2) -- &lt;https://arxiv.org/abs/2405.14867&gt;. Distribution matching in place of a pure regression, and the <strong>cost and quality ceiling</strong> that regression loss imposed by tying the student to the teacher's original sampling paths — the paper's own stated motivation, which is not the diversity argument this line used to give it.</li></ul>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

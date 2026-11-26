@@ -6,8 +6,18 @@
 <title>unified-radix | viz</title>
 <meta name="description" content="One prefix match reuses full-attention KV for the whole match and sliding-window KV for only the tail that fits. A recurrent layer adds one checkpoint when the match exists, and with that layer off the checkpoint stays at zero.">
 <link rel="canonical" href="https://viz.math.gaema.ai/unified-radix/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>unified radix — one match, three kinds of state</h1>
+<p class="vz-about-plain">Some models do not keep one kind of memory. A layer that looks at the whole prefix stores a note per word, a layer that only looks at a recent window stores just that window, and a recurrent layer stores a single running summary. One shared prefix can hand back all three from the same match: every matched word for the full layers, only the tail that still fits the window, and one summary, which is usable only when the match is longer than nothing. A match shorter than the window cannot invent extra window notes that were never stored.</p>
+<p>One matched prefix feeds three stores.</p>
+<p>Full-attention KV covers every matched token. Sliding-window KV covers <code>min(match, window)</code> tokens, the tail of the match, and never tokens the match did not include. A recurrent layer reuses one checkpoint, and only when the match is longer than nothing. Turning that layer off leaves the checkpoint at zero. An empty match reuses none of the three.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

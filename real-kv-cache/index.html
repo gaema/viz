@@ -6,6 +6,7 @@
 <title>real-kv-cache | viz</title>
 <meta name="description" content="Watch the real cache grow as GPT-2 generates: actual cached keys per layer and head, one fresh column per token, with the memory figure climbing alongside it.">
 <link rel="canonical" href="https://viz.math.gaema.ai/real-kv-cache/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Real-model grounding: the REAL KV cache. As GPT-2 generates, each
@@ -15,6 +16,25 @@
      page. Needs network. Serve over http:
        python3 -m http.server 8099
        open http://localhost:8099/real-kv-cache/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>real-kv-cache -- what fills up as GPT-2 generates</h1>
+<p class="vz-about-plain">When a model writes a reply it goes one word at a time, and rather than re-read everything for each new word it keeps notes on the conversation so far and adds one column to them per word. This page runs a real GPT-2 in your browser and shows those notes filling up for real: the prompt fills them in one go, then every generated word appends another column, with the megabytes counted as you go. That growing pile is why a long conversation costs more than a short one, why there is a limit on how much a model will hold at once, and why the memory on a graphics card is the thing that runs out. About 550 MB, downloaded only if you click.</p>
+<p>Interactive page: the <strong>real</strong> counterpart to the synthetic <a href="../kv-cache/"><code>kv-cache</code></a> page. It shows GPT-2's <strong>actual</strong> KV cache as it generates. <strong>Anchor</strong>: the KV-cache concept. One of the <strong>real-model grounding</strong> pages, which run a real trained model instead of synthetic weights.</p>
+<h2>What it shows</h2>
+<p>As GPT-2 generates, every layer caches the <strong>Keys and Values</strong> for all past positions, so each new token only attends — it doesn't recompute the past. The cache grows one position per token: the <strong>prompt</strong> fills it in parallel (<em>prefill</em>), then each generated token appends <strong>one column</strong> (<em>decode</em>).</p>
+<p><code>GPT2.cache</code> (in <a href="../real-attention/gpt2.js"><code>../real-attention/gpt2.js</code></a>) returns the real per-layer K/V plus the next-token logits from one forward. The page draws:</p>
+<ul><li>the <strong>actual cached K values</strong> for a chosen layer/head (<code>positions × 64 dims</code>), with the prefill/decode boundary marked;</li><li>the <strong>real memory</strong> — using GPT-2's true dims (<code>2 × 12 layers × 768 dim × dtype</code>) — climbing live as you generate, plus a KV-cache-vs-context-length curve (128 → 32K) showing why long context is expensive.</li></ul>
+<p>Pick a dtype (fp16 / fp32 / int8), hit generate, and watch both the cache and the megabytes grow.</p>
+<h2>Verified against PyTorch</h2>
+<p><code>GPT2.cache</code> is checked against <code>past_key_values</code> by <code>../real-attention/gpt2.test.mjs</code>: the per- layer/head K and V tensors match PyTorch within <strong>max|Δ| ≈ 5e-5</strong> (fixture <a href="../real-attention/gpt2-groundtruth.fixture.json"><code>gpt2-groundtruth.fixture.json</code></a>).</p>
+<h2>Render tier</h2>
+<p>T2 (Canvas2D K-cache heatmap + memory bars; the "compute" tier is the GPT-2 forward in JS, one per generated token).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + <code>controls.text(&#x27;prompt&#x27;)</code> + <code>layer</code>/<code>head</code> steppers + a <code>dtype</code> select + <code>gen tokens</code> + prefill / generate / "load real GPT-2" buttons. Reuses <code>gpt2.js</code> <code>cache</code>; async, degrades to a labelled synthetic K cache offline (the memory math is real either way — the dims are GPT-2's). Two <strong>challenges</strong> (<code>?ch=N</code>): load the real model, and grow the cache by ≥ 8 decode positions. Headless hooks: <code>?prompt=</code>, <code>?ids=</code>, <code>?gen=N</code>, <code>?layer=</code>/<code>?head=</code>/<code>?dtype=</code>, <code>?real=0</code>. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

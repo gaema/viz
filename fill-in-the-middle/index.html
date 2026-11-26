@@ -6,8 +6,18 @@
 <title>fill-in-the-middle | viz</title>
 <meta name="description" content="The tokens run prefix, then suffix, then the missing middle, so a causal mask lets the middle read the ending. Two examples under that mask let the second read the first. Isolate them and those cross pairs drop to 0.">
 <link rel="canonical" href="https://viz.math.gaema.ai/fill-in-the-middle/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>fill-in-the-middle — the middle can see the ending</h1>
+<p class="vz-about-plain">Training a model to fill a gap is different from training it to continue a sentence. The example is laid out as the opening, then the ending, then the missing middle, so a mask that only looks backward still lets the middle read the ending. The cost shows up when two examples share that mask: the second can read every token of the first. Isolating the examples removes those pairs, and each middle token still sees its own ending.</p>
+<p>One example is ordered prefix, then suffix, then middle. A causal mask on that order lets the first middle token see every suffix token.</p>
+<p>Two examples under one causal mask add a cross pair for every token of the first example seen by every token of the second. That count is the square of one example's length. Isolating the examples sets it to 0, and each middle token still sees its own suffix.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

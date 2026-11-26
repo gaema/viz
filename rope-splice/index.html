@@ -6,8 +6,18 @@
 <title>rope-splice | viz</title>
 <meta name="description" content="A cached key still carries the position it was computed at. Rotating it by the gap to the new position makes the pairwise score match a key computed there.">
 <link rel="canonical" href="https://viz.math.gaema.ai/rope-splice/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>RoPE splice — rotate a cached chunk to its new position</h1>
+<p class="vz-about-plain">The notes a model stores about a word include where that word sat. Move the same words later in a new request and those notes are about the old positions. The unrotated comparison is the cosine of the printed angle gap. It stays 1.000 when that gap prints as 0.0000. A printed gap of 0.0160 still scores 1.000, and a printed gap of 1.0000 scores 0.540. The fix is a rotation by exactly the number of places the passage moved. After that rotation the comparison matches a passage that had been read at the new spot.</p>
+<p>Pair <code>i</code> of a key is rotated by <code>position × base^(−2i / dim)</code>. A key stored at the source position still carries that angle. Rotating it again by the gap <code>destination − source</code> matches a key computed at the destination.</p>
+<p>The score drawn for a query at the destination is the cosine of the printed angle difference. The unrotated key uses the source angle. The spliced key uses the destination angle, so its score matches a native key. The move error is how far the rotated vector sits from that native key.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@
 <title>patch-embedding | viz</title>
 <meta name="description" content="An image cut into fixed squares, each flattened and projected into a token. It is exactly a strided convolution — and it is how a transformer comes to read pixels at all.">
 <link rel="canonical" href="https://viz.math.gaema.ai/patch-embedding/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: the Vision Transformer (ViT) patch embedding -- image cut into
@@ -15,6 +16,23 @@
      in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/patch-embedding/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>patch-embedding -- ViT: image → patches → tokens</h1>
+<p class="vz-about-plain">The kind of model behind a chatbot reads a list of items, so an image has to become a list before one can look at it. It is cut into a grid of small squares — sixteen pixels on a side is common — and each square's raw pixel values are flattened into one long row and multiplied by a shared table that turns them into a row of numbers of a fixed length, exactly the kind of row a word becomes. From then on the model has no idea it is looking at a picture; it is doing what it does to a sentence. Smaller squares mean finer detail and a longer list. Halving the square size makes four times as many patches, and attention over those patches costs sixteen times as much. Once the class token is on the list, the same cut costs less than sixteen times.</p>
+<p>Interactive page: the <strong>Vision Transformer (ViT) patch embedding</strong> -- how an image becomes a <strong>sequence of tokens</strong> a transformer can consume. <strong>Anchor</strong>: F (CNN / vision), the CNN→transformer bridge; Family F, builds on <a href="../convolution/">convolution</a>.</p>
+<h2>What it shows</h2>
+<p>A ViT has no convolutions in its trunk, so the image must be turned into tokens:</p>
+<ol><li><strong>Patchify</strong> -- cut the <code>S×S×3</code> image into a grid of non-overlapping <code>P×P</code> patches (<code>N = (S/P)²</code> of them).</li><li><strong>Flatten + project</strong> -- each patch is <code>P·P·3</code> raw numbers; a shared linear matrix <code>W</code> (<code>D × P²·3</code>) maps it to a <code>D</code>-dim <strong>token</strong>: <code>token = W·flatten</code>. This is <strong>mathematically identical to a single <code>Conv2d</code> with <code>kernel = stride = P</code></strong> -- the CNN→transformer bridge.</li><li><strong>CLS + position</strong> -- a learnable <code>[CLS]</code> token is prepended and a positional embedding <code>pos[i]</code> is added to each token (a transformer is otherwise order-blind), giving a length-<code>N+1</code> sequence of <code>D</code>-dim tokens.</li></ol>
+<p>The page shows the gridded image, the selected patch flattening → projecting → landing as one column in the token-sequence heatmap (<code>[CLS]</code> + <code>N</code> patch tokens, <code>D</code> rows). Smaller <code>P</code> → more, smaller patches → a <strong>longer sequence</strong>. The patch count grows as <code>1/P²</code>, so attention over the patches grows as <code>1/P⁴</code>: halving <code>P</code> costs sixteen times as much on the patches, and less than that once the class token is counted.</p>
+<p><strong>Drag</strong> on the image (or the slider) to pick a patch and watch its token light up in the sequence; tune the patch size <code>P</code>, embed dim <code>D</code>, image preset, seed; the rasterize-to-tokens sweep animates; hover a patch or a sequence column to inspect.</p>
+<h2>Render tier</h2>
+<p>T2 (Canvas2D: the procedurally-rendered image via an offscreen canvas + the patch/projection/token panels + the token-sequence heatmap).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>preset</code>, <code>P</code>, <code>D</code>, <code>patch</code>, <code>seed</code>) + <code>animate</code> (the rasterize sweep) + <code>onPointer</code> drag-to-pick-patch + hover. <code>?preset</code> / <code>?P</code> / <code>?D</code> / <code>?patch</code> / <code>?seed</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

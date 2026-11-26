@@ -6,6 +6,7 @@
 <title>residual-block | viz</title>
 <meta name="description" content="A skip connection makes the block learn a correction instead of a replacement. That is what stops gradients vanishing with depth, and why very deep networks train at all.">
 <link rel="canonical" href="https://viz.math.gaema.ai/residual-block/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: the ResNet residual block y = F(x) + x -- the identity skip
@@ -13,6 +14,24 @@
      http (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/residual-block/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>residual-block -- the skip connection y = F(x) + x</h1>
+<p class="vz-about-plain">Make a network deeper and, past a point, it gets worse — not from memorising its training data, just worse at everything, which is not what more capacity is supposed to do. The fix is to stop asking each block to produce its output from scratch. A copy of the input is carried straight past the block and added to whatever the block computed, so the block only has to supply a small correction, and doing nothing at all becomes an option it can take. That one change let vision networks go from around twenty layers to over a thousand. A follow-up paper, rather than the original, added the other half of the explanation: the copied-through path also gives the learning signal a clear route back to the earliest layers.</p>
+<p>Interactive page: the <strong>ResNet residual block</strong> -- a small learned function <code>F</code> runs in parallel with an <strong>identity shortcut</strong> that copies the input straight to the output, so <code>y = F(x) + x</code>. <strong>Anchor</strong>: F (CNN / vision); Family F, builds on <a href="../convolution/">convolution</a>.</p>
+<h2>What it shows</h2>
+<p>Two linked views:</p>
+<ul><li><strong>One block</strong> (top): <code>x → F(x) = W₂·relu(W₁x) → ⊕ → y = F(x) + x</code>. The <code>F</code> branch is scaled to a <strong>gain <code>g</code></strong> relative to <code>x</code> (so <code>|F(x)| ≈ g·|x|</code>). At initialization <code>g</code> is small, <code>F(x) ≈ 0</code>, and the block is <strong>≈ identity</strong> (<code>y ≈ x</code>) -- a small refinement on top of the signal, not a replacement. The dashed green arc is the identity skip.</li><li><strong>Depth / gradient chart</strong> (bottom): the gradient magnitude as it propagates <strong>back</strong> through <code>L</code> stacked blocks (log scale). Per block the local factor is <code>g</code> without the skip vs <code>1+g</code> with it, because <code>∂y/∂x = I + ∂F/∂x</code>. So the gradient reaching layer 0 is <code>g^L</code> (vanishes for <code>g&lt;1</code>) <strong>without</strong> the skip but <code>(1+g)^L ≈ O(1)</code> <strong>with</strong> it -- the <code>+I</code> is a <strong>gradient highway</strong> straight back to the early layers. An animated pulse travels the active curve.</li></ul>
+<p>Toggle the <strong>skip</strong> off and watch the gradient curve crash to ~0 at the input (the early layers stop learning).</p>
+<p><strong>Careful with the history here, because the original paper says the opposite.</strong> He et al. 2015 (<a href="https://arxiv.org/abs/1512.03385">1512.03385</a>) argue that vanishing gradients were "largely addressed by normalized initialization intermediate normalization layers", that their plain nets use BN so "neither forward nor backward signals vanish", and that the difficulty they set out to solve is therefore "unlikely to be caused by vanishing gradients". What they name is <strong>degradation</strong> — accuracy saturating and then falling as depth grows, not from overfitting — and they conjecture exponentially low convergence rates. The <code>∂y/∂x = I + ∂F/∂x</code> gradient-highway derivation this page draws is from the FOLLOW-UP, <em>Identity Mappings in Deep Residual Networks</em> (<a href="https://arxiv.org/abs/1603.05027">1603.05027</a>). So: the highway is real and is what the chart shows, but it is the 2016 analysis, and it is not the reason the 2015 paper gives for why very deep nets became trainable.</p>
+<p><strong>Drag</strong> the input <code>x</code> bars to refeed the block; tune <strong>depth <code>L</code></strong>, <strong>gain <code>g</code></strong>, toggle the <strong>skip</strong>, pick a <strong>seed</strong>. The backprop pulse animates.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D: the three vector bar-charts + the log-scale depth/gradient chart).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>L</code>, <code>gain</code>, <code>skip</code>, <code>seed</code>) + <code>animate</code> (the backprop pulse) + <code>onPointer</code> drag-the-input + hover. <code>?L</code> / <code>?gain</code> / <code>?skip</code> / <code>?drag</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

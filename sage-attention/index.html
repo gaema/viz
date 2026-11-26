@@ -6,8 +6,17 @@
 <title>sage attention | viz</title>
 <meta name="description" content="The attention scores are rounded to eight-bit integers before the softmax. The output moves, and a row of zeros stays exact because it was already on the grid.">
 <link rel="canonical" href="https://viz.math.gaema.ai/sage-attention/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>sage attention — low-precision scores</h1>
+<p class="vz-about-plain">Exact attention keeps every score at full precision. Rounding each score row to eight-bit integers, against that row's own largest entry, moves the mixed output. A row that is already zero stays exact, because every code lands on the grid. The saving is the bytes moved for the scores. The cost is that the attention is no longer the same numbers.</p>
+<p>Keys and values are fixed. The query-scale slider changes the query. The score row is quantized to int8 against its own maximum and compared with exact attention. At the default scale the error is above zero. All-zero keys stay exact.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

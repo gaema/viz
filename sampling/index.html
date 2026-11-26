@@ -6,6 +6,7 @@
 <title>sampling | viz</title>
 <meta name="description" content="Greedy, temperature, top-k and top-p applied to the same distribution. Watch which words survive each filter, and how abruptly the tail gets cut away as you tighten it.">
 <link rel="canonical" href="https://viz.math.gaema.ai/sampling/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: next-token sampling (temperature / greedy / top-k / top-p)
@@ -13,6 +14,23 @@
      imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/sampling/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>sampling -- greedy / top-k / top-p / temperature</h1>
+<p class="vz-about-plain">The model never picks a word. It produces a score for every entry in its token list, and something separate has to choose one: always taking the top score gives the same answer every time. Temperature is a number those scores are divided by before they are turned into percentages, and the effect is on the gaps between them — below one the gaps stretch and the leader takes nearly all the probability, above one they shrink and unlikely words get a real chance. Top-p works differently: sort the candidates, keep adding them to a shortlist until the shortlist covers, say, 90% of the probability, and draw from that. So temperature changes the odds and top-p changes who is allowed into the draw.</p>
+<p>Interactive page: how the next token is actually chosen from the lm-head's logits -- temperature, then a truncation strategy (greedy, top-k, top-p), then a draw. <strong>Anchor</strong>: the decode-time companion to <a href="../lm-head/">lm-head</a> (which produces the logits); Family C.</p>
+<h2>What it shows</h2>
+<p>The logits become probabilities via <code>softmax(logits / T)</code>:</p>
+<ul><li><strong>temperature <code>T</code></strong>: <code>T&lt;1</code> sharpens (more peaked, more greedy), <code>T&gt;1</code> flattens (more random). <code>T→0</code> is greedy.</li><li><strong>greedy</strong>: take the argmax -- deterministic, always the top bar.</li><li><strong>top-k</strong>: keep only the <code>k</code> highest-probability tokens, renormalize, sample from those.</li><li><strong>top-p (nucleus)</strong>: keep the smallest set of top tokens whose cumulative probability first reaches <code>p</code>, renormalize, sample.</li></ul>
+<p>Bars are drawn in descending probability; the <strong>kept</strong> set is colored, the <strong>cut</strong> tail is greyed. The cumulative curve + the <code>p</code> line show the nucleus (top-p); a divider shows the <code>k</code> cut (top-k). A live sampler draws tokens from the kept, renormalized distribution and tallies them -- watch the empirical frequency converge to the probabilities (greedy always picks the top).</p>
+<p><strong>Drag</strong> the <code>k</code> divider or the <code>p</code> line to resize the kept set; the slider tracks it. <strong>Hover</strong> any bar for its token / logit / prob / cumulative.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D bars + cumulative curve + the live sampler; no heatmap needed).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>temp</code>, <code>strat</code>, <code>k</code>, <code>p</code>, <code>seed</code>) + <code>animate</code> (the live sampler via <code>api.t</code>) + <code>onPointer</code> threshold drag (routes through <code>controls.set</code> so the slider syncs) + hover. <code>?temp</code>/<code>?strat</code>/<code>?k</code>/<code>?p</code>/<code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

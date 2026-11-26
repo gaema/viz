@@ -6,8 +6,18 @@
 <title>diffusion-lm | viz</title>
 <meta name="description" content="Each step predicts every still-masked position under bidirectional attention. The masked count falls by one while any remain, and an empty mask stays empty. No causal cache is carried into the next step.">
 <link rel="canonical" href="https://viz.math.gaema.ai/diffusion-lm/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>diffusion language model — unmask the whole sequence, both directions</h1>
+<p class="vz-about-plain">A diffusion language model fills a masked sentence from both directions. Each step scores every still-masked position from the whole sequence, including positions that come later, and unmasks the highest score. While any position stays masked the masked count falls by one, and an empty mask stays empty. The next step receives the updated tokens and the updated mask, and it receives no causal cache. This is not a drafter that proposes a tail and then accepts a prefix of it.</p>
+<p>A diffusion language model starts with every position masked. Each step scores every still-masked position from the whole sequence, including positions that come later, and reveals the highest score. The next step sees the updated tokens and the updated mask. It does not receive a causal cache from the step before.</p>
+<p>While any position stays masked, the masked count falls by one. Once the mask is empty, another step changes nothing.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

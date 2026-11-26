@@ -6,6 +6,7 @@
 <title>speculative-decoding | viz</title>
 <meta name="description" content="A small model proposes several tokens and the large one checks them all in a single pass. Accepted tokens are nearly free — and a poor draft turns the whole thing into a loss.">
 <link rel="canonical" href="https://viz.math.gaema.ai/speculative-decoding/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: speculative decoding -- a cheap draft model proposes k tokens,
@@ -15,6 +16,27 @@
      file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/speculative-decoding/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>speculative-decoding -- draft k tokens, verify them in one pass</h1>
+<p class="vz-about-plain">Writing one word at a time barely uses a graphics card. The machine has to haul the whole model out of memory for each word, and there is almost nothing for it to calculate while it waits. Speculation fills that idle capacity: a small, fast model writes a guess at the next few words, and the big model checks them all in a single pass, which costs it barely more than producing one word would have. Words the big model agrees with are kept and were effectively free; at the first disagreement it writes its own word and the rest of the guess is thrown away. Guess badly, or use a helper that is not cheap enough, and you have paid for the guessing and gained nothing.</p>
+<p>Interactive page: how a small <strong>draft</strong> model buys tokens from a big <strong>target</strong> model without changing what the big model would have said. <strong>Anchor</strong>: the decode-time companion to <a href="../prefill-vs-decode/">prefill-vs-decode</a> (which shows why one forward per token is the bottleneck) <a href="../sampling/">sampling</a> (whose accept/reject test this one extends).</p>
+<h2>What it shows</h2>
+<p>Plain decode emits one token per forward pass of the big model, one after another -- and a single token is a skinny matrix-vector product, so the hardware spends most of its time waiting on memory rather than doing math. Speculation spends that idle width instead:</p>
+<ul><li><strong>propose</strong> -- the cheap draft model runs <code>k</code> times and guesses the next <code>k</code> tokens.</li><li><strong>verify</strong> -- the target runs <strong>ONE</strong> forward over all <code>k+1</code> positions. They batch exactly the way a prompt does, so the extra positions are close to free; the pass yields a target distribution <code>p</code> at every position, and that distribution is conditioned on the tokens already kept earlier in the round.</li><li><strong>accept test</strong> -- walk the proposals left to right and accept proposal <code>x</code> with probability <code>min(1, p(x)/q(x))</code> against a drawn uniform, where <code>q</code> is the draft's own probability for the same token. Stop at the <strong>first</strong> disagreement.</li><li><strong>commit</strong> -- keep the accepted prefix. At the rejection, the target emits its <strong>own</strong> token, drawn from the residual <code>normalize(max(0, p − q))</code>. That correction samples from the position's own target; the next position's target is then rebuilt from the tokens kept so far, so the round is one chain. If every proposal survived, the extra position the same forward already covered yields one <strong>free bonus</strong> token.</li></ul>
+<p>So a round always yields <strong>at least 1 and at most k+1</strong> tokens. Accepted proposals are green, the rejected one is red, and the tail after it is struck through and thrown away untested -- that discarded draft compute is the price of the trade.</p>
+<p>The economics panel is the point of the page: <strong>mean accepted length per round is everything</strong>. It shows tokens produced, target forwards spent, and the resulting <strong>tokens per target forward</strong> against the baseline of <code>1.00</code> (plain decode), plus the <strong>net</strong> rate once each drafted token is charged a fraction of a target forward. Drag the agreement down and the cost up and the verdict flips to <em>SLOWER than not speculating</em> -- a bad draft is worse than no draft.</p>
+<p><strong>Drag</strong> the draft-agreement and draft-cost handles on the canvas; the counters, accepted lengths and verdict move under your hand. <strong>Hover</strong> any proposal for its draft probability <code>q</code>, its target probability <code>p</code>, the ratio, and the exact comparison that decided it. The run is generated from a <strong>seeded</strong> generator, so one URL replays one exact run.</p>
+<h2>Interactions</h2>
+<table><thead><tr><th>#</th><th>Contract item</th><th>Here</th></tr></thead><tbody><tr><td>1</td><td>scrub / step</td><td>transport steps the four phases of a round (propose · verify · accept test · commit), autoplays and loops; <code>?step=N</code></td></tr><tr><td>2</td><td>hover-to-inspect</td><td>any proposal chip → <code>q</code>, <code>p</code>, <code>p/q</code>, the drawn uniform, the verdict and <strong>why</strong>; the discarded tail says it was never tested</td></tr><tr><td>3</td><td>direct manipulation</td><td>canvas handles for <strong>draft agreement</strong> and <strong>draft cost</strong>, with the accepted lengths and the tokens-per-forward counter live under the drag</td></tr><tr><td>4</td><td>live animation</td><td>the verify phase sweeps the one-forward bracket across all <code>k+1</code> positions each frame</td></tr><tr><td>5</td><td>resize the problem</td><td><code>k</code> (draft length) and <code>rounds</code> steppers</td></tr></tbody></table>
+<p><strong>A/B compare</strong> renders a weak draft (agreement 0.25) against a strong one (0.95). <strong>Challenge mode</strong> asks for &gt;2.00 tokens per target forward, and then for a configuration where speculation actually loses.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D token chips, probability bars, and the tokens-per-forward gauge; no heatmap needed).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>k</code>, <code>quality</code>, <code>cost</code>, <code>rounds</code>, <code>seed</code>) <code>transport</code> over <code>rounds × 4</code> phase records (autoplay, loop) + <code>animate</code> (the verify sweep via <code>api.t</code>) + <code>onPointer</code> handle drags (routed through <code>controls.set</code>, committed non-silently on release so the deep link syncs) hover. URL hooks: <code>?step</code>, <code>?k</code>, <code>?quality</code>, <code>?cost</code>, <code>?rounds</code>, <code>?seed</code>, <code>?hover=x,y</code>, <code>?play=1</code>. All randomness comes from <code>tensor.js</code> <code>rng(seed)</code> / <code>seededRandn(seed,...)</code>, so a given URL reproduces the same run exactly. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

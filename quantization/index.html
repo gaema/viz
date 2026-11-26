@@ -6,6 +6,7 @@
 <title>quantization | viz</title>
 <meta name="description" content="Weights stored in four bits with a scale per group, then reconstructed on use. Watch the error against bit-width and group size, and watch one outlier ruin its whole group.">
 <link rel="canonical" href="https://viz.math.gaema.ai/quantization/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: group-wise affine quantization of fp16 weights to low-bit
@@ -14,6 +15,29 @@
      are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/quantization/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>quantization -- fp16 → int4, group-wise</h1>
+<p class="vz-about-plain">A model is billions of numbers, and how many bits each one is stored in decides whether it fits on your machine. Four bits is a quarter of sixteen, but each group also stores a scale and a zero-point, so at four bits the file is larger than that quarter. Four bits is only sixteen distinct values, so the numbers cannot be kept as they are. Instead a small group of neighbouring numbers — the model's weights — is taken, its smallest and largest noted, and each weight recorded as one of sixteen evenly spaced steps between them, along with the two extra numbers needed to undo that later. The rounding is the price, and it is worst when one freak large value stretches its group's range and coarsens every neighbour — which is why the groups are kept small, and why small groups give part of the saving back.</p>
+<p>Interactive page: <strong>group-wise affine weight quantization</strong> -- how fp16 weights become low-bit integers (int4, even int3/int2) so a large model fits in a small amount of memory, and what error that costs. <strong>Anchor</strong>: G (quantization / deployment); Family G.</p>
+<h2>What it shows</h2>
+<p>Weights are chopped into <strong>groups</strong> of <code>G</code>. Per group:</p>
+<pre><code>s = (max − min) / (2^bits − 1) scale
+z = round(−min / s) integer zero-point
+q = clamp(round(x/s) + z, 0, 2^bits−1) the stored code
+x′ = (q − z) · s dequantized value</code></pre>
+<p><code>z</code> is an integer, so <code>x′ = (q − z)·s</code> is not the same reconstruction as <code>min + s·q</code> on a group where <code>−min/s</code> is not already an integer. The bars, the readout, and the level lines all use <code>(q − z)·s</code>.</p>
+<p>The weights panel draws, per weight, the <strong>dequantized bar</strong> <code>x′</code> with a <strong>black tick</strong> at the <strong>original</strong> <code>x</code> -- the gap between them is the quantization error. Faint horizontal lines mark each group's <code>2^bits</code> reconstruction <strong>levels</strong>, <code>(k − z)·s</code> for every code <code>k</code>, so you can see the weights snapping onto them. Two knobs trade off:</p>
+<ul><li><strong>bits</strong> -- more bits = more levels = finer steps = <strong>less error</strong> (but a bigger file). The <strong>RMSE-vs-bits curve</strong> (bottom-right) plots this, with the current bit-width marked.</li><li><strong>group size <code>G</code></strong> -- smaller groups adapt <code>s</code> to the <strong>local</strong> range, so an outlier only coarsens its own small group (<strong>less error</strong>); but the per-group <code>scale + zero-point</code> overhead grows, <strong>lowering the compression ratio</strong> (shown as effective bits/weight and <code>×</code> vs fp16).</li></ul>
+<p>Pick the <strong>outlier</strong> preset (or <strong>drag</strong> any weight to an extreme) and watch its group's scale stretch and every neighbour in that group get coarser -- exactly why small groups and outlier-aware methods (AWQ/GPTQ) exist.</p>
+<p><strong>Drag</strong> a weight ↕ to change it; sliders for <strong>bits</strong> and <strong>seed</strong>; selects for the weight distribution and <strong>group size</strong>; the group scan animates; hover a weight to see its <code>x / q / x′ / err</code>.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D: the weights bar panel with level lines + the RMSE-vs-bits curve).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>preset</code>, <code>bits</code>, <code>G</code>, <code>seed</code>) + <code>animate</code> (the group scan) + <code>onPointer</code> drag-the-weight + hover. <code>?preset</code> / <code>?bits</code> / <code>?G</code> / <code>?seed</code> / <code>?drag</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

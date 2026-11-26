@@ -6,6 +6,7 @@
 <title>sequence-packing | viz</title>
 <meta name="description" content="Several documents share one row. A block-diagonal mask keeps them apart. A mask that is true everywhere still trains, and tokens read across the document boundary.">
 <link rel="canonical" href="https://viz.math.gaema.ai/sequence-packing/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: packing several documents into one row, and the
@@ -15,6 +16,21 @@
       browser):
         python3 -m http.server 8099
         open http://localhost:8099/sequence-packing/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>sequence-packing — many documents, one row</h1>
+<p class="vz-about-plain">Training rarely feeds one document per row. Several short documents are laid end to end in a single row so the hardware stays full. A block-diagonal mask lets each token read only inside its own document. Leave that mask open and the run still converges, while the model has learned to read across the boundary between two unrelated documents.</p>
+<p>Interactive page: packing several short sequences into one fixed-width training row, and the block-diagonal mask that keeps the packed documents independent. <strong>Anchor</strong>: A3 attention pattern (Family B).</p>
+<h2>What it shows</h2>
+<p>Three documents of lengths <code>[2, 3, 1]</code> share <strong>one row of six tokens</strong>, drawn as a 6×6 attention mask. In <strong>block-diagonal</strong> mode a cell <code>[i,j]</code> is allowed only when tokens <code>i</code> and <code>j</code> belong to the same document — the mask is a staircase of square blocks along the diagonal and the cross-document pair count is <strong>0</strong>, so each document trains as if it were alone in the row. Switch to <strong>full</strong> mode: the mask is true everywhere, training still runs, the count becomes positive — every off-block pair is a token quietly reading context across a document boundary. The block outlines show the packing structure; a dashed outline marks an allowed cross-document cell. Hover any cell for the per-pair verdict.</p>
+<p>The mask and the pair count come from <a href="math.js"><code>math.js</code></a> (<code>packMask</code>, <code>crossDocumentPairs</code>), checked by <code>math.test.mjs</code>.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D — a grid + labels).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + one <code>select</code> control (<code>mask mode: block | full</code>), mask math imported from <a href="math.js"><code>math.js</code></a>. The control state deep-links via the shared URL sync (<code>?mode=full</code>). Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

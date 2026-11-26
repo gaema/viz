@@ -6,8 +6,18 @@
 <title>windowed-mtp | viz</title>
 <meta name="description" content="Draft heads read a sink plus a recent window, not the whole context. The target still checks every token, so a fact in the gap is accepted only at the blind rate.">
 <link rel="canonical" href="https://viz.math.gaema.ai/windowed-mtp/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>windowed MTP — the draft does not read the whole context</h1>
+<p class="vz-about-plain">A draft that guesses the next few words does not need the whole conversation in front of it. The opening and a recent stretch are enough for a local guess, and everything in the middle can stay unread. The big model still checks the guess against the full text, so a guess that depended on that missing middle is kept only as often as a blind guess. What changes is the draft's memory: it keeps the opening and the recent stretch, counts a token only once when those two overlap, and never keeps more tokens than the conversation has.</p>
+<p>The draft reads <code>min(length, sink)</code> opening tokens and <code>min(length, window)</code> recent tokens. Overlap is counted once.</p>
+<p>A fact inside that span is accepted at 1. A fact in the gap is accepted at the blind rate. The target still sees the whole context, so a rejected guess is not what the model answers. The draft cache is the visible count, not the context length.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

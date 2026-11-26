@@ -6,6 +6,7 @@
 <title>kv-cache | viz</title>
 <meta name="description" content="The cache gains one column per generated token, per layer, and never shrinks. This is why generation is fast, and why a long chat runs out of memory before it runs out of words.">
 <link rel="canonical" href="https://viz.math.gaema.ai/kv-cache/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: the KV cache during autoregressive decode. Wires the framework
@@ -13,6 +14,20 @@
      imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/kv-cache/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>kv-cache -- the KV cache during decode</h1>
+<p class="vz-about-plain">When a chatbot writes a reply one word at a time, it would otherwise have to re-read the whole conversation from scratch before every single word. Instead it keeps the work it already did on each earlier word, two rows of numbers per word in every layer, and reuses it. Those kept rows are the KV cache, and they are why a reply streams steadily instead of slowing to a crawl. The price is memory: the cache grows with every word of the conversation, in every layer at once, which is what a model's advertised limit on how much it will hold at once is really protecting, and why a long chat fills up a graphics card.</p>
+<p>Interactive page: why autoregressive decode keeps a per-layer cache of past keys and values, how it fills, and how its memory grows with context. <strong>Anchor</strong>: A4 KV cache layout (Family B7, the headline attention page).</p>
+<h2>What it shows</h2>
+<p>Three column-aligned bands over the sequence positions: the <strong>K cache</strong>, the <strong>attention weights</strong> of the current decode token, and the <strong>V cache</strong>. Scrub the transport to advance the decode token: each step <strong>appends one column</strong> to K and V (the new token's key/value), the query <code>q_t</code> attends over <strong>all cached keys</strong> (<code>softmax(q_t·Kᵀ/√d)</code>), and the <strong>output</strong> is the weight-weighted sum of the cached value columns. The "future" columns are veiled until reached, so you watch the cache fill. A live <strong>memory</strong> readout shows <code>2·L·H_kv·head_dim·dtype·seq</code> growing linearly with context, with a <strong>KV dtype</strong> selector (fp16 / int8 / int4) for the quantized-KV variants — and the reminder that without the cache each step would recompute K,V for every past token.</p>
+<h2>Render tier</h2>
+<p>T2 (WebGL2 heatmaps for the K/V grids; Canvas2D overlays for weights, query, output, veil, memory bar).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>head_dim</code>, <code>context</code>, <code>seed</code>, <code>layers</code>, <code>KV dtype</code>) + a step <code>Transport</code> over a per-token attention sequence built in <code>page.js</code> (uses <code>tensor.dot</code>/<code>softmax</code>/<code>seededRandn</code>), drawn with <code>render.heatmap</code>/<code>cell</code> + <code>ctx</code>. The decode <strong>auto-plays + loops</strong> (the cache fills column-by-column on load — the headline), hovering any K/V/attn cell inspects its <code>(pos, layer, dim)</code> + value (or when an unfilled cell gets written), and a <strong>drag handle</strong> scrubs the decode position by hand. Headless hooks: <code>?pos=N</code>/<code>?drag=N</code> (filled-column count), <code>?hover=x,y</code>, plus the existing <code>?step=N</code>/<code>?play=1</code>. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@
 <title>logit-lens | viz</title>
 <meta name="description" content="Apply the output head at every layer rather than only the last, and watch the prediction crystallise with depth. The early guesses are wrong in a way you can interpret.">
 <link rel="canonical" href="https://viz.math.gaema.ai/logit-lens/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Real-model grounding: the LOGIT LENS. Apply GPT-2's final ln_f +
@@ -15,6 +16,23 @@
      download (browser-cached). Serve over http:
        python3 -m http.server 8099
        open http://localhost:8099/logit-lens/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>logit-lens -- watching a prediction form across layers</h1>
+<p class="vz-about-plain">A model's answer is not decided in one go: it passes through twelve layers in turn, each adding its own correction. This page stops at every layer and asks what word it would pick if it had to answer right now, so you can watch the guess settle as it goes deeper. Early layers mostly echo the word just typed, the middle ones wander, and the answer usually locks in near the top — though on an open-ended prompt nothing is settled until the final layer. That is why a practical trick like stopping early on easy inputs pays off, and why it goes wrong on hard ones. It runs a real GPT-2 in your browser, an optional download of about 550 MB, on a stand-in until you ask.</p>
+<p>Interactive page: the <strong>logit lens</strong> (nostalgebraist) on a <strong>real GPT-2 (124M)</strong>. It applies the model's final <code>ln_f</code> + tied lm_head to the residual stream at <strong>every</strong> layer — not just the last — so you can watch the next-token prediction crystallize with depth. <strong>Anchor</strong>: residual stream + A5 lm_head. One of the <strong>real-model grounding</strong> pages: it runs a real trained model instead of synthetic weights.</p>
+<h2>What it shows</h2>
+<p>Type a prefix. The page runs the verified GPT-2 forward (<a href="../real-attention/gpt2.js"><code>../real-attention/gpt2.js</code></a>, <code>GPT2.lens</code>), capturing the residual stream after the embedding and after each of the 12 blocks (13 depths). It applies <code>ln_f</code> + the tied lm_head to each, giving a next-token prediction <em>at every depth</em>. The rows show, bottom-up (embedding → layer 12), each depth's top-1 token and a bar = the <strong>final</strong> token's probability at that depth — the convergence curve.</p>
+<p>The default <code>the cat sat on the mat. the cat ran</code> walks <code>ran → running → through → away → … → up</code>: early layers echo the last token, the middle wanders, and the answer locks in near the top. Confident prompts lock in early; open-ended ones only at the final layer.</p>
+<h2>Verified against PyTorch</h2>
+<p><code>GPT2.lens</code> is checked against <code>output_hidden_states</code> by <code>../real-attention/gpt2.test.mjs</code>: the per-layer top-1 token ids at all 13 depths match PyTorch exactly. (Subtlety the test pins: HF's <code>hidden_states[-1]</code> is already post-<code>ln_f</code>, so the reference must use the model's true final logits for the last depth rather than applying <code>ln_f</code> twice — <code>GPT2.lens</code> captures the <em>pre</em>-<code>ln_f</code> residual and applies <code>ln_f</code> once, which is correct.)</p>
+<h2>Render tier</h2>
+<p>T1/T2 (Canvas2D rows; the "compute" tier is the GPT-2 forward + 13 lm_head read-outs in JS).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + <code>controls.text(&#x27;prompt&#x27;)</code> + "load real GPT-2". Reuses the verified <a href="../real-attention/gpt2.js"><code>gpt2.js</code></a> loader; async, degrades to a labelled idealized synthetic trajectory offline. Two <strong>challenges</strong> (<code>?ch=N</code>): load the real model, and find a confident prediction (final-layer top token &gt; 50%). Headless hooks: <code>?prompt=</code>, <code>?ids=</code> (inject token ids), <code>?real=0</code>. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

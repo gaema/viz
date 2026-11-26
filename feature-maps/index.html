@@ -6,6 +6,7 @@
 <title>feature-maps | viz</title>
 <meta name="description" content="The channel activations of a convolutional stack layer by layer — edges, then textures, then parts. Paint on the input and watch which filters respond to what you drew.">
 <link rel="canonical" href="https://viz.math.gaema.ai/feature-maps/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: CNN feature maps -- per-channel activations across layers,
@@ -13,6 +14,23 @@
      imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/feature-maps/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>feature-maps -- what a CNN sees: edges → textures → parts</h1>
+<p class="vz-about-plain">A vision network does not look at a picture once; it builds a whole stack of pictures out of it, each made from the one below. The first stage here uses real edge detectors — a bright line running one way lights up one output and leaves the others dark. The stages above work on those edge pictures rather than on the original, and their filters here are stand-ins rather than trained ones, because what is being drawn is the compounding: whatever the second stage answers to is a combination of edges, and whatever the third answers to is a combination of those. Each stage is more abstract than the one below, and from the second onwards each is also smaller. That is how simple detectors add up to recognising an object.</p>
+<p>Interactive page: the channel <strong>activations</strong> (feature maps) a convolutional stack produces at each depth -- the famous progression from <strong>edges</strong> (shallow) to <strong>textures</strong> (mid) to <strong>parts/blobs</strong> (deep). <strong>Anchor</strong>: F (CNN / vision); Family F, builds on <a href="../convolution/">convolution</a> <a href="../receptive-field/">receptive-field</a>.</p>
+<h2>What it shows</h2>
+<p>A small fixed CNN runs over an input image:</p>
+<ul><li><strong>Layer 1 — edges</strong>: four real <strong>oriented edge filters</strong> (Sobel: horizontal, vertical, two diagonals) → four feature maps that light up along edges of that orientation. Same resolution as the input.</li><li><strong>Layer 2 — textures</strong>: filters that combine the layer-1 edge maps (a 3×3×4 conv + ReLU, stride 2) → six maps responding to edge <em>combinations</em> — corners, junctions, repeated patterns. Half the resolution (downsampled).</li><li><strong>Layer 3 — parts</strong>: filters over the layer-2 maps (3×3×6 + ReLU, stride 2) → six coarse, abstract maps — blob/part detectors. Quarter resolution.</li></ul>
+<p>The story is the <strong>progression</strong>: each layer is built from the one below, gets smaller (downsampling), and grows more abstract — early neurons fire on simple edges, deep neurons on whole parts. This is the clearest intuition for "what is the network learning?"</p>
+<p><strong>Drag (paint) on the input</strong> to draw your own shape and watch the edges, textures, and parts respond; pick a preset shape; <strong>hover</strong> any feature map to see its layer and what it detects; the forward pass reveals layer by layer (auto-plays + loops).</p>
+<h2>Render tier</h2>
+<p>T2 (Canvas2D grids of the per-channel feature maps + the input; many small heatmaps).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>shape</code>, <code>seed</code>) + a 4-step <code>Transport</code> (reveal input → L1 → L2 → L3) + <code>onPointer</code> paint-the-input + hover. <code>?step</code> / <code>?shape</code> / <code>?paint</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

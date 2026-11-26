@@ -6,6 +6,7 @@
 <title>forward-pass | viz</title>
 <meta name="description" content="One prompt to one next token through a small real transformer: tokenise, embed, attend, feed forward, project, sample. Step it and watch the residual stream change at each stage.">
 <link rel="canonical" href="https://viz.math.gaema.ai/forward-pass/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Capstone concept page: one prompt run end-to-end through a tiny transformer
@@ -14,6 +15,24 @@
      http (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/forward-pass/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>forward-pass -- one prompt → the next token, end to end</h1>
+<p class="vz-about-plain">This runs a whole small model from end to end, rather than taking one part of it apart on its own. A few words go in, get looked up as rows of numbers, compare themselves against each other, pass one at a time through a small two-layer network, and at the end every word the model knows is given a score and one of them is picked. The strip down the left side is the through-line: each stage reads it, works out a small correction, and adds that back rather than overwriting it. The model here is deliberately tiny and its numbers are random, so the word it predicts is meaningless — what is real is the sequence of steps, and that sequence is what runs every time you press enter.</p>
+<p>Interactive page: <strong>the capstone.</strong> Every other page shows one mechanism in isolation; this one <strong>chains them</strong>, running a short prompt all the way through a tiny (but real) transformer to predict the next token. <strong>Anchor</strong>: synthesis of Families A–G; Family H.</p>
+<h2>What it shows</h2>
+<p>A toy transformer — <code>d=8</code>, 1 layer, 2 heads, gated MLP, tied lm-head, random weights — runs end to end, and you watch the <strong>same residual stream</strong> transform at each stage (the strip on the left is the through-line):</p>
+<ol><li><strong>tokenize</strong> — prompt words → integer IDs (vocab indices).</li><li><strong>embed</strong> — <code>X₀[i] = E[id[i]] + position[i]</code> (a table lookup + a positional offset) → the residual stream.</li><li><strong>attention</strong> — <code>softmax(QKᵀ/√dₕ)</code> (causal) · <code>V</code>, projected by <code>Wₒ</code> <strong>added back</strong>: <code>X₁ = X₀ + attnOut</code>. The <code>[n×n]</code> attention matrix is shown.</li><li><strong>gated MLP</strong> — <code>down( silu(x·W_g) ⊙ (x·W_u) )</code>, <strong>added back</strong>: <code>X₂ = X₁ + mlp</code>.</li><li><strong>lm-head</strong> — the <strong>last</strong> token's final (normed) hidden is projected onto every vocab embedding → one logit per word.</li><li><strong>sample</strong> — <code>softmax(logits / T)</code> → the next token.</li></ol>
+<p>The recurring idea — every block <strong>reads the stream, computes a correction, adds it back</strong> (the residual stream) — is made literal: the left strip shows <code>X₀ → X₁ → X₂</code> as you step.</p>
+<blockquote><p>The weights are <strong>random</strong>, so the predicted word is <strong>arbitrary</strong> — this page is about the <em>mechanism</em>, not a trained model's answer.</p></blockquote>
+<p><strong>Step</strong> the transport (or <strong>play</strong>) to walk the six stages; <strong>drag a prompt token</strong> ↕ to swap its word and watch the whole pipeline recompute; tune <strong>temperature</strong> and the <strong>attention head</strong>; hover any tensor.</p>
+<h2>Render tier</h2>
+<p>T2 (Canvas2D: the stage ribbon, the persistent residual-stream heatmap, and the per-stage detail panels — attention matrix, gated-MLP bars, logits, sampling distribution).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + a 6-step <code>transport</code> (the stages) + controls (<code>prompt</code>, <code>temp</code>, <code>head</code>, <code>seed</code>) + <code>onPointer</code> drag-a-token + hover. <code>?step</code> / <code>?prompt</code> / <code>?temp</code> / <code>?head</code> / <code>?seed</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

@@ -6,8 +6,18 @@
 <title>self-forcing | viz</title>
 <meta name="description" content="A few-step video model trained on the teacher drifts, one step of error per frame. Trained on its own frames, every frame stays at that one-step error.">
 <link rel="canonical" href="https://viz.math.gaema.ai/self-forcing/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>self-forcing — a fast video model trained on its own frames</h1>
+<p class="vz-about-plain">A fast video model is usually taught by watching the slow model, frame after frame. The first frame comes out close. Each later frame is then a little wrong about a picture that was already a little wrong, so the error piles up and the clip drifts. Training it on frames it produced itself is noisier, and it stops the pile-up: every frame keeps just the error of a single step. With no error in that step, both ways stay flat.</p>
+<p>Frame <code>n</code> under teacher forcing carries <code>n × step</code> error. Every self-forced frame carries <code>step</code>.</p>
+<p>Frame 1 matches. Later frames drift only on the teacher-forced train. A step of 0 leaves both flat.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

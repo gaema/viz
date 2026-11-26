@@ -6,6 +6,7 @@
 <title>real-embeddings | viz</title>
 <meta name="description" content="The default path embeds the words you type: load a trained model or stay on the labelled stand-in. The nested toggle draws constructed vectors whose leading prefix is the coarse part. Those vectors are not a truncation of the loaded model.">
 <link rel="canonical" href="https://viz.math.gaema.ai/real-embeddings/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Real-model grounding: real sentence embeddings from a small
@@ -17,6 +18,26 @@
      to a labelled synthetic stand-in offline. Serve over http:
        python3 -m http.server 8099
        open http://localhost:8099/real-embeddings/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>real-embeddings -- a trained model's semantic geometry</h1>
+<p class="vz-about-plain">The default path turns each word you type into a row of numbers and draws how close every pair of rows is. Load the optional trained model, about 23 MB, with nothing sent anywhere, or stay on the labelled synthetic stand-in. When that trained model is loaded, nearby words land near each other because of the training. A nested toggle draws a different set of vectors built so the leading prefix is the coarse part: the prefix keeps a distinction that lives inside the cut and fails to separate a pair that differs only past the cut, while the full vector separates that pair. Those nested vectors are constructed for this demo. They are not a truncation of the loaded model.</p>
+<p>Interactive page: the <strong>real</strong> counterpart to <a href="../embedding/"><code>embedding/</code></a>. The synthetic page shows the <em>mechanism</em> (a token id is a row lookup in a seeded table <code>E[V×D]</code>); this page shows the numbers are <strong>real</strong> by fetching a small trained sentence-embedding model and running it in your browser on the words you type. <strong>Anchor</strong>: A1 token embedding (same attribute as the synthetic sibling). One of the <strong>real-model grounding</strong> pages: it runs a real trained model instead of synthetic weights.</p>
+<h2>What it shows</h2>
+<p>You type a list of words. Each becomes a unit vector from <a href="https://huggingface.co/Xenova/all-MiniLM-L6-v2"><code>all-MiniLM-L6-v2</code></a> (≈23 MB, 384-dim, mean-pooled + L2-normalized). Two views of the <strong>same real numbers</strong>:</p>
+<ul><li><strong>cosine-similarity heatmap</strong> — <code>cosine(i,j) = vᵢ·vⱼ</code> (a dot product, since the vectors are unit norm — the very same inner product the attention pages use, here on <em>trained</em> vectors). Hover a cell for the exact value.</li><li><strong>2D map (MDS / PCA scores)</strong> — classical MDS on the centered vectors (top-2 eigenvectors of their double-centered Gram). Words that mean similar things sit close: <code>king·queen·prince</code>, <code>paris·tokyo·berlin</code>, <code>cat·dog·horse</code> form visible clusters with <strong>no demo trickery</strong> — that structure is in the trained weights.</li></ul>
+<p>The point of the real-model pages: the synthetic pages run <em>real math on synthetic weights</em>; here both the math <strong>and</strong> the weights are real.</p>
+<h2>Real model, fetched at runtime (no build, no committed weights)</h2>
+<p>The model is loaded via [transformers.js] as a CDN ES module and cached by the browser — same no-build ethos as every other page, and nothing heavy enters git (weights are fetched at runtime, never committed). <strong>The page does NOT auto-download</strong> (large-model consent rule): it opens on the synthetic stand-in and fetches the real model only when you click <strong>"load real model"</strong> (or pass <code>?autoload=1</code>). A banner shows the state: <code>downloading… NN%</code> → <code>running…</code> → <code>● real model</code>.</p>
+<p><strong>Before you load (or offline / no network):</strong> the page renders a clearly- labelled <strong>synthetic stand-in</strong> (the default clusters are hand-seeded so it still teaches) and swaps in the real vectors once you load the model.</p>
+<p>[transformers.js]: https://github.com/huggingface/transformers.js</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D — similarity heatmap + scatter). The "compute" tier is the real model running under WASM/WebGPU inside transformers.js.</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + <code>controls.text(&#x27;words&#x27;)</code> (free input) + two action buttons (<code>re-embed</code>, <code>load real model</code>), drawn with <code>render.heatmap</code>/<code>grid</code> + <code>ctx</code>. The real run is async and never throws into <code>mount</code> — failures degrade to the synthetic stand-in. Two <strong>challenges</strong> (<code>?ch=N</code>): switch to the real model, type a tight single-theme cluster (min pairwise cosine ≥ 0.30). The nested prefix picture is constructed and does not count. Headless hooks: <code>?words=a,b,c</code> (override the list), <code>?real=0</code> (suppress the download — fast deterministic synthetic capture), <code>?hover=x,y</code> (fake cursor for the tooltip). Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

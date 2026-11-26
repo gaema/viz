@@ -6,6 +6,7 @@
 <title>pooling | viz</title>
 <meta name="description" content="A window collapses to a single number, by maximum or by average. Downsampling is cheap and lossy: watch which cell actually survived, and what was discarded to get there.">
 <link rel="canonical" href="https://viz.math.gaema.ai/pooling/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: spatial pooling -- max / average pooling windows sliding over
@@ -13,6 +14,23 @@
      imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/pooling/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>pooling -- max / average pooling, downsampling</h1>
+<p class="vz-about-plain">After a filter has swept an image, the result is as large as the picture, which is more detail than the next stage needs. Pooling shrinks it: cover the grid with small non-overlapping squares and replace each one with a single number — either the largest value in it or the average of it. A two-by-two window stepping by two lands on half the width and half the height when the side length is even, so three quarters of the numbers are gone and everything downstream is four times cheaper. An odd side keeps only the windows that fit, which is under half. It also makes the network less fussy about exact placement, since a feature that shifts by a pixel usually lands in the same square. The cost is that you have thrown away where inside the square it was.</p>
+<p>Interactive page: spatial <strong>pooling</strong> -- a window slides over the input reduces each window to one number (its <strong>max</strong> or its <strong>average</strong>), shrinking the feature map. The cheap, parameter-free downsampler in a CNN. <strong>Anchor</strong>: F (CNN / vision); Family F, companion to <a href="../convolution/">convolution</a>.</p>
+<h2>What it shows</h2>
+<p>A <code>k×k</code> window steps over the <code>n×n</code> input with stride <code>s</code> (usually <code>s = k</code>, so the windows <strong>tile</strong> the input without overlap). Each window becomes one output cell:</p>
+<ul><li><strong>max pooling</strong>: <code>out = max(window)</code> -- keeps the strongest activation in the window (the <em>argmax</em> cell is highlighted); translation-tolerant, drops the rest.</li><li><strong>avg pooling</strong>: <code>out = mean(window)</code> -- smooths the window into its average.</li></ul>
+<p>Output size = <code>⌊(n − k)/s⌋ + 1</code>, so a <code>2×2</code> pool with stride 2 <strong>halves</strong> each spatial dimension (downsampling). No weights -- pooling just summarises. The current window is outlined on the input (with the max cell marked for max-pool); the smaller output grid fills as the window slides (auto-plays + loops).</p>
+<p><strong>Drag</strong> any input cell to change its value and watch the pooled output recompute (for max-pool, the output only moves if you change the window's max); <strong>hover</strong> any input or output cell. Toggle max ↔ avg to compare.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D: the input grid + sliding window, the downsampled output grid, the per-window reduction).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>n</code>, <code>k</code>, <code>stride</code>, <code>pool</code>, <code>seed</code>) + an output-position <code>Transport</code> (slide the window) + <code>onPointer</code> input-cell drag hover. <code>?step</code> / <code>?n</code> / <code>?k</code> / <code>?stride</code> / <code>?pool</code> / <code>?drag</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

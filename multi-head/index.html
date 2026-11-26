@@ -6,6 +6,7 @@
 <title>multi-head | viz</title>
 <meta name="description" content="Split the embedding into heads, run attention independently in each, then concatenate and project. Each head is free to learn a different relationship between tokens.">
 <link rel="canonical" href="https://viz.math.gaema.ai/multi-head/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: multi-head attention (split / parallel / concat). Wires the
@@ -13,6 +14,20 @@
      module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/multi-head/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>multi-head -- split into heads, attend in parallel, concat</h1>
+<p class="vz-about-plain">Comparing every word against every other word once gives the model exactly one notion of what "related" means. Real models run several of these comparisons side by side, called heads, each working on its own slice of each word's numbers, so one head can follow grammatical agreement while another follows the subject of the sentence and another simply looks one word back. Their answers are stitched back together into a single result per word. The cost is that no head sees the whole picture: cutting each word's numbers into eight or thirty-two slices leaves every head reasoning on a fraction of what is there.</p>
+<p>Interactive page: how multi-head attention slices the model dimension into H independent heads, each running its own scaled-dot-attention, then concatenates the results. <strong>Anchor</strong>: A2 head_dim layout (Family B3).</p>
+<h2>What it shows</h2>
+<p>Q, K, V are <code>[N×D]</code>; the D columns are sliced into <strong>H heads</strong> of width <code>head_dim = D/H</code>. Each head <code>h</code> attends <strong>only within its own slice</strong> (<code>softmax(QₕKₕᵀ/√head_dim)</code> with a causal mask) — so the <strong>H attention matrices differ</strong> (different heads learn different patterns). Each head's output <code>[N×head_dim]</code> is written back into its slice, and the slices <strong>concatenate</strong> into the <code>[N×D]</code> output. Scrub the transport to walk head by head: the current head's Q slice, its <code>N×N</code> attention matrix, and its output slice are highlighted, making the head_dim slicing + parallel-then-concat structure concrete. The per-head attention auto-plays + loops; <strong>hover</strong> any per-head attention cell for its derivation (<code>head h: score[i,j] = qᵢ·kⱼ/√d_head = value</code>) or a concat-output cell to see which head + dim it came from; <strong>drag</strong> a Q cell (in one head's slice) vertically to change that query component watch only that head's attention row and its concat-output slice recompute live. This is single-head attention (<a href="../scaled-dot-attention/"><code>../scaled-dot-attention/</code></a>) run H times in parallel.</p>
+<h2>Render tier</h2>
+<p>T2 (WebGL2 heatmaps for the Q/output strips + the per-head matrices; Canvas2D overlays for head dividers, slice highlight, causal veil).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>tokens</code>, <code>heads</code>, <code>head_dim</code>, <code>seed</code>) + a per-head <code>Transport</code> built in <code>page.js</code> (uses <code>tensor.dot</code>/<code>softmax</code>/ <code>seededRandn</code>), drawn with <code>render.heatmap</code>/<code>cell</code> + <code>ctx</code>. Interaction hooks: <code>?step=N</code>/<code>?play=1</code> plus <code>?hover=x,y</code> (canvas-space cursor → tooltip) <code>?drag=head,i,c,val</code> (set <code>Q[i, head*hd + c]</code> = <code>val</code>, the headless stand-in for a Q-cell drag in <code>head</code>'s slice). Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

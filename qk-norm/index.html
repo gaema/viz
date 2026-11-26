@@ -6,8 +6,18 @@
 <title>qk-norm | viz</title>
 <meta name="description" content="Queries and keys are divided by their own RMS before the dot product. A long key then stops winning the softmax just by being long, and the aligned key can take the mass.">
 <link rel="canonical" href="https://viz.math.gaema.ai/qk-norm/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>QK-norm — a long key stops winning by being long</h1>
+<p class="vz-about-plain">A word can look important just because the numbers that describe it are large, even when it points somewhere else. Dividing each question and each offer by its own size first takes that advantage away. What is left is the direction. The word that actually matches can then win, and the long one collects only the share its direction earned. Turn the off-axis key down until its raw score prints below the aligned key, and both ways pick the aligned key. When the two raw scores print equal, the raw result is a tie and the norm still picks the aligned key.</p>
+<p>The query is <code>[1, 0]</code>. The aligned key is the same vector. The off-axis key is <code>[scale, scale]</code>.</p>
+<p>Raw scores are the bare dot products. QK-norm divides each vector by its RMS first. The mass beside each score is the softmax of those two printed scores. At scale 3 the raw winner is the off-axis key and the normalized winner is the aligned key.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

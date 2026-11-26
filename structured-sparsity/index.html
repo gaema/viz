@@ -6,8 +6,18 @@
 <title>structured-sparsity | viz</title>
 <meta name="description" content="Every group of four weights keeps the two largest magnitudes. A zero loses to any nonzero. Ties keep the earlier index. The dropped count is the nonzero count minus the count that stayed, so a group of zeros drops nothing.">
 <link rel="canonical" href="https://viz.math.gaema.ai/structured-sparsity/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>structured sparsity — two nonzeros in every four</h1>
+<p class="vz-about-plain">Every group of four neighbouring weights keeps at most two nonzeros, the two with the largest magnitude. A zero loses to any nonzero, and a tie keeps the earlier index. The dropped count is the nonzero count minus the count that stayed, so a group of zeros drops nothing and a group that already has two or fewer nonzeros keeps them.</p>
+<p>Each group of four neighbouring weights keeps at most two nonzeros. The two largest magnitudes stay, and a tie keeps the earlier index.</p>
+<p>The group 0.90, 0.20, -0.80, 0.10 keeps 0.90 and -0.80. Their magnitudes add to 1.70, and the other two entries become zero. A group that already has two or fewer nonzeros drops nothing.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

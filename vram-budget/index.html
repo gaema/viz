@@ -6,6 +6,7 @@
 <title>vram-budget | viz</title>
 <meta name="description" content="Live memory arithmetic: weights, cache, activations and overhead against a real card. Drag the context length and watch which term is the one that actually overflows.">
 <link rel="canonical" href="https://viz.math.gaema.ai/vram-budget/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: live VRAM math for LLM inference -- weights + KV cache +
@@ -14,6 +15,24 @@
      blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/vram-budget/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>vram-budget -- where the GPU memory goes</h1>
+<p class="vz-about-plain">The size on a model's download page is not what it needs in order to run. Four things share the graphics card's memory: the weights themselves, fixed once you choose the model size and how many bits each number uses; the notes the model keeps on every word of the current conversation, which grow steadily as that conversation gets longer; scratch space for the work in progress; and a fixed slice the driver takes for itself. The middle one is why a model that loads happily still runs out of memory tens of thousands of words in — past some length the conversation's notes outweigh the model itself, and the limit you are hitting is the length rather than the model.</p>
+<p>Interactive page: <strong>live VRAM math for LLM inference</strong> -- the four things that consume GPU memory, to scale against a chosen GPU, and <em>why</em> a long prompt runs out of memory. <strong>Anchor</strong>: G (quantization / deployment); Family G.</p>
+<h2>What it shows</h2>
+<p>A stacked bar (vs the GPU's capacity, red when it OOMs) of:</p>
+<ul><li><strong>weights</strong> = <code>params × bytes/weight</code> -- fixed once you pick the model size the <strong>weight quant</strong> (fp16 = 2 B, int8 = 1, int4 = 0.5).</li><li><strong>KV cache</strong> = <code>2 · L · (d/H · n_kv_heads) · seq · batch · kv_bytes</code> -- caches every past token's keys &amp; values, so it grows <strong>linearly with context length and batch</strong>. <strong>GQA</strong> (<code>n_kv_heads ≪ n_heads</code>, e.g. Llama-70B) and a low <strong>KV dtype</strong> shrink it.</li><li><strong>activations</strong> -- transient forward-pass buffers: tiny during <strong>decode</strong> (one token), larger during a big <strong>prefill</strong>.</li><li><strong>overhead</strong> -- the fixed CUDA context + fragmentation.</li></ul>
+<p>The <strong>KV-cache-vs-context curve</strong> plots the KV block as the sequence length grows and marks where it <strong>crosses the weights line</strong> -- past that point you are <em>context-bound</em>, not <em>model-bound</em>, which is the usual reason a long prompt OOMs.</p>
+<p>Try <strong>int4</strong> weights (shrinks the blue block), <strong>Llama-70B (GQA)</strong> (shrinks the orange KV block despite being a bigger model), or <strong>drag the context marker</strong> out to 128k and watch the KV cache explode past the GPU.</p>
+<p><strong>Drag</strong> the marker on the curve to set the context length; selects for model, weight quant, KV dtype, phase, and GPU; sliders for context and batch; the OOM border pulses, a ghost dot sweeps the KV curve; hover a bar segment for its formula.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D: the stacked VRAM bar + capacity line + the KV-vs-context curve breakdown panel).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>model</code>, <code>wq</code>, <code>kvq</code>, <code>context</code>, <code>batch</code>, <code>mode</code>, <code>gpu</code>) + <code>animate</code> (the OOM pulse + KV ghost sweep) + <code>onPointer</code> drag-the-context + hover. <code>?model</code> / <code>?wq</code> / <code>?kvq</code> / <code>?context</code> / <code>?batch</code> / <code>?mode</code> / <code>?gpu</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

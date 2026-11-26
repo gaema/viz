@@ -6,6 +6,7 @@
 <title>gqa-mqa | viz</title>
 <meta name="description" content="Several query heads share one set of keys and values. The cache shrinks by the sharing factor, which is why generation gets cheaper — and head-specific detail is what you give up.">
 <link rel="canonical" href="https://viz.math.gaema.ai/gqa-mqa/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: KV-head sharing (MHA / GQA / MQA). Wires the framework modules
@@ -13,6 +14,22 @@
      blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/gqa-mqa/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>gqa-mqa -- KV-head sharing (MHA / GQA / MQA)</h1>
+<p class="vz-about-plain">While a model writes, it keeps notes on every word so far, and each of its attention heads normally keeps a private set. Those notes are the largest memory cost of a long conversation. The saving here is to let several heads read one shared set instead: eight shared sets for sixty-four heads cuts that memory to an eighth, and a single shared set for all of them cuts it further still. What is given up is per-head detail, since heads sharing a set can no longer look at slightly different things, which is why most models share in groups rather than collapsing all the way down to one.</p>
+<p>Interactive page: how query heads share key/value heads, and why that shrinks the KV cache. <strong>Anchor</strong>: A2 head_dim layout / A4 KV cache (Family B4).</p>
+<h2>What it shows</h2>
+<p><code>n_q</code> query heads on top, <code>n_kv</code> key/value heads below, with a line from each query head to the KV head it reads. Scrub the transport through the schemes (the divisors of <code>n_q</code>, descending):</p>
+<ul><li><strong>MHA</strong> (<code>n_kv = n_q</code>) — every query head has its own K,V head.</li><li><strong>GQA</strong> (<code>1 &lt; n_kv &lt; n_q</code>) — query heads are grouped; each group of <code>n_q / n_kv</code> query heads shares one KV head (e.g. Llama-2/3-70B: 64 Q → 8 KV).</li><li><strong>MQA</strong> (<code>n_kv = 1</code>) — all query heads share a single KV head (PaLM, Falcon).</li></ul>
+<p>Query heads are colored by their group, so the grouping is obvious. A <strong>KV-cache memory bar</strong> tracks <code>n_kv / n_q</code> of the MHA size — because the cache stores K,V <strong>per KV head</strong>, fewer KV heads means a proportionally smaller cache, which is the decode-time memory/bandwidth bottleneck.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D — boxes, connecting lines, a memory bar).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>query heads</code>) + a per-scheme <code>Transport</code> built in <code>page.js</code> (the divisors of <code>n_q</code>), drawn with <code>ctx</code> + <code>render.arrow</code>/<code>label</code>. Direct-manipulable per the framework interaction contract: <strong>drag the handle on the KV-cache bar</strong> to morph MHA → GQA → MQA (snaps to the divisors of <code>n_q</code>); <strong>hover</strong> a Q head for its KV group + sibling heads, or a KV head for the Q heads that read it. Auto-plays the schemes + loops. Headless hooks: <code>?step=N</code>/<code>?play=1</code> plus <code>?hover=x,y</code> (canvas-px) and <code>?kv=N</code> (set #KV heads → nearest divisor, pauses). Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

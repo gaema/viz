@@ -6,6 +6,7 @@
 <title>softmax | viz</title>
 <meta name="description" content="Scores become probabilities: exponentiate, then normalise. Temperature sharpens or flattens the result, and subtracting the largest value first is what stops it overflowing.">
 <link rel="canonical" href="https://viz.math.gaema.ai/softmax/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: softmax (logits -> probabilities). Wires the framework
@@ -13,6 +14,20 @@
      imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/softmax/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>softmax -- logits → probabilities</h1>
+<p class="vz-about-plain">A model's raw output is a list of scores with no natural meaning: one word scored 8.3, another 2.1. Softmax turns that list into percentages adding up to 100, by growing each score exponentially and then dividing by the total, so a modest lead in score becomes a large lead in probability. Every classifier and every next-word prediction ends in one of these. A single dial called temperature stretches or squeezes the scores beforehand: turned low it makes the leader nearly certain, turned high it flattens everything toward an even chance.</p>
+<p>Interactive page: how a vector of logits becomes a probability distribution, step by step, with temperature and the numerical-stability max-subtract shown. <strong>Anchor</strong>: A9/A10 (lm_head logits + vocab → sampling; Family A4 foundational).</p>
+<h2>What it shows</h2>
+<p><code>softmax(z)ᵢ = exp(zᵢ/T) / Σⱼ exp(zⱼ/T)</code>, over three bar rows — <strong>logits</strong>, <strong>exp(zᵢ/T − max)</strong>, <strong>probabilities</strong>. Scrub the transport through the pipeline phases: find the <strong>max</strong> (highlighted; subtracted so <code>exp</code> never overflows), build each <strong>exp</strong> term, <strong>sum</strong> them, then <strong>normalize</strong> each into a probability (the prob bars fill and sum to 1). The <strong>temperature</strong> slider shows the effect directly: T→large flattens toward uniform, T→small sharpens toward a one-hot argmax.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D). Bar charts; no GPU needed.</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>k</code>, <code>seed</code>, <code>temperature</code>) + the step <code>Transport</code> walking <code>tensor.softmaxSteps</code> (max → exp → sum → norm phases), drawn with <code>ctx</code> bars + <code>render.label</code>. <code>?step=N</code>/<code>?play=1</code> headless hooks as on the other pages. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

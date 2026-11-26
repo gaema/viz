@@ -6,6 +6,7 @@
 <title>radix-attention | viz</title>
 <meta name="description" content="Prompts inserted into a shared tree, so a common system prompt is stored once. A new request reuses the longest matching prefix and computes only its own suffix.">
 <link rel="canonical" href="https://viz.math.gaema.ai/radix-attention/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: sharing KV cache ACROSS requests via a radix tree of prompt
@@ -14,6 +15,24 @@
      browser):
        python3 -m http.server 8099
        open http://localhost:8099/radix-attention/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>radix-attention -- one KV cache shared across requests</h1>
+<p class="vz-about-plain">Many applications put the same long block of instructions at the top of every request, and the model's reading of that block comes out identical every time. So the server keeps what it has already read in a tree: requests that begin the same way share one path and split into branches where they start to differ. A new request follows the tree as far as it matches, gets that stretch for free, and pays only for the genuinely new tail. The limit is space — when the tree outgrows its memory the least recently used tip is dropped, and a request that would have matched it pays full price again.</p>
+<p>Interactive page: how a serving runtime avoids recomputing the same prompt prefix for every request by keeping prompts in a <strong>radix tree</strong> of token sequences, so a shared prefix is stored -- and attended over -- exactly once. <strong>Anchor</strong>: A4 KV cache layout, one level up from <a href="../kv-cache/"><code>../kv-cache/</code></a> (which shows the cache of a <em>single</em> sequence).</p>
+<h2>What it shows</h2>
+<p>Three stacked bands. On top, the <strong>incoming requests</strong>: one row per prompt, one box per token, drawn on a shared token grid. Below them, the <strong>radix tree</strong> built by inserting those prompts in arrival order -- each node owns a <em>span</em> of tokens plus the KV for exactly that span, drawn on the same grid, so a node's horizontal extent is literally the token range it covers. A run of tokens with no branch is path-compressed into one node; when a new request agrees with only part of a node's span, the insert <strong>splits</strong> it. Node fill deepens with the number of requests sharing it, and the <code>×N</code> badge names that count.</p>
+<p>Stepping the transport admits the next request: it walks the tree, takes the <strong>longest matched prefix</strong>, and lights those tokens green (<strong>reused</strong> -- their keys and values are already resident, so prefill skips them) while the unmatched suffix goes orange (<strong>computed</strong>) and hangs off a new node. The running <strong>tokens reused vs computed</strong> bar underneath is the whole point of the structure -- with a long shared system prompt most of every later request is already in the tree.</p>
+<p>The tree is finite: a <strong>capacity</strong> control caps how many tokens it may hold, and when an insert overflows it the <strong>least-recently-used leaf</strong> is evicted (ghosted with a dashed outline, and its span released). An interior node with live children is never evictable, because its children's KV is only reachable through the path that runs over it.</p>
+<h2>Interactions</h2>
+<ul><li><strong>Transport</strong> — one step per arriving request, auto-playing and looping: match, reuse, compute the suffix, grow the branch, evict if over capacity.</li><li><strong>Direct manipulation</strong> — drag the ▽ <strong>divergence handle</strong> on any request row to move where that request stops agreeing with the row above it. The tree re-shapes and the reuse counter moves under your hand; drag it right computed tokens turn into reused ones. The <code>edit divergence of request</code> / <code>…diverges at token</code> steppers do the same thing numerically and stay in sync with the handles.</li><li><strong>Hover-to-inspect</strong> — a tree node reports its token span, how many requests share it, its KV footprint (with the <code>2 · layers · kv_heads · head_dim · dtype</code> derivation) and when it was last touched (the LRU key); an evicted node says why it was the one to go; a request row traces its whole path through the tree and its reused/computed split; the counter bar reports the recompute saved.</li><li><strong>Resize the problem</strong> — <code>requests</code>, <code>tokens per request</code>, <code>cache capacity</code> and <code>layers</code> (which scales the KV bytes per token).</li><li><strong>A/B compare</strong> — first request (cold tree, everything computed) beside the last (warm tree, prefix reused).</li><li><strong>Challenge mode</strong> — make one request a total cache hit, and push overall reuse past half of all tokens.</li></ul>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D). The lesson is structure -- spans, branches, one path per shared prefix -- not pixel throughput, so nothing here needs a GPU tier.</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>reqs</code>, <code>plen</code>, <code>req</code>, <code>diverge</code>, <code>capacity</code>, <code>layers</code>) + a step <code>Transport</code> whose <code>compute</code> inserts every request into a freshly built radix tree and snapshots it per step, so scrubbing back and forth replays exact tree states. Drawing is plain <code>ctx</code> plus <code>render.label</code>. Divergence points live in one <code>shares</code> state key (<code>&quot;6,4,6&quot;</code>), which the framework's deep-link sync mirrors into the URL. Headless hooks: <code>?shares=6,4,6</code> (the stand-in for a handle drag), <code>?hover=x,y</code>, plus the usual <code>?step=N</code> / <code>?play=1</code> / <code>?theme=</code>. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

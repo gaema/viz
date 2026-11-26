@@ -6,8 +6,18 @@
 <title>attn-expert-split | viz</title>
 <meta name="description" content="Attention and the experts on separate machines. KV crosses once and grows with context. Hidden states cross every layer and grow with the batch. The larger ship flips.">
 <link rel="canonical" href="https://viz.math.gaema.ai/attn-expert-split/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>attention / expert split — a wire at every layer</h1>
+<p class="vz-about-plain">There is a second way to put the two halves of a layer on different machines. Attention, which has to remember the conversation, stays on one pool. The experts, which do the heavy arithmetic, stay on another. What crosses the wire is then the hidden state, out and back, on every layer. That shipment grows with how many requests you batch and does not care how long each one is. The cache shipment of the other split does the opposite. A long context makes the cache the heavy parcel. A short context with a fat batch makes the hidden state heavier.</p>
+<p>KV shipped once is <code>2 × layers × 4 × seq × 2</code>. Hidden states shipped to the experts and back, for one step, are <code>2 × layers × batch × 8 × 2</code>.</p>
+<p>The first grows with the context and ignores the batch. The second grows with the batch and ignores the context. Which bar is taller is whichever of those two products is larger.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

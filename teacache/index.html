@@ -6,8 +6,17 @@
 <title>teacache | viz</title>
 <meta name="description" content="A sampler step whose residual is under the threshold is skipped, and the drift is the sum of those residuals. The skip count stays put between residuals and rises when the threshold passes the next one. One skip is a quarter of a four-step schedule.">
 <link rel="canonical" href="https://viz.math.gaema.ai/teacache/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>step cache — skip a small residual</h1>
+<p class="vz-about-plain">Neighbouring sampler steps often move the sample by a small residual. A step cache skips a step whose residual is under a threshold, and the drift is the sum of the residuals that were not applied. The skip count stays put between residuals and rises when the threshold passes the next one, and the drift rises with it. The same single skip is a quarter of a four-step schedule and a much smaller share of a long one, so the trick is harshest on the few-step models that already take big jumps.</p>
+<p>Four sampler residuals. Raise the threshold and more of them are skipped, so the unapplied drift grows. The same single skip is a quarter of a four-step schedule and a much smaller share of a long one.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

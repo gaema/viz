@@ -6,6 +6,7 @@
 <title>rope | viz</title>
 <meta name="description" content="Position is encoded by rotating each pair of dimensions by an angle proportional to position. Relative position falls out of the arithmetic; stretching the angles extends context.">
 <link rel="canonical" href="https://viz.math.gaema.ai/rope/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: RoPE (rotary position embedding) -- per-pair 2-D rotation by
@@ -14,6 +15,21 @@
      normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/rope/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>rope -- rotary position embedding (per-pair 2-D rotation)</h1>
+<p class="vz-about-plain">Attention on its own is blind to word order. Shuffle the words of a sentence and it computes exactly the same thing, which would make "dog bites man" and "man bites dog" identical to the model. Something has to tell it where each word sits. RoPE does that by rotating each word's numbers through an angle that depends on its position, like turning a dial one notch per word — and not one dial but many, some spinning fast enough to tell neighbours apart and some so slowly that they only register whole paragraphs. Two words five apart always end up at the same relative angle, so the model learns "five apart" rather than "word 12 and word 17" — and that is why you can stretch a model to longer documents than it was trained on by turning the slow dials slower still.</p>
+<p>Interactive page: how RoPE encodes position by rotating each dimension-pair of a query/key vector by an angle proportional to position. <strong>Anchor</strong>: A1 RoPE shape (Family B8).</p>
+<h2>What it shows</h2>
+<p>A <code>d</code>-dim vector is split into <code>d/2</code> pairs <code>(x₂ᵢ, x₂ᵢ₊₁)</code>. At position <code>p</code>, pair <code>i</code> is rotated in its own 2-D plane by <code>Δ = p · θᵢ</code>, where the per-pair frequency <code>θᵢ = base^(−2i/d)</code>. The main view is <code>d/2</code> little 2-D planes — each shows the original pair (gray), the rotated pair (blue), and a <strong>spiral tracing the total sweep</strong> <code>p·θᵢ</code>. Low pairs (high frequency) spin fast as you scrub the position; high pairs (low frequency) barely move — the multi-scale positional code. A supporting <code>[N×d]</code> heatmap shows the rotated components across <strong>all</strong> positions (the RoPE "wave"), with the current position's row outlined.</p>
+<p>Because rotations compose (<code>R(mθ)ᵀR(nθ) = R((n−m)θ)</code>), the query·key dot product ends up depending only on the <strong>relative</strong> position <code>m−n</code> — noted in the readout. Sliders for <code>head_dim</code>, the rotary <code>base</code>, and <code>seed</code>.</p>
+<h2>Render tier</h2>
+<p>T2 (WebGL2 heatmap for the across-positions wave; Canvas2D overlays for the rotation planes, arrows, and spirals).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>head_dim</code>, <code>positions</code>, <code>base</code>, <code>seed</code>) + a per-position <code>Transport</code>, drawn with <code>render.heatmap</code>/<code>arrow</code> + <code>ctx</code> <code>tensor.rope</code>/<code>ropeAngles</code>/<code>seededRandn</code>. Direct-manipulable per the interaction contract: <strong>drag horizontally</strong> (or the position track) to move the token position so every pair’s <code>Δ = p·θᵢ</code> updates live; <strong>hover</strong> a rotation plane for its <code>θᵢ</code> / <code>Δ</code> / <code>(cos,sin)</code> / rotated <code>(x,y)</code> or a heatmap cell for its value; when not dragging the position <strong>sweeps on its own</strong> (<code>animate</code>). Headless hooks: <code>?pos=N</code> (set position + freeze the sweep), <code>?hover=x,y</code> (fake the cursor for the tooltip), plus the existing <code>?step=N</code>/<code>?play=1</code>/<code>?theta</code>. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

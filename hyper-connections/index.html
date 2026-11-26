@@ -6,6 +6,7 @@
 <title>hyper-connections | viz</title>
 <meta name="description" content="Several parallel residual streams instead of one, with learned weights deciding which a block reads, which it writes, and how they mix. At one stream it is exactly the classic residual.">
 <link rel="canonical" href="https://viz.math.gaema.ai/hyper-connections/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: hyper-connections -- n parallel residual streams with learned
@@ -14,6 +15,37 @@
      (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/hyper-connections/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>hyper-connections -- the residual highway, widened</h1>
+<p class="vz-about-plain">Every model of this kind carries one shared running total per word that each layer reads from and adds back into, and that single channel forces a compromise. Leave the total alone and training is stable, but it grows with depth until a layer's addition is a negligible share of it; rescale after every addition and each layer keeps its voice, but training turns fragile. Hyper-connections carry several such totals side by side and let the model learn, layer by layer, which to read, which to write into, and how much they blend with each other — so it can settle anywhere between those two extremes instead of the designer choosing once for the whole model. The price is carrying several of those totals instead of one.</p>
+<p>Interactive page: the residual connection, generalised from <strong>one</strong> stream to <strong>n</strong> streams with learned connection weights. The classic residual is the special case <code>n = 1</code> with every weight pinned to <code>1</code>, and the page carries that case as live arithmetic so you can check the equivalence rather than take it on trust.</p>
+<p>Source (public paper): Zhu et al., <strong>Hyper-Connections</strong>, <a href="https://arxiv.org/abs/2409.19606">arXiv:2409.19606</a>.</p>
+<h2>Scope -- what this page does NOT re-teach</h2>
+<ul><li><a href="../residual-stream/">residual-stream</a> owns the <strong>single highway</strong>: read, add, write back, never overwrite; pre-norm vs post-norm placement; the magnitude growing with depth.</li><li><a href="../transformer-block/">transformer-block</a> owns what happens <strong>inside</strong> a block.</li></ul>
+<p>This page holds both of those fixed and varies only the <strong>wiring between blocks</strong> -- the axis hyper-connections actually move along. The block here is a deliberately plain stand-in (pre-norm read → SiLU → one dense projection), identical on both paths, so every difference on screen comes from the connections and from nothing else.</p>
+<h2>The mechanism</h2>
+<p>Carry <code>n</code> vectors <code>s₀ … s₍ₙ₋₁₎</code> instead of one. Each block <code>b</code> does three things with weights the network learns:</p>
+<p>read x = Σ_m A[b][m] · s_m (depth connection, in) transform y = block(x) write s'_k = B[b][k] · y + Σ_m M[b][k][m] · s_m (depth connection, out + width connection)</p>
+<p><code>A</code> chooses <strong>which streams the block reads</strong>, <code>B</code> chooses <strong>which streams it writes into</strong>, and <code>M</code> -- the width connection -- decides <strong>how the streams mix with each other</strong> across the block. Its diagonal is the familiar identity skip; its off-diagonal is content moving between streams, which a single highway has no way to express. The expansion rate <code>n</code> and this depth/width split are the parameters the page exposes.</p>
+<p><code>n = 1, A = B = M = [1]</code> collapses all three lines back to <code>s&#x27; = y + s</code> -- the plain residual.</p>
+<h2>The tension it resolves</h2>
+<p>Pre-norm residuals train stably but let later blocks contribute little: the stream magnitude grows with depth while each block's write stays the same size, so its share of the answer shrinks -- representation collapse. Post-norm gives each block a strong voice but trains badly. The architect normally picks one of these two for the whole model.</p>
+<p>Hyper-connections let the network sit <strong>wherever it wants between them, per block</strong>, because the same knobs express both:</p>
+<table><thead><tr><th>Preset</th><th>Wiring</th><th>What you see</th></tr></thead><tbody><tr><td><strong>classic residual (n=1)</strong></td><td>one stream, all weights 1</td><td><code>max|Δ|</code> against the plain reference reads <strong>0</strong></td></tr><tr><td><strong>widened, identity weights</strong></td><td><code>n</code> streams, <code>A = 1/n</code>, <code>B = 1</code>, <code>M = I</code></td><td>the streams stay exact copies -- widening alone changes nothing</td></tr><tr><td><strong>learned (streams diverge)</strong></td><td>per-block read/write targets + off-diagonal mixing</td><td>streams take different magnitudes; blocks specialise</td></tr><tr><td><strong>strong-write (post-norm side)</strong></td><td>identity path damped (<code>M = 0.72·I</code>)</td><td>late blocks keep a large share; the carried signal fades</td></tr><tr><td><strong>collapsed (late blocks silent)</strong></td><td>write weights decay with depth</td><td>contribution bars shrink to nothing; effective depth falls toward 1</td></tr></tbody></table>
+<p>Two numbers report this, both defined on screen rather than assumed:</p>
+<ul><li><strong>contribution</strong> <code>c_b = ‖what block b wrote‖ / ‖readout after block b‖</code> -- the share of the answer's magnitude that block just added.</li><li><strong>effective depth</strong> <code>(Σ c_b)² / Σ c_b²</code> -- the participation ratio of those contributions. It equals <code>L</code> when every block contributes equally and falls toward <code>1</code> when one block dominates and the rest are silent.</li></ul>
+<h2>The n=1 equivalence check</h2>
+<p>The page runs <strong>two</strong> stacks every frame over the same embedding with the same block matrices: the <code>n</code>-stream hyper-connected one, and a plain single-stream residual <code>r ← r + block(r)</code>. The right-hand panel prints both readout norms <code>max|Δ|</code> across all <code>D</code> features. At <code>n = 1</code> with unit weights the two paths reduce to the same arithmetic -- <code>1·y + 1·s</code> versus <code>s + y</code> -- and the reported difference is exactly <code>0</code>, not merely small. Move any weight and it stops being zero; that is the check working.</p>
+<h2>Interactions</h2>
+<ul><li><strong>Transport</strong> -- step block by block; autoplays and loops. <code>?step=N</code>.</li><li><strong>Direct manipulation</strong> -- drag any connection handle ↕: read handles between a lane and the block, write handles between the block and a lane, and the width-connection handles between lanes (shown for the stepped block). The weight moves, that block's contribution bar moves, and every level below it re-runs under your hand.</li><li><strong>Widen the highway</strong> -- drag the stream-count slider <code>n</code>; also <code>L</code>, <code>D</code>, seed.</li><li><strong>Preset switch</strong> -- the five wirings in the table above, plus <code>custom</code> once you have dragged something.</li><li><strong>Hover</strong> -- any handle gives its weight <em>and what that weight does</em>; any stream node gives its magnitude and where it came from; any bar gives the two norms its ratio is made of.</li><li><strong>Challenge mode</strong> -- three goals, starting with "reduce the widened highway to the classic residual and get <code>max|Δ|</code> to exactly 0".</li></ul>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D). The picture is a small graph of lanes, edges and handles rather than a large tensor, so nothing here needs a GPU tier.</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>preset</code>, <code>n</code>, <code>L</code>, <code>D</code>, <code>seed</code>) + an <code>L</code>-step transport + <code>onPointer</code> weight drag + hover tooltips + <code>challenges</code>. URL hooks: <code>?preset=</code> <code>?n=</code> <code>?L=</code> <code>?D=</code> <code>?seed=</code> <code>?step=N</code> <code>?play=1</code> <code>?hover=x,y</code> <code>?w=KIND,b,i[,j],value</code> -- the headless stand-in for a drag (<code>?w=B,3,0,0</code> zeroes block 3's write into stream 0; <code>?w=M,1,0,2,0.3</code> sets the width connection stream 2 → stream 0 at block 1). Repeat <code>?w=</code> for several edits. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

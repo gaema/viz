@@ -6,6 +6,7 @@
 <title>normalization | viz</title>
 <meta name="description" content="RMSNorm against LayerNorm: per-row statistics with and without subtracting the mean, and why placing the step before or after the block changes how stably it trains.">
 <link rel="canonical" href="https://viz.math.gaema.ai/normalization/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: normalization (RMSNorm vs LayerNorm) + pre/post-norm. Wires
@@ -13,6 +14,24 @@
      (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/normalization/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>normalization -- RMSNorm vs LayerNorm (and pre/post-norm)</h1>
+<p class="vz-about-plain">Numbers passing through a deep network drift: run them through enough layers and they either grow without bound or fade away, and training stops working. The fix is to rescale each word's numbers back to a standard size before every layer, working the scale out from that word's own numbers and nothing else. Two recipes are common — one shifts the numbers to sit around zero and then divides by how spread out they are, the other skips the shift and only divides, which is cheaper and what most recent models use. Where the rescaling sits matters too: doing it before each layer rather than after the addition is what lets very deep models train at all.</p>
+<p>Interactive page: the two normalizations used in transformers, applied per token (per row), and where the norm sits relative to the residual. <strong>Anchor</strong>: A8 normalization (Family C4).</p>
+<h2>What it shows</h2>
+<p>An input <code>[N × D]</code> (rows = tokens, cols = features). Each row is normalized <strong>independently</strong>, using statistics computed over its own <code>D</code> features:</p>
+<ul><li><strong>LayerNorm</strong> — <code>y = (x − μ)/√(σ² + ε)</code>: subtract the row <strong>mean</strong> μ, divide by the row <strong>std</strong> σ (then scale γ + shift β). Centers and scales.</li><li><strong>RMSNorm</strong> — <code>y = x/√(mean(x²) + ε)</code>: divide by the row <strong>RMS</strong> only. No mean-subtract, no bias — fewer ops, what Llama-family models use.</li></ul>
+<p>The per-row stats (μ and σ, or RMS) are shown as columns next to the input, the normalized output on the right. Scrub the transport to walk row by row (highlighting that token's stats + before/after). Toggle <strong>RMSNorm / LayerNorm</strong> and <strong>pre / post-norm</strong>:</p>
+<ul><li><strong>pre-norm</strong> — <code>out = x + sublayer(norm(x))</code>: norm sits on the residual branch (modern, stable training).</li><li><strong>post-norm</strong> — <code>out = norm(x + sublayer(x))</code>: norm after the add (original transformer).</li></ul>
+<p>A small diagram shows the placement difference.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D heatmaps + a flow diagram).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>tokens N</code>, <code>features D</code>, <code>norm</code>, <code>pre/post</code>) + a per-row <code>Transport</code>, drawn with <code>render.heatmap</code>/<code>cell</code> + <code>ctx</code> <code>tensor.seededRandn</code>. <code>?step</code>/<code>?norm</code>/<code>?prenorm</code> headless hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@
 <title>backprop | viz</title>
 <meta name="description" content="Gradients flow backwards through a small graph by the chain rule. Switch on descent and watch the loss fall to zero — the whole of training, at a scale you can actually follow.">
 <link rel="canonical" href="https://viz.math.gaema.ai/backprop/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: backpropagation / autograd -- the backward pass through a tiny
@@ -15,6 +16,26 @@
      normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/backprop/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>backprop -- the backward pass (how a model learns)</h1>
+<p class="vz-about-plain">Most demonstrations show a model using what it already knows. This one shows it learning. The model makes a guess, the page measures how far off it was, and then works backwards through each step asking one question of every number in it: if this number were slightly larger, would the error get better or worse, and by how much? That answer is the number's slope, and shifting each one a little way down its own slope makes the next guess better. Switch on descent and watch the error fall toward zero; run that same loop over billions of numbers instead of the handful here and you have training, because there is nothing else to it.</p>
+<p>Interactive page: <strong>backpropagation / autograd</strong> -- the <em>backward</em> pass, the training counterpart to the <a href="../forward-pass/">forward-pass</a> capstone (and the only page about how a model <em>learns</em>, not just runs). <strong>Anchor</strong>: H (end to end / training). Family H.</p>
+<h2>What it shows</h2>
+<p>A tiny computation graph -- one neuron with a squared loss:</p>
+<pre><code>m1 = w1·x1 m2 = w2·x2 z = m1 + m2 + b a = tanh(z) L = (a − y)²</code></pre>
+<p>runs <strong>forward</strong> (values flow →) to a loss <code>L</code>, then <strong>gradients flow back</strong> (←) by the <strong>chain rule</strong>: each node takes the gradient arriving from above and multiplies by its own local derivative, handing the result to its inputs:</p>
+<pre><code>dL/da = 2(a − y) dL/dz = dL/da · (1 − a²) dL/dw1 = dL/dz · x1...</code></pre>
+<p>Every node shows its <strong>value</strong> and its <strong>gradient</strong> (<code>g=</code>, in red); the red arrows are the backward flow. The gradient on each weight, <code>dL/dw</code>, is exactly the <strong>slope of the loss</strong> in that weight's direction.</p>
+<p>Flip on <strong>descend</strong> and the page repeatedly applies <code>w ← w − lr·dL/dw</code> and you watch <code>L</code> fall toward 0 on the <strong>loss curve</strong> while the output <code>a</code> converges to the target <code>y</code> -- that loop, over billions of parameters, <em>is</em> training.</p>
+<p><strong>Step</strong> the reveal (0–4) to watch gradients propagate layer by layer; <strong>drag</strong> any leaf node (inputs <code>x</code>, weights <code>w</code>, bias <code>b</code>, target <code>y</code>) to change it and see every value and gradient update; toggle <strong>descend</strong> and tune the <strong>learning rate</strong>.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D: the computation-graph nodes with value + gradient, the backward-flow arrows, and the loss-vs-step curve).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + a 5-step <code>transport</code> (the backward reveal) + controls (<code>lr</code>, <code>train</code>, <code>seed</code>) + <code>animate</code> (the descent loop + loss curve) + <code>onPointer</code> drag-a-leaf-node + hover. <code>?lr</code> / <code>?train</code> / <code>?seed</code> / <code>?step</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@
 <title>moe-balance | viz</title>
 <meta name="description" content="Two routes. Auxiliary-loss mode mixes a skewed router toward uniform as lambda rises from 0 to 1. Selection-bias mode offsets scores only to choose the top-k; the combine weight is the softmax of the raw selected scores and the auxiliary weight is 0. In bias mode both compare panes are that route.">
 <link rel="canonical" href="https://viz.math.gaema.ai/moe-balance/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: MoE load balancing -- collapse / starvation, the balance
@@ -13,6 +14,24 @@
      Serve over http (ES module imports are blocked on file:// in a browser):
        python3 -m http.server 8099
        open http://localhost:8099/moe-balance/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>moe-balance -- load balancing, collapse, and why experts starve</h1>
+<p class="vz-about-plain">Splitting a layer into many specialist sub-networks only pays off if the work spreads across them. Auxiliary-loss mode mixes a skewed router toward even traffic: lambda 0 leaves the skew, lambda 1 is uniform, and dragging a bar rescales that mix. Selection-bias mode adds a per-expert offset used only to choose the top few specialists. The combine weight is the softmax of the raw scores of the specialists that were chosen, the auxiliary weight is 0, an overloaded specialist bias decreases by the step, and an underloaded specialist bias increases by the step. In selection-bias mode both compare panes are that bias route.</p>
+<p>Interactive page: the MoE <strong>balance problem</strong> over a whole batch. λ mixes the router preference toward an even target. Whether an expert starves is read off the bars after that mix and after a drag. <strong>Anchor</strong>: A6 MoE variant; Family D, companion to <a href="../moe-routing/">moe-routing</a> (which shows a single token's top-k routing). See MoE.</p>
+<h2>What it shows</h2>
+<p>A batch of <code>T</code> tokens is dispatched to <code>E</code> experts as a <strong>load histogram</strong> (the bars flow smoothly as the routing changes). A balance knob <code>λ</code> interpolates the effective routing:</p>
+<ul><li><strong><code>λ = 0</code> (no balance loss)</strong>: the mix is the router's raw preference. An expert starves when its bar is under the line. λ = 0 does not force that on every seed.</li><li><strong><code>λ = 1</code> (strong balance loss)</strong>: the mix weight is the even target <code>T/E</code>. With the drag left at 1, no expert is under the starvation line. A drag rescales those bars, and a drag can starve an expert.</li></ul>
+<p>Also shown:</p>
+<ul><li><strong>capacity + drops</strong>: each expert holds <code>≈ factor · T/E</code>; tokens routed to a full expert are <strong>dropped</strong> (red overflow). Drag the capacity line.</li><li><strong>load-balance aux loss</strong> <code>E · Σₑ fₑ·Pₑ</code> (<code>fₑ</code> = load fraction, <code>Pₑ</code> = router prob), the <strong>coefficient of variation</strong>, and the starved-expert count.</li><li><strong>shared expert</strong> (toggle): an always-on expert (DeepSeek-MoE style) that absorbs common patterns so the routed experts can specialize.</li></ul>
+<p><strong>Drag any expert's bar up or down to shift load onto or off it</strong> -- the other experts rebalance, and the aux loss, capacity drops, and starved count respond live. Drag the capacity line to trade drops for compute; move <code>λ</code> to watch the collapse flatten out; <strong>hover</strong> any bar. The bars ease to their targets.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D bars + capacity line + the live fill; no heatmap needed).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>E</code>, <code>lam</code>, <code>shared</code>, <code>cap</code>, <code>seed</code>) + <code>animate</code> (bars ease to their targets via <code>api.t</code>) + <code>onPointer</code> bar drag (shift load) capacity-line drag (routes through <code>controls.set</code>) + hover. <code>?lam</code> / <code>?cap</code> / <code>?shared</code> / <code>?shift</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

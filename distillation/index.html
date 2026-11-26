@@ -6,8 +6,17 @@
 <title>distillation | viz</title>
 <meta name="description" content="A soft target is the teacher distribution. When the teacher prefers the wrong class, the student is trained to copy that error. Temperature spreads the mass back.">
 <link rel="canonical" href="https://viz.math.gaema.ai/distillation/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>distillation — the student copies the teacher</h1>
+<p class="vz-about-plain">A student can be trained to match the teacher's full distribution rather than a single correct label. When the teacher's top class is the wrong one, that soft target still puts most of its mass there, and the student copies the error at the same confidence. Raising the temperature spreads the mass, so the labelled truth gets a larger share.</p>
+<p>The teacher prefers the wrong class. At temperature 1 the soft target does too, so a student matching it copies the mistake. A higher temperature moves mass back toward the labelled truth.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

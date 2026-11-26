@@ -6,8 +6,17 @@
 <title>training numerics | viz</title>
 <meta name="description" content="A loss scale lifts gradients into the narrow fp8 range. Too small and they flush. Too large and they overflow. The fp32 master copy is the memory price.">
 <link rel="canonical" href="https://viz.math.gaema.ai/training-numerics/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>training numerics — loss scale and master weights</h1>
+<p class="vz-about-plain">Training in a narrow format such as fp8 cannot hold a tiny gradient or a huge one. A loss scale multiplies the gradient before it is stored. Too small and the gradient flushes to zero. Too large and it overflows. The optimizer still steps a full-precision master copy of the weights, and that copy is the memory price of the narrow format.</p>
+<p>A loss scale moves one tiny gradient and one ordinary gradient through the FP8 E4M3 range. Flush, keep, and overflow are the three fates. The fp32 master copy is four times the fp8 weight bytes.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

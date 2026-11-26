@@ -6,6 +6,7 @@
 <title>diffusion-sampler | viz</title>
 <meta name="description" content="Generation is integrating a path, and the step count is how coarsely you walk it — chosen at generation time, not trained in. Deterministic and stochastic, side by side.">
 <link rel="canonical" href="https://viz.math.gaema.ai/diffusion-sampler/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: what a diffusion / flow-matching sampler does at INFERENCE --
@@ -14,6 +15,54 @@
      http (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/diffusion-sampler/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>diffusion-sampler -- integrating a learned field</h1>
+<p class="vz-about-plain">Image generators show a "steps" number, and it is not a quality setting the model was trained with. The generator is following a path from random speckle to a finished picture, and the step count is simply how many stops you make along the way — fewer, longer jumps cut the corners of the path. What that costs is subtle: the result does not look broken, it lands slightly off, which in a real picture means fine texture that is not quite right rather than an obvious mistake. Past a point more stops buy nothing. A second choice hides in the same loop: sprinkling fresh randomness at each stop pulls a drifting result back on track, but it no longer heads for one fixed destination — add stops to the steady version and it settles onto a single answer, while this one keeps landing somewhere slightly different.</p>
+<p>Interactive page: what a diffusion / flow-matching model does at <strong>inference</strong> time -- integrating a learned velocity field from a noise sample to a data sample -- and why the <strong>step count is a discretisation dial</strong>, not a quality setting. <strong>Anchor</strong>: generative sampling (diffusion / flow matching).</p>
+<p><strong>Scope.</strong> This page is the <em>sampler</em> only. The training objective and the noising schedule are the <a href="../diffusion-noise/"><code>diffusion-noise</code></a> page; conditioning and guidance scale are the <a href="../guidance/"><code>guidance</code></a> page.</p>
+<h2>What is on screen</h2>
+<p>A 2D toy distribution -- two moons, as an equal-weight mixture of narrow Gaussians -- with:</p>
+<table><thead><tr><th>Element</th><th>What it is</th></tr></thead><tbody><tr><td>faint green dots</td><td>the data manifold (the mixture's modes)</td></tr><tr><td>violet arrows</td><td>the velocity field <code>u(x, t)</code> <strong>at the current t</strong>, so the field visibly turns as the run proceeds</td></tr><tr><td>solid blue lines</td><td>the trajectory each particle actually walks, revealed step by step</td></tr><tr><td>hollow circles</td><td>each particle's start (its noise sample) -- <strong>drag one</strong></td></tr><tr><td>dashed gold curve</td><td>the <em>conditional</em> path <code>x_t = α(t)·x_end + σ(t)·x_start</code> -- what the interpolant toggle straightens</td></tr><tr><td>right-hand panels</td><td>the <strong>same seed and the same field</strong> integrated at 4 / 10 / 50 steps</td></tr></tbody></table>
+<p>Nothing is a neural network and nothing is faked. For a Gaussian mixture the probability-flow velocity is closed form, so every arrow, every particle update and every number in the readout is arithmetic the page just did.</p>
+<h2>The math it runs</h2>
+<p>With the interpolant <code>x_t = α(t)·x_data + σ(t)·x_noise</code>, <code>t: 0 → 1</code>:</p>
+<pre><code>diffusion path α = sin(½πt) σ = cos(½πt) curved, schedule-shaped
+rectified flow α = t σ = 1 − t straight conditional path
+
+E[x_data | x_t = x] = (1 − c·α)·M(x) + c·x c = α·var / τ², τ² = α²var + σ²
+u(x, t) = α&#x27;·E1 + (σ&#x27;/σ)·(x − α·E1) the probability-flow velocity
+∇ log p_t(x) = −(x − α·E1) / σ² the score
+
+ODE step x ← x + u·h h = 1/N
+SDE step x ← x + (u + ½g²·∇log p_t)·h + g·√h·z g = churn·σ</code></pre>
+<p><code>M(x)</code> is the responsibility-weighted mean of the mixture modes -- a softmax over squared distances, which is why the field points at whichever moon you are nearest and blends between them where you are not.</p>
+<p>The SDE drift carries the <code>½g²·score</code> correction, so <strong>both samplers have the same marginals</strong>. The toggle therefore isolates exactly one variable: whether noise is re-injected along the way.</p>
+<h2>The trade the page is built to show</h2>
+<p>Three measured numbers, recomputed live:</p>
+<table><thead><tr><th>Metric</th><th>Meaning</th></tr></thead><tbody><tr><td><code>off</code></td><td>mean distance from an endpoint to the nearest data mode -- how far off the manifold the run landed. Its floor is the data's own mode width (0.06), not zero</td></tr><tr><td><code>Δref</code></td><td>mean distance from an endpoint to the same particle's endpoint under a 200-step deterministic reference</td></tr><tr><td><code>path/chord</code></td><td>mean trajectory length ÷ start-to-end distance; <code>1.00</code> is a straight line</td></tr></tbody></table>
+<p>Read across the 4 / 10 / 50 ladder:</p>
+<ul><li><strong>Fewer steps = larger integration error.</strong> It shows up in <code>off</code> first -- points drifting <em>near</em> the manifold rather than onto it. In a real image model that is lost fine texture, not an obviously broken picture, which is why low-step output can look fine at a glance and thin under inspection.</li><li><strong>Deterministic (ODE)</strong>: <code>Δref</code> shrinks steadily with the step count -- the same seed always produces the same endpoint, and the map is invertible. The cost is diversity: one noise sample maps to exactly one output, so per prompt you get less variety.</li><li><strong>Stochastic (SDE)</strong>: the score term pushes a step that lands off-manifold back onto the data, so few-step runs stay on-distribution -- it <em>self-corrects</em> accumulated discretisation error. But <code>Δref</code> stays large no matter the step count, because the sample is no longer pinned by the seed. Reproducibility is what you pay.</li></ul>
+<h2>On "straighter ⇒ fewer steps"</h2>
+<p>The page separates two things the folk version of this claim conflates:</p>
+<ol><li>The <strong>conditional</strong> path (a specific noise sample to a specific datum) <em>is</em> exactly a straight segment under the linear interpolant. That is the dashed ghost, and it is a definition, not a result.</li><li>The <strong>marginal</strong> trajectory the sampler actually integrates is a different object. On this toy, switching to the linear interpolant does <strong>not</strong> straighten it -- the page prints <code>path/chord</code> for both so you can check rather than take it on faith. Genuine straightening of the marginal is what reflow buys.</li></ol>
+<p>And whether straightness is what does the work at all is disputed: &lt;https://arxiv.org/abs/2410.07303&gt; argues it is not.</p>
+<h2>Interactions</h2>
+<table><thead><tr><th>Interaction</th><th>How</th></tr></thead><tbody><tr><td>step the integration</td><td>transport play / pause / step / scrub; auto-plays and loops</td></tr><tr><td>re-integrate under your hand</td><td><strong>drag</strong> a hollow start marker -- that particle's whole trajectory, and its reference endpoint, recompute live</td></tr><tr><td>inspect the field</td><td><strong>hover</strong> an arrow for <code>u</code>, <code>E[data|x]</code>, the score, and how far one step of <code>h</code> moves; hover a particle for its position and the full update arithmetic; hover a ladder panel for its metrics</td></tr><tr><td>change the path</td><td>interpolant select: diffusion (curved) vs rectified flow (straight conditional path) -- same field formula, same integrator, same particles</td></tr><tr><td>change the sampler</td><td>ODE / SDE toggle + churn slider (<code>g = churn·σ</code>)</td></tr><tr><td>resize the problem</td><td>step count, particle count, seed</td></tr></tbody></table>
+<h3>URL hooks</h3>
+<p>Every control is restorable from the query string, so one URL replays one exact run -- the randomness is seeded per <code>(seed, particle, step)</code>.</p>
+<pre><code>?step=3 pause the transport at integration step 3
+?steps=50&amp;path=linear 50 steps on the rectified-flow interpolant
+?sde=1&amp;churn=1.2 stochastic sampler at a given noise level
+?seed=7&amp;P=16 which noise samples, and how many
+?drag=0,1.4,-1.1 move particle 0&#x27;s start (headless stand-in for a drag)
+?hover=300,220 place the cursor (headless stand-in for a hover)
+?guide=0 hide the dashed conditional paths</code></pre>
+<h2>Sources</h2>
+<ul><li>Karras, Aittala, Aila, Laine, <em>Elucidating the Design Space of Diffusion-Based Generative Models</em> -- &lt;https://arxiv.org/abs/2206.00364&gt;. The separation this page's controls are built on: schedule, scaling and sampler are orthogonal knobs, not one "quality" setting.</li><li>Liu, Gong, Liu, <em>Flow Straight and Fast: Learning to Generate and Transfer Data with Rectified Flow</em> -- &lt;https://arxiv.org/abs/2209.03003&gt;.</li><li><em>Rectified Diffusion</em> -- &lt;https://arxiv.org/abs/2410.07303&gt;, on why straightness is not what does the work.</li></ul>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

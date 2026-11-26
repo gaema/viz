@@ -6,6 +6,7 @@
 <title>qkv-projection | viz</title>
 <meta name="description" content="One token embedding becomes three different views of itself — a query, a key and a value — through three separate weight matrices. Everything attention does begins here.">
 <link rel="canonical" href="https://viz.math.gaema.ai/qkv-projection/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: Q/K/V projection (one embedding -> three weight matrices).
@@ -13,6 +14,22 @@
      over http (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/qkv-projection/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>qkv-projection -- one embedding → Q, K, V</h1>
+<p class="vz-about-plain">Before words can pay attention to each other, each one is turned into three different versions of itself, by running its numbers through three separate tables the model learned during training. One version is the query, what this word is looking for. One is the key, what it advertises to anything looking. One is the value, what it hands over if someone does look. Same word in, three roles out, and that is what lets the next step match one word's question against another word's offer and then pull across only what that second word actually carries.</p>
+<p>Interactive page: how a token's embedding is projected into query, key, value vectors by three learned weight matrices. <strong>Anchor</strong>: A5 embedding / A2 head_dim (Family B1).</p>
+<h2>What it shows</h2>
+<p>One token embedding <code>x</code> (dim <code>D</code>), and three weight matrices <code>W_Q</code>, <code>W_K</code>, <code>W_V</code> (<code>D×D</code>). The projections <code>q = x·W_Q</code>, <code>k = x·W_K</code>, <code>v = x·W_V</code> produce three vectors from the <strong>same</strong> embedding — the token's three roles:</p>
+<ul><li><strong>Q (query)</strong> — what this token is looking for.</li><li><strong>K (key)</strong> — what it offers to others.</li><li><strong>V (value)</strong> — what it carries if attended to.</li></ul>
+<p>Scrub the transport through the output dimension <code>o</code>: each step highlights column <code>o</code> of all three weight matrices, dots it with <code>x</code> (<code>out[o] = Σₖ x[k]·W[k,o]</code>), and fills <code>q</code>, <code>k</code>, <code>v</code> element by element. <strong>Drag any embedding cell ↕</strong> and all three projections recompute live — the one input fanning out to three roles — while hovering a <code>q</code>/<code>k</code>/<code>v</code> cell shows its full dot-product derivation. It is three matrix-vector products sharing one input — the step before attention (<a href="../scaled-dot-attention/"><code>../scaled-dot-attention/</code></a>) and the multi-head split (<a href="../multi-head/"><code>../multi-head/</code></a>).</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D heatmaps for the embedding, weight matrices, and outputs).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount({autoplay, onPointer})</code> + controls (<code>dim</code>, <code>seed</code>) + a per-output-dim <code>Transport</code> (<code>loop:true</code>), drawn with <code>render.heatmap</code>/<code>cell</code> <code>ctx</code> and <code>tensor.seededRandn</code>. Interactive per the framework contract: hover (<code>setTip</code> + <code>cellAt</code>), drag an embedding cell (<code>onPointer</code> + re-project), autoplay+loop. Headless hooks: <code>?step=N</code>/<code>?play=1</code> plus <code>?hover=x,y</code> (set pointer + pause) and <code>?drag=d,val</code> (set <code>x[d]</code>, re-project, pause). Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

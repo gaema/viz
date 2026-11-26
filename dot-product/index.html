@@ -6,6 +6,7 @@
 <title>dot-product -- a·b | viz</title>
 <meta name="description" content="Two vectors multiplied term by term, plus the geometry behind it: the projection of one onto the other, the angle between them, and the cosine similarity attention is built on.">
 <link rel="canonical" href="https://viz.math.gaema.ai/dot-product/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: vector dot product (term-by-term + geometry). Wires the
@@ -13,6 +14,20 @@
      (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/dot-product/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>dot-product -- a · b (projection + cosine)</h1>
+<p class="vz-about-plain">Take two lists of numbers, multiply them position by position, and add the results up. That single number says how much the two lists point the same way: large and positive when they agree, near zero when they are unrelated, negative when they pull in opposite directions. It is the smallest piece of almost everything a model does, computed once for every pair of things it compares, millions of times per layer. Divide it by how big each list is — the square root of the sum of its own squares — and you have cosine similarity, the score behind search results and "people also liked".</p>
+<p>Interactive page: the dot product of two vectors, built term-by-term, with the geometric meaning shown alongside. <strong>Anchor</strong>: foundational primitive (Family A2; the inner loop of every matmul / attention score / projection).</p>
+<h2>What it shows</h2>
+<p><code>a · b = Σₖ aₖ·bₖ</code>. Two vector strips (a, b) and a product strip <code>aₖ·bₖ</code> that fills in as you scrub the transport; the running sum accumulates with each term. A geometry panel draws <strong>a</strong> and <strong>b</strong> at their true angle θ (the real k-dimensional angle, faithfully shown in 2-D) with the scalar projection of b onto a shaded along a — making <code>a·b = |a||b|cosθ</code> and the cosine similarity <code>cosθ = a·b / (|a||b|)</code> concrete. The <strong>alignment</strong> slider drives b from aligned with a (cosθ→1) through orthogonal to anti-aligned (cosθ→−1).</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D). Small 1×k strips + vector graphics; no GPU needed.</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (dim <code>k</code>, <code>seed</code>, <code>alignment</code>) + the step <code>Transport</code> walking <code>tensor.dotSteps</code> (per-term accumulation), drawn with <code>render.heatmap</code>/<code>cell</code>/<code>arrow</code>/<code>label</code>. <code>?step=N</code>/<code>?play=1</code> headless hooks as on the matmul page. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

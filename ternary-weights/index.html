@@ -6,8 +6,18 @@
 <title>ternary-weights | viz</title>
 <meta name="description" content="Each weight rounds to −1, 0, or +1 and is stored with one scale. The reconstruction is that code times the scale. The readout sums the printed weights and the printed reconstructions.">
 <link rel="canonical" href="https://viz.math.gaema.ai/ternary-weights/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>ternary weights — a multiply becomes an add</h1>
+<p class="vz-about-plain">Storing a weight as minus one, zero, or plus one turns a multiply into an add or a skip. One scale says how large those choices are. Weights that are small next to that scale round to zero and drop out of the sum. Weights that are large next to it clip to a sign, so the reconstruction cannot follow them. The drawn bar is the code times the printed scale, and the readout sums those printed numbers.</p>
+<p>The weights are 0.90, 0.20, −0.80, 0.10, and −0.40. Each becomes −1, 0, or +1 by rounding weight/scale into that set, and clipping.</p>
+<p>The reconstruction is the code times the printed scale. One sum adds the printed weights. The other adds the printed reconstructions. At scale 0.50 the codes are 1, 0, −1, 0, −1, three of the five weights survive, the sums are 0.00 and −0.50, and the absolute error is 1.10.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

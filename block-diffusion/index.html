@@ -6,8 +6,17 @@
 <title>block diffusion draft | viz</title>
 <meta name="description" content="A block drafter proposes several tokens at once. The first position is the sure one. Each later position is accepted less often, so a wider block has a weaker tail.">
 <link rel="canonical" href="https://viz.math.gaema.ai/block-diffusion/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>block diffusion draft — a wider block, a weaker tail</h1>
+<p class="vz-about-plain">A block drafter does not guess one token at a time. It proposes a whole block in one parallel step. The first position is the one it is most sure of, and each later position is accepted less often. Widening the block does more work at once and lowers the chance that the tail of the block survives the check.</p>
+<p>Counting from 1, position i is accepted with probability quality^i. The first position is quality itself, not 1, and the tail of a block of width w is quality^w. Drag the width up and that tail falls.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

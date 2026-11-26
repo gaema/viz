@@ -6,6 +6,7 @@
 <title>ssm-scan | viz</title>
 <meta name="description" content="A recurrent state swept along the sequence, where an input-dependent step size decides what to keep and what to forget. Constant memory per token, however long the sequence runs.">
 <link rel="canonical" href="https://viz.math.gaema.ai/ssm-scan/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: the selective state-space scan (Mamba / S6) -- the recurrent
@@ -13,6 +14,23 @@
      (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/ssm-scan/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>ssm-scan -- the selective state-space scan (Mamba / S6)</h1>
+<p class="vz-about-plain">A model of the usual kind answers a question about earlier text by re-reading all of it, which gets slower the longer the text is. This is the other approach: keep one small fixed-size running summary and update it once per word, so each new word costs the same whether it is the tenth or the ten thousandth. What makes the modern version work is that the model decides, per word, how much to write in and how much to leave alone — a striking name is written hard, filler barely moves the summary. The cost is that the summary is all there is: whatever it did not keep cannot be recovered later, because the original words were never stored.</p>
+<p>Interactive page: how a selective state-space model carries a recurrent state through a sequence -- the <strong>scan</strong> <code>hₜ = Āₜ ⊙ hₜ₋₁ + B̄ₜ · xₜ</code>, <code>yₜ = C · hₜ</code> -- and what makes it <strong>selective</strong>: the timestep <code>Δₜ</code> (hence the decay <code>Āₜ</code> and the input gain <code>B̄ₜ</code>) depends on the input. <strong>Anchor</strong>: N1 sequence mixer / N2 recurrent state (Family E Mamba/SSM).</p>
+<h2>What it shows</h2>
+<p>A scalar input sequence <code>x [L]</code> is scanned into an <code>N</code>-dim hidden state. At each step:</p>
+<ul><li><strong>Δₜ = softplus(bias + selectivity · xₜ)</strong> -- the input-dependent timestep. Large <code>Δ</code> on a <em>salient</em> token ⇒ <strong>write</strong> (the state captures <code>xₜ</code>); small <code>Δ</code> on filler ⇒ <strong>hold</strong> (the state coasts, retaining memory). With selectivity 0 it is a plain linear SSM (constant <code>Δ</code>).</li><li>discretize: <strong>Āₜ,ₙ = exp(Δₜ · Aₙ)</strong> (per-dim decay in (0,1)), <strong>B̄ₜ,ₙ = (Āₜ,ₙ − 1)/Aₙ · Bₙ</strong>;</li><li>recurrence: <strong>hₜ,ₙ = Āₜ,ₙ · hₜ₋₁,ₙ + B̄ₜ,ₙ · xₜ</strong> -- slow dims (small |Aₙ|) remember for a long time, fast dims forget quickly;</li><li>output: <strong>yₜ = Σₙ Cₙ · hₜ,ₙ</strong>.</li></ul>
+<p>The panels share a horizontal time axis: input <code>x</code>, the selective <code>Δ</code>, the state trajectory <code>[N×L]</code> heatmap, and the output <code>y</code>. A side inset shows the current step's per-dim retention <code>Ā</code> and new state <code>hₜ</code>. The scan steps left to right (auto-plays + loops).</p>
+<p><strong>Drag an input bar</strong> to change <code>xₜ</code> and watch the state + output re-scan from that point (memory in action); set the <strong>state size N</strong> and <strong>sequence length L</strong> with the steppers; <strong>hover</strong> any cell. Companion: <code>mamba-block</code> (the full block).</p>
+<h2>Render tier</h2>
+<p>T2 (WebGL2 heatmap for the state trajectory; Canvas2D for the bars, the time axis, and the recurrence inset).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>N</code>, <code>L</code>, <code>sel</code>, <code>dbias</code>, <code>seed</code>) + an <code>L</code>-step <code>Transport</code> (scan step by step) + <code>onPointer</code> input-bar drag + hover. <code>?step</code> / <code>?drag</code> / <code>?sel</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

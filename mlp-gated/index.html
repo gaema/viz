@@ -6,6 +6,7 @@
 <title>mlp-gated | viz</title>
 <meta name="description" content="Two projections up, one gate, one projection back down. The gate multiplies element by element, letting the layer suppress its own features — and this is where most parameters live.">
 <link rel="canonical" href="https://viz.math.gaema.ai/mlp-gated/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: gated MLP (SwiGLU / GeGLU). Wires the framework modules
@@ -13,6 +14,22 @@
      are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/mlp-gated/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>mlp-gated -- the SwiGLU / GeGLU feed-forward block</h1>
+<p class="vz-about-plain">Once attention has let the words look at each other, each word is passed on its own through a small two-stage network, and this is where most of what a model knows is stored — usually around two-thirds of all its numbers. The modern version does the first stage twice, side by side: one copy is bent through a curve and then used to scale the other, number by number, so the network can turn parts of itself down to nothing for one word and leave them at full strength for another. That second copy is a third grid of numbers to pay for, so models make each stage narrower to keep the total size roughly where it was.</p>
+<p>Interactive page: the gated MLP used in modern transformers (Llama, etc.) — two parallel up-projections, an element-wise gate, and a down-projection. <strong>Anchor</strong>: A6 MLP shape / A7 activation (Family C2).</p>
+<h2>What it shows</h2>
+<p>The block, top to bottom (rows column-aligned so the element-wise step reads vertically):</p>
+<ol><li><code>gate = x · W_gate</code> — project <code>x</code> up to the intermediate width <code>I</code>.</li><li><code>up = x · W_up</code> — a <strong>second, parallel</strong> projection to the same width.</li><li><code>act(gate)</code> — apply the activation: <strong>SiLU</strong> (→ SwiGLU) or <strong>GELU</strong> (→ GeGLU), toggleable.</li><li><code>hidden = act(gate) ⊙ up</code> — the <strong>gate</strong>: <code>act(gate)</code> modulates <code>up</code> element-by-element (column <code>i</code> of <code>hidden</code> = column <code>i</code> of <code>act(gate)</code> × column <code>i</code> of <code>up</code>).</li><li><code>out = hidden · W_down</code> — project back down to <code>D</code>.</li></ol>
+<p>Scrub the transport through the five stages (auto-plays + loops); rows reveal as they're computed and the active stage is highlighted. <strong>Drag any input <code>x</code> cell vertically</strong> and gate, up, gated, and out all recompute live — the element-wise gating made tangible; <strong>hover</strong> a gate / up / gated cell for its derivation (<code>hidden[j] = act(gate[j]) · up[j]</code>). The intermediate width <code>I = 2·D</code> here (real models use ~2.7× for SwiGLU to keep the parameter count of the 3 matrices comparable to a 4× un-gated FFN).</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D heatmaps for the row vectors).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>dim D</code>, <code>seed</code>, <code>activation</code>) + a per-stage <code>Transport</code>, drawn with <code>render.heatmap</code> + <code>ctx</code> and <code>tensor.silu</code>/<code>gelu</code>/ <code>seededRandn</code>. Interactive per the framework contract: <code>onPointer</code> drag of <code>x</code> + <code>cellAt</code> hover-to-inspect + autoplay/loop. Headless hooks: <code>?step=N</code>, <code>?play=1</code>, <code>?act=silu|gelu</code>, <code>?hover=x,y</code>, <code>?drag=i,val</code> (set input cell <code>i</code>, e.g. <code>?drag=2,1.5</code>). Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

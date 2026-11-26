@@ -6,6 +6,7 @@
 <title>kv-quant | viz</title>
 <meta name="description" content="Squeeze the conversation’s memory rather than the weights. Four bits with a scale per group — and a single outlier stretches its group’s scale and spoils all of its neighbours.">
 <link rel="canonical" href="https://viz.math.gaema.ai/kv-quant/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: quantizing the KV CACHE (not the weights) -- 4/8-bit cached K
@@ -14,6 +15,41 @@
      are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/kv-quant/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>kv-quant -- quantizing the KV cache, not the weights</h1>
+<p class="vz-about-plain">As a conversation grows so do the notes the model keeps about every word said so far, and past a few tens of thousands of words those notes take up more room than the model itself. Storing each number in them with fewer bits is the cheapest way to buy a longer conversation without a bigger machine: numbers are held in small groups that share one scaling factor and are rounded back to full size when read. What you give up is exactness. A single unusually large value stretches its group's scale and makes every number beside it coarser, so which numbers are grouped together matters more than it sounds.</p>
+<p>Interactive page: <strong>group-wise quantization of the KV cache</strong> -- cached keys values stored as 4-bit or 8-bit codes with a scale per group, dequantized on read -- and what the <strong>grouping axis</strong> does to the reconstruction error. <strong>Anchor</strong>: G (quantization / deployment); Family G.</p>
+<h2>Why the KV cache is the right target</h2>
+<p>Weights are a <strong>fixed</strong> cost: one file, sized once at load. The KV cache is the term that <strong>grows</strong> -- one K vector and one V vector per token, per layer, per kv-head, held for as long as the conversation runs:</p>
+<pre><code>KV bytes = 2 · layers · kv_heads · head_dim · bits/8 · tokens</code></pre>
+<p>The page prices this against a memory budget you set, using a generic mid-size open LM shape (32 layers, 8 kv-heads, head_dim 128, ~8B parameters at ~4.5-bit weights). At fp16 KV, that cache passes the size of the <strong>entire quantized weight file</strong> at a few tens of thousands of tokens -- the number is computed live on the page and moves with the budget slider. Past that point the cache, not the model, is what decides how much context fits.</p>
+<p>So: <strong>weight quantization buys model size, once. KV quantization buys context length, every token.</strong> Same arithmetic, different tensor, different consequence. The sibling <a href="../quantization/"><code>quantization</code></a> page is the weight half.</p>
+<h2>The mechanism</h2>
+<p>Identical group-wise affine form as the weight page, applied to cached K and V:</p>
+<pre><code>s = (max − min) / (2^bits − 1) per group
+z = round(−min / s)
+q = clamp(round((x − min)/s), 0, 2^bits−1) the stored code
+x′ = min + s·q what attention reads back</code></pre>
+<p>Three heatmaps run across the top: the original fp16 slice, the reconstruction <code>x′</code>, and <code>|x − x′|</code>. The <strong>per-group scales are drawn explicitly</strong> as their own strip, laid out in the same orientation as the grouping, so "which elements share one scale" is a thing you can see rather than infer. Below them, one selected element is taken apart all the way down to its stored bits: the value, the group's <code>min</code>/<code>max</code>/<code>s</code>/<code>z</code>, the integer code in binary, the reconstruction and the error.</p>
+<p>Storage is charged honestly: <code>bits</code> per element <strong>plus</strong> the group's own 16-bit scale and 8-bit zero-point amortised over its members, so a small group shows up as a real overhead rather than a free lunch. The readout reports the effective bits/element for the live slice, which is why an almost-empty per-channel group early in decode reads as <em>exact but expensive</em>.</p>
+<h2>The axis is the interesting knob</h2>
+<p>A group has to be cut somewhere, and there are two natural directions:</p>
+<table><thead><tr><th>Axis</th><th>A group is</th><th>Scale is final…</th></tr></thead><tbody><tr><td><strong>per-token</strong></td><td><code>G</code> channels of <strong>one</strong> token (down a column)</td><td>the moment the token is written</td></tr><tr><td><strong>per-channel</strong></td><td><code>G</code> tokens of <strong>one</strong> channel (along a row)</td><td>never — a later token can widen the group's range</td></tr></tbody></table>
+<p>Because K and V do not hold their large values in the same layout, the axis you pick moves the error a long way. Cut a group <strong>along</strong> the direction the large values line up with and the group spans a narrow range, so its scale stays small and every member stays fine-grained. Cut <strong>across</strong> it and one large value stretches the group's <code>[min, max]</code>, stretches <code>s</code>, and coarsens every neighbour that shares that scale.</p>
+<p>The page shows this three ways, all live: a 2×2 table of RMSE (K and V × both axes) with the better axis marked, an RMSE-vs-bits curve carrying <strong>one line per axis</strong>, and the A/B compare button, which renders the whole page twice -- once per axis.</p>
+<p><strong>The slice on screen is synthetic and deliberately structured</strong> (a channel-aligned band of large values in K, a token-aligned one in V) so a 10×20 slice can show the effect at all. Which axis wins for a given real model is a property of that model's tensors: something to measure, not to assume. Published KV-cache-compression work does treat the two halves asymmetrically -- for instance, TurboQuant (arXiv:2504.19874) rotates KV vectors precisely so that large values <em>stop</em> concentrating in particular coordinates before per-coordinate quantization is applied. The open-source <strong>Shard</strong> KV compressor (&lt;https://github.com/krish1905/shard&gt;) does the same asymmetrically — a low-rank treatment of keys with a rotated vector-quantized treatment of values — though it is a repository rather than published work, so it sits beside the paper above rather than inside the "published" claim.</p>
+<h2>The tradeoff, all three axes live</h2>
+<ul><li><strong>bits per element</strong> -- the slider, 2 to 8. More bits = more levels = finer steps = less error.</li><li><strong>reconstruction error</strong> -- RMSE and max |err| for the live slice, plus the per-axis curve.</li><li><strong>context that fits</strong> -- horizontal bars for fp16 / 8-bit / 4-bit / current, each labelled with the token count reachable in the budget after the weights are paid for, and the effective bits/element that produced it.</li></ul>
+<h2>Interactions</h2>
+<ul><li><strong>Transport</strong> -- decode auto-plays and loops; each step writes one more K/V column, so the cache fills, the scales appear, and the memory bars move. <code>?step=N</code> / <code>?pos=N</code> seek it; <code>?play=1</code> starts it.</li><li><strong>Direct manipulation</strong> -- press any written cell and drag ↕ to change its value. Push one into an extreme and watch its group's scale stretch and every neighbour sharing that scale get coarser. <code>?drag=r,c,value</code> (<code>;</code>-separated for several) is the headless stand-in.</li><li><strong>Hover</strong> -- any cell reports the full derivation: original value, which group it is in and how many elements share that scale, the group's <code>min</code>/<code>max</code>/<code>s</code>/<code>z</code>, the code in decimal and binary, the reconstruction and the error.</li><li><strong>Controls</strong> -- tensor (K / V), grouping axis, bits, group size, context length, memory budget, seed. Every one has a <code>?key=</code> URL hook, plus <code>?sel=r,c</code> to pin the bit-level panel and <code>?hover=x,y</code> to fake a cursor.</li><li><strong>Challenges</strong> -- find a setting where one axis costs ≥ 1.5× the other's error; reach 3× the fp16 context while keeping RMSE under 0.08.</li></ul>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D: three heatmaps, the scale strip, the bit boxes, the memory bars the per-axis error curve).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + <code>controls</code> (<code>tensor</code>, <code>axis</code>, <code>bits</code>, <code>G</code>, <code>ctx</code>, <code>budget</code>, <code>seed</code>) + <code>transport</code> (autoplay, loop) + <code>animate</code> (the group scan) + <code>onPointer</code> drag + hover, <code>compare</code> on the grouping axis, two <code>challenges</code>. Colours come from <code>framework/theme.js</code> tokens, read at draw time. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

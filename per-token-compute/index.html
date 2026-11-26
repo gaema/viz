@@ -6,6 +6,7 @@
 <title>per-token-compute | viz</title>
 <meta name="description" content="Easy tokens leave early, hard ones go round again, so the compute profile is ragged rather than rectangular. GPUs want uniform work, and the padding can cost more than the saving.">
 <link rel="canonical" href="https://viz.math.gaema.ai/per-token-compute/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: adaptive per-token compute -- how much work a token gets, not
@@ -14,6 +15,29 @@
      compute shape. Serve over http (ES module imports are blocked on file://):
        python3 -m http.server 8557 
        open http://localhost:8557/per-token-compute/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>per-token-compute -- not every token needs the same amount of work</h1>
+<p class="vz-about-plain">A language model does exactly the same amount of work on every word, whether it is a comma or the crux of the sentence. Several shipped designs let that vary: a scorer admits only some words to each layer and the rest skip past, or a word stops once the model is confident enough, or a hard word is sent round the same layers more than once. The arithmetic saved is real. The catch is that chips want every word in a batch doing the same thing at the same time, so ragged work must be padded back out to a uniform shape or shuffled into one — and there are settings where that overhead costs more than the skipped work saved.</p>
+<p>Interactive page: a standard transformer spends <strong>identical compute on every token</strong>, however trivial -- <code>N</code> tokens × <code>L</code> blocks, one uniform rectangle. This page draws what happens when that rectangle is allowed to go <strong>ragged</strong>, what the ragged shape costs to schedule.</p>
+<p><strong>Scope</strong>: this page is about <strong>how much</strong> compute a token receives. Which <em>expert</em> a token picks is <a href="../moe-routing/"><code>../moe-routing/</code></a>, per-expert load, capacity and drops are <a href="../moe-balance/"><code>../moe-balance/</code></a> -- routing is not re-taught here.</p>
+<h2>The four mechanisms (modes of one widget)</h2>
+<table><thead><tr><th>Mode</th><th>Mechanism</th><th>Shape it makes</th></tr></thead><tbody><tr><td><strong>Mixture-of-Depths</strong></td><td>A router picks a capacity-limited subset of tokens to process in each block; the rest skip it via the residual (<a href="https://arxiv.org/abs/2404.02258">arXiv:2404.02258</a>)</td><td>Interior gaps, but a <strong>fixed</strong> count per block</td></tr><tr><td><strong>Zero-computation experts</strong></td><td>An MoE where some "experts" are the identity, so routing to one costs nothing and the model learns which tokens deserve real experts</td><td>Each token decides for itself, so the batch width <strong>wanders</strong> block to block</td></tr><tr><td><strong>Mixture-of-Recursions</strong></td><td>Shared layers applied a variable number of times per token, so a hard token loops more (<a href="https://arxiv.org/abs/2507.10524">arXiv:2507.10524</a>)</td><td>A clean skyline, contiguous from the bottom</td></tr><tr><td><strong>Early exit</strong></td><td>The simplest form: a token stops once a confidence threshold is met</td><td>A skyline too, driven by a confidence trace rather than a budget</td></tr></tbody></table>
+<p>The picture is the same in all four: <strong>sequence on one axis, depth on the other</strong>, each token's actual compute path drawn as a ragged height. Easy tokens (punctuation, predictable continuations) are short; hard ones are tall.</p>
+<h2>The cost that makes it honest</h2>
+<p>Ragged compute is a <strong>scheduling</strong> problem. GPUs want dense, uniform work, so a batch whose tokens take different paths either <strong>wastes capacity on padding</strong> or needs <strong>gather/scatter</strong> to compact itself -- and the router that makes the decision is charged on every token at every block, including the ones it skips.</p>
+<p>Both counters are reported against one named baseline, <strong>the uniform-depth model</strong> (every token through every block, dense, no router), as a percent with the direction stated -- these are lower-is-better axes, so <code>&gt;100%</code> is worse:</p>
+<ul><li><code>useful FLOPs … % of the uniform-depth model</code> -- what the ragged shape saves.</li><li><code>machine time … % of the same baseline</code> -- what the machine actually runs: <code>Σ_blocks (executed rows + router)</code>, where executed rows are <code>ceil(active / tile) · tile</code> under <strong>pad to tile</strong>, or <code>active + gather_cost · N</code> under <strong>gather / scatter</strong>.</li><li><code>utilisation</code> -- useful ÷ machine.</li></ul>
+<p>Both are computed live from the reader's settings, and there are reachable configurations on <strong>both</strong> sides: a real saving, and a net loss where the ragged shape costs more than it saves.</p>
+<h2>Interactions</h2>
+<ul><li><strong>Transport</strong> steps through the blocks (autoplay + loop); tokens visibly drop out as they finish, dimming with a ✓ at their exit depth.</li><li><strong>Direct manipulation</strong>: drag any token's difficulty bar, drag the <strong>capacity</strong> knob and the <strong>spread</strong> knob -- the profile and both counters move under your hand.</li><li><strong>Mode switch</strong> across the four mechanisms.</li><li><strong>Hover</strong> any token for its per-block path, its exit depth, and its share of the batch's useful compute; hover a block bar for active / padding / router.</li><li><strong>URL hooks</strong>: every control is mirrored into the query string, <code>?step=N</code> (seek a block), <code>?dif=i:v,…</code> (forced per-token difficulty -- the headless stand-in for a drag), <code>?hover=x,y</code>, <code>?play=1</code>. The sequence is <strong>seeded</strong>, so a link reproduces the picture.</li></ul>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D): the profile grid, the skyline, the per-block width bars and the two baseline meters are all vector work -- nothing here needs a GPU tier.</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>mode</code>, <code>N</code>, <code>L</code>, <code>cap</code>, <code>spread</code>, <code>sched</code>, <code>tile</code>, <code>gs</code>, <code>seed</code>) + an <code>L</code>-step transport (one step per block) + <code>onPointer</code> drags for the difficulty strip and the two knobs + hover. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

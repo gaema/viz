@@ -6,6 +6,7 @@
 <title>DiT | viz</title>
 <meta name="description" content="The transformer that replaced the U-Net in image models. Its trick is that conditioning modulates the normalisation, with the gate starting at zero so each block begins as an identity.">
 <link rel="canonical" href="https://viz.math.gaema.ai/dit/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: DiT -- a transformer over latent patches, conditioned by
@@ -15,6 +16,63 @@
      normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/dit/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>dit -- a transformer over latent patches, conditioned by modulating the norm</h1>
+<p class="vz-about-plain">Current image and video generators are built from the same kind of network as a chatbot. The compressed sketch being cleaned up is cut into small square tiles, each tile is treated the way a word is treated, and the network lets the tiles look at one another exactly as a language model lets words look at one another. The one real difference is how your prompt gets in: instead of being more tiles to look at, the prompt is turned into a set of dials that stretch and shift each tile's own numbers before every stage. Those dials begin at zero, so a fresh network of this kind starts as a harmless pass-through and every layer learns its way in — which is what makes stacking dozens of them work.</p>
+<p>Interactive page for the architecture that replaced the U-Net in image and video generation: a <strong>DiT</strong> patchifies the noisy <strong>latent</strong> into tokens and runs an ordinary transformer over them. <strong>Anchor</strong>: the diffusion backbone.</p>
+<p><strong>Scope.</strong> This page owns the <strong>architecture</strong> only. Its three neighbours own the rest of the diffusion story and are not re-taught here: <a href="../diffusion-noise/"><code>diffusion-noise</code></a> (the noising schedule and what the network is trained to predict), <a href="../diffusion-sampler/"><code>diffusion-sampler</code></a> (the integrator and the step count), and <a href="../guidance/"><code>guidance</code></a> (the conditioning knob, <code>w</code>).</p>
+<h2>The one idea</h2>
+<p>Patchifying a latent and running a transformer over it is unsurprising. The part that is worth drawing is <strong>how the conditioning gets in</strong>.</p>
+<table><thead><tr><th>Backbone</th><th>How the timestep / class / text conditioning enters</th></tr></thead><tbody><tr><td>U-Net</td><td>concatenated onto the feature map, or read through cross-attention</td></tr><tr><td>DiT (in-context)</td><td>the conditioning is appended as extra tokens</td></tr><tr><td>DiT (cross-attention)</td><td>a cross-attention sublayer per block</td></tr><tr><td><strong>DiT (adaLN-Zero)</strong></td><td><strong>the conditioning becomes the normalisation's scale, shift and gate</strong></td></tr></tbody></table>
+<p>The last one is what the paper found worked best, and it is the page's subject. One linear layer per block turns the conditioning vector <code>c</code> into <strong>six</strong> vectors:</p>
+<pre><code>c = timestep-embed(t) + class/text-embed (one vector per SAMPLE)
+γ₁ β₁ α₁ γ₂ β₂ α₂ = Linear(SiLU(c)) (six vectors per BLOCK)
+
+h = LayerNorm(x)·(1 + γ₁) + β₁ modulate
+a = Attention(h) attend
+x = x + α₁·a GATE, then residual
+h = LayerNorm(x)·(1 + γ₂) + β₂ modulate
+m = MLP(h)
+out = x + α₂·m GATE, then residual</code></pre>
+<p>Note there is no <code>γ</code>/<code>β</code> learned per-dimension inside the norm any more. The norm is un-affine, and the affine parameters are <em>produced from the conditioning</em> -- which is the whole trick. The conditioning is no longer something the token attends to; it is something that reshapes the token's own statistics.</p>
+<h2>Why the ZERO in adaLN-Zero</h2>
+<p><code>α₁</code> and <code>α₂</code> are <strong>gates</strong>: they multiply each branch before it is added back. The layer that emits all six is initialised to <strong>exactly zero</strong> -- weight bias -- so at step 0 of training <code>α₁ = α₂ = 0</code></p>
+<pre><code>out = x + 0·a + 0·m = x</code></pre>
+<p>Every block is an <strong>identity</strong>. A 28-block DiT therefore starts life as a clean residual pass-through, and each block learns its way in from zero rather than having to unlearn a random perturbation it was born with. That is the detail the page is built to make visible: drag <strong>training progress</strong> to 0 and watch all six vectors go to <code>0.00</code>, the per-token <code>‖Δ‖</code> map go flat, and the "token in" "gate + add" vector norms become the same number. Both branches are still computed and drawn -- they simply contribute nothing.</p>
+<h2>What is on screen</h2>
+<table><thead><tr><th>Element</th><th>What it is</th></tr></thead><tbody><tr><td>the diverging grid, top left</td><td>the noisy latent, with the patch lattice drawn over it; the blue box is the token being followed</td></tr><tr><td>the small sequential grid beside it</td><td><code>‖out − in‖</code> per token, i.e. how much this one block moved each token. <strong>Flat at zero-init</strong></td></tr><tr><td>conditioning panel</td><td>three <strong>draggable</strong> tracks (timestep, conditioning strength, training progress), then the sin-cos t-embed, the class embed, and their sum <code>c</code></td></tr><tr><td>six labelled strips</td><td><code>γ₁ β₁ α₁ γ₂ β₂ α₂</code>, live, with the two <strong>gates</strong> outlined</td></tr><tr><td>the seven-box row</td><td>one block, stage by stage, with the tracked token's feature vector under each stage and its norm</td></tr><tr><td>the two dashed green arcs</td><td>the residual paths -- drawn <strong>solid</strong> when the gates are zero, because then they are the only path</td></tr><tr><td>bottom left</td><td>the cost, computed from your settings</td></tr><tr><td>bottom right</td><td>the MMDiT comparison</td></tr></tbody></table>
+<p>Nothing is staged. The latent, the patch projection, the frozen 2-D sin-cos position embedding, the sinusoidal timestep embedding, the adaLN projection, LayerNorm, single-head attention over <strong>every</strong> token, the GELU MLP and both gated residual adds are all arithmetic the page does in-frame.</p>
+<h2>The trade: patch size is the whole cost story</h2>
+<p><code>N = (G/p)²</code>. Halving <code>p</code> <strong>quadruples</strong> the tokens, so the <code>N²</code> attention term goes up <strong>sixteenfold</strong>. The page computes this live from your grid, patch size and <code>d_model</code> -- no FLOP number in the source is hard-coded:</p>
+<pre><code>attention 4·N²·d the quadratic term
+qkv + out 8·N·d²
+MLP 16·N·d²
+adaLN 12·d² once per SAMPLE, not per token</code></pre>
+<p>Read it honestly: at a realistic <code>d_model</code> the quadratic term is a <em>minority</em> of a block's FLOPs until the token count gets large -- at <code>N = 64, d = 1152</code> it is under 1%, at <code>N = 256</code> it is a few percent. What halving <code>p</code> really buys is finer spatial detail, and what it charges is a term that grows as the square. The panel prints both directions (<code>p → p/2</code> and <code>p → 2p</code>) as a <strong>percent of the current setting</strong>, so the direction is never ambiguous.</p>
+<p><strong>Second trade, stated honestly: adaLN is not free.</strong> That per-block projection of the conditioning vector is <code>6·d² + 6·d</code> real parameters, against <code>12·d²</code> for the block's own attention + MLP -- so <strong>adaLN is about a third of the block's parameter count</strong>. Its <em>FLOP</em> cost is negligible (well under 1% of the block) because it runs once per sample rather than once per token, which is exactly why it is a cheap idea in compute and an expensive one in weights. Both numbers are in the panel and both move with <code>d_model</code>.</p>
+<h2>MMDiT, in one panel</h2>
+<p>MMDiT (Stable Diffusion 3) keeps the modulation idea and adds a second stream: text and image tokens each get their <strong>own</strong> qkv / MLP / adaLN weights (roughly double the block parameters), but the two token sets are <strong>concatenated for one joint attention</strong>, so they attend to each other directly instead of through a pooled conditioning vector. Attention pairs become <code>(N_img + N_txt)²</code>. That is the whole of what this page says about it -- one comparative panel, not a second lesson.</p>
+<h2>Interactions</h2>
+<table><thead><tr><th>Interaction</th><th>How</th></tr></thead><tbody><tr><td>step through one block</td><td>transport play / pause / step / scrub over the seven stages; auto-plays and loops</td></tr><tr><td><strong>drag the conditioning</strong></td><td>drag the <strong>timestep</strong> or <strong>conditioning strength</strong> track on the canvas -- all six modulation vectors move under your hand</td></tr><tr><td><strong>zero the gate</strong></td><td>drag <strong>training progress</strong> to 0, or press the button; the block becomes an exact identity and the readout prints <code>max‖out−in‖ = 0.000000</code></td></tr><tr><td><strong>change the patch size</strong></td><td>the <code>p</code> select -- token count and attention cost move together, priced live</td></tr><tr><td>follow a different token</td><td>click any patch in the latent</td></tr><tr><td>hover to inspect</td><td>hover any patch (its index, its <code>p×p</code> source cells, its projected value), any modulation cell (its value, which row of the adaLN Linear produced it, and what it does), any stage cell, or any of the three tracks</td></tr><tr><td>A/B compare</td><td>wired to <code>init</code>: gates-at-zero beside gates-open, same seed</td></tr><tr><td>challenge mode</td><td>two goals: make the block an identity; push the quadratic term past 10% of the block</td></tr></tbody></table>
+<h3>URL hooks</h3>
+<p>Every control is mirrored into the query string, so the copy-link button reproduces the exact frame.</p>
+<pre><code>?step=3 pause the transport at stage 3
+?init=0 the adaLN-Zero initialisation (block ≡ identity)
+?p=1&amp;G=16 patch size and latent grid -&gt; N = 256 tokens
+?t=850&amp;cscale=2.4 timestep and conditioning strength
+?cls=2&amp;seed=7&amp;tok=40 class, seed, and which token is followed
+?dm=1152 the d_model the cost panel prices
+?drag=t,850 headless stand-in for dragging a canvas track
+?hover=520,60 headless stand-in for a hover
+?compare=1 ?ch=1 open the A/B panes / a challenge</code></pre>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D). Two small heatmaps, a few dozen labelled cells and a box diagram; there is no large grid that would justify WebGL2.</p>
+<h2>Sources</h2>
+<ul><li>Peebles &amp; Xie, <em>Scalable Diffusion Models with Transformers</em> -- &lt;https://arxiv.org/abs/2212.09748&gt;. The DiT block, the four conditioning variants, adaLN-Zero, and the patch-size scaling study.</li><li>Esser et al., <em>Scaling Rectified Flow Transformers for High-Resolution Image Synthesis</em> -- &lt;https://arxiv.org/abs/2403.03206&gt;. MMDiT: separate weights per modality, joint attention.</li><li>Perez et al., <em>FiLM: Visual Reasoning with a General Conditioning Layer</em> -- &lt;https://arxiv.org/abs/1709.07871&gt;. The earlier feature-wise scale-and-shift conditioning that adaLN generalises.</li><li>Bachlechner et al., <em>ReZero is All You Need</em> -- &lt;https://arxiv.org/abs/2003.04887&gt;. The zero-initialised residual gate as a way to make deep stacks trainable.</li></ul>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

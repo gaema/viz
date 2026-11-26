@@ -6,12 +6,42 @@
 <title>lora | viz</title>
 <meta name="description" content="The update is the product of two thin matrices. Lower the rank and the stored count falls, while a full-rank change stays out of reach. Merged adapters add no serving multiply.">
 <link rel="canonical" href="https://viz.math.gaema.ai/lora/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: lora -- training r·(din+dout) numbers instead of din·dout by
      writing the update as the product of two thin matrices. Wires the framework
      modules (render / theme / controls). Needs an http server, since ES module
      imports are blocked on file:// in a normal browser. -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>lora — a low-rank update instead of a full one</h1>
+<p class="vz-about-plain">Changing a whole weight matrix means storing a new number for every entry. A low-rank adapter stores the change as the product of two thin matrices, so the count falls with the rank. The product cannot represent a change that needs more directions than that rank. At serving time the product can be added into the base weight, which costs nothing extra, or left separate so a request can swap adapters and pay one thin multiply.</p>
+<p>Interactive page: fine-tuning one layer by training <strong>two thin matrices</strong> instead of the layer itself. The update is their product, <code>ΔW = B·A</code>, so the number of trained values is <code>r·(din + dout)</code> instead of <code>din · dout</code> — and the price for that is that the product has rank at most <code>r</code>, so it can only write an <code>r</code>-dimensional slice of the layer.</p>
+<p>Source (public paper): Hu et al., <strong>LoRA: Low-Rank Adaptation of Large Language Models</strong>, <a href="https://arxiv.org/abs/2106.09685">arXiv:2106.09685</a>.</p>
+<h2>Scope — what this page does NOT re-teach</h2>
+<ul><li><a href="../matmul/">matmul</a> owns the matrix product the frozen layer already runs, and <a href="../qkv-projection/">qkv-projection</a> owns one such layer inside a block.</li><li><a href="../quantization/">quantization</a> owns making the <em>frozen</em> weights smaller. LoRA does not shrink the layer at all — it shrinks what you <strong>train</strong>, which is a different saving bought a different way.</li></ul>
+<p>This page holds a single frozen <code>din × dout</code> layer fixed at 8 × 8 and moves only the two things LoRA actually asks you to choose: the rank, and whether the adapter is folded in.</p>
+<h2>The mechanism</h2>
+<p>Freeze <code>W</code>, and train <code>B</code> (<code>dout × r</code>) and <code>A</code> (<code>r × din</code>) instead:</p>
+<p>ΔW = B · A rank(ΔW) ≤ r ≤ min(din, dout) y = x·W + x·(B·A)</p>
+<p><code>B·A</code> is a sum of <code>r</code> rank-1 terms, which is why the adapter bar is drawn as <code>r</code> equal bands: each term contributes one row of <code>A</code> (<code>din</code> numbers) and one column of <code>B</code> (<code>dout</code> numbers), so every band costs the same <code>din + dout</code> and the whole adapter costs <code>r·(din + dout)</code>.</p>
+<p>Two consequences the two bars report at the same time:</p>
+<table><thead><tr><th>Rank</th><th>Trained numbers</th><th>What the update can reach</th></tr></thead><tbody><tr><td>small <code>r</code></td><td><code>r·(din+dout)</code>, a small share of <code>din·dout</code></td><td><code>r</code> of the layer's <code>min(din,dout)</code> directions</td></tr><tr><td><code>r = din·dout / (din+dout)</code></td><td>equal to <code>din·dout</code> — the break-even line</td><td>still only <code>r</code> directions, for the same price</td></tr><tr><td><code>r = min(din, dout)</code></td><td>more than <code>din·dout</code></td><td>every direction — the constraint has dissolved</td></tr></tbody></table>
+<p>On an 8 × 8 layer break-even is <code>64 / 16 = 4</code>: at rank 4 the blue bar tops out exactly on the dashed line, above it the adapter is the <em>costlier</em> of the two, only at rank 8 is <code>rank(B·A) = 8</code>, i.e. as free as a full update.</p>
+<h2>The serving choice, which is a separate question</h2>
+<p>Merging changes the arithmetic but not the picture — the trained numbers are the same either way, so the toggle deliberately does not move the bars:</p>
+<table><thead><tr><th></th><th>what runs per token</th><th>extra cost</th></tr></thead><tbody><tr><td><strong>merged</strong></td><td>one GEMM against <code>W + B·A</code></td><td><strong>0</strong></td></tr><tr><td><strong>unmerged</strong></td><td>the base GEMM, then the thin side path <code>x·A</code> then <code>·B</code></td><td><code>r·(din+dout)</code> MACs — <code>+50%</code> over the base <code>din·dout</code> at rank 2</td></tr></tbody></table>
+<p>Kept unmerged, an adapter can be swapped per task without touching the base weights. Merged, it costs nothing forever and cannot be swapped at all. That trade, not the parameter count, is what the toggle is for.</p>
+<h2>Interactions</h2>
+<ul><li><strong>Rank slider</strong> <code>r = 1…8</code> — both bars, the <code>r</code> bands and the rank readout all move together.</li><li><strong>Merged toggle</strong> — switches which serve-cost row is lit; the bars stay put.</li><li><strong>Hover</strong> — the blue bar gives its count, its <code>A</code>/<code>B</code> shapes and how many of the layer's directions it reaches; the teal bar gives <code>din·dout</code> and marks the level the dashed line is drawn at.</li><li><strong>Challenge mode</strong> — three goals: find the rank where the adapter stops being the cheap option, give the adapter the whole layer back, and serve with zero extra arithmetic at rank 4 or higher.</li></ul>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D). Two bars and a small cost panel; there is no large tensor here.</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>r</code>, <code>merged</code>) + hover tooltips + <code>challenges</code>; the arithmetic is imported from <a href="math.js"><code>math.js</code></a>, which is unit-tested by <code>math.test.mjs</code>. URL hooks are the control values themselves: <code>?r=5</code> and <code>?merged=0</code>. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

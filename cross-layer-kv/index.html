@@ -6,8 +6,18 @@
 <title>cross-layer-kv | viz</title>
 <meta name="description" content="Every share-th layer writes keys and values, and the tail still gets a writer. The layers until the next writer reuse that cache. A share of 1 means every layer writes its own cache.">
 <link rel="canonical" href="https://viz.math.gaema.ai/cross-layer-kv/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>cross-layer KV — later layers reuse an earlier cache</h1>
+<p class="vz-about-plain">A model stores notes for every layer, and those notes are most of the memory a long conversation costs. Sharing across layers lets several of them read one set of notes instead of each writing its own. A layer that reuses a set still computes a new query, so it can look at different places in the same notes. The saving is every layer that no longer writes. A share of one puts that saving at zero, because every layer writes its own notes. What is given up, once the share is larger, is a private memory at every depth.</p>
+<p>Every <code>share</code>-th layer writes keys and values. The layers until the next writer reuse that cache and compute only a query. The tail of the stack still gets a writer, so the writer count is the layer count divided by the share, rounded up.</p>
+<p>Writers plus readers is the layer count. The cache is the writer count out of the layers. A share of 1 means every layer writes its own cache.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

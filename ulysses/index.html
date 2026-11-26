@@ -6,8 +6,18 @@
 <title>ulysses | viz</title>
 <meta name="description" content="One exchange gives each device the full sequence for a subset of heads. Attention on that slice matches single-device attention for those heads. A second exchange restores sequence sharding. A head count not divisible by the device count is refused.">
 <link rel="canonical" href="https://viz.math.gaema.ai/ulysses/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>ulysses — all heads become a full sequence on fewer heads</h1>
+<p class="vz-about-plain">One exchange gives each device the full sequence for an equal share of the heads. Attention on that share matches attention computed on one device for those same heads. A second exchange puts each device back on its sequence shard, now with every head. When the head count does not divide by the device count, the exchange is refused. The sequence length does not have to divide evenly.</p>
+<p>The sequence starts split across devices, with every head on each device. One exchange hands each device the full sequence and an equal share of the heads. Attention on those heads matches attention computed on one device for the same heads. A second exchange returns the sequence shards, now carrying every head.</p>
+<p>Four heads on two devices is two heads per device. Three heads on two devices is refused, because the heads do not divide evenly.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

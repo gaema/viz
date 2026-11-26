@@ -6,6 +6,7 @@
 <title>residual-stream | viz</title>
 <meta name="description" content="Every block reads the stream, adds its contribution and writes it back. Nothing is ever replaced, which is why information from the first layer can still reach the last.">
 <link rel="canonical" href="https://viz.math.gaema.ai/residual-stream/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: the residual stream (highway). Wires the framework modules
@@ -13,6 +14,23 @@
      are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/residual-stream/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>residual-stream -- the residual highway</h1>
+<p class="vz-about-plain">Running the length of a language model is one set of numbers per word that every layer shares. A layer never replaces it: it reads a copy, works out a small correction, and adds that correction back on, so the model is one long running sum rather than a chain in which each step overwrites the last. That is what makes hundreds of layers trainable, because a layer with nothing useful to add can add almost nothing and do no harm. The cost is that the running total keeps growing with depth, so each later layer's contribution is a smaller share of it and the deepest layers can end up barely heard.</p>
+<p>Interactive page: the residual stream — the tensor that runs straight through the transformer, that every block reads from and writes back to by <strong>adding</strong> (never overwriting). <strong>Anchor</strong>: A8 (Family C5).</p>
+<h2>What it shows</h2>
+<p>For one token, its residual stream traced <strong>through depth</strong>: a <code>[depth × D]</code> grid where each row is the stream after one more block — <code>embed → +attn₀ → +mlp₀ → +attn₁ → +mlp₁ → final norm</code>. Each block reads the stream (through a norm), computes a contribution, and <strong>adds</strong> it back, so the stream is a running sum — the "highway". A <code>‖stream‖</code> column shows the per-depth magnitude. Scrub the transport across <strong>tokens</strong> to see each token's stream; toggle <strong>pre / post-norm</strong>:</p>
+<ul><li><strong>pre-norm</strong> — <code>stream ← stream + sublayer(norm(stream))</code>. The stream itself is never normalized inside the stack, so its <strong>magnitude grows with depth</strong> (visible in the column); a single <strong>final norm</strong> rescales before the lm_head. Modern, stable.</li><li><strong>post-norm</strong> — <code>stream ← norm(stream + sublayer(stream))</code>. The stream is re-normalized after <strong>every</strong> add, so the magnitude stays ~1 throughout. Original transformer.</li></ul>
+<p>A small read-and-add unit diagram shows where the norm sits in each case.</p>
+<p><strong>Direct manipulation:</strong> drag a cell of the <code>[depth × D]</code> heatmap to edit that block's contribution (top row = the embedding <code>x[t,d]</code>, the rows below = each block's delta) and the running sum from that depth <strong>downward</strong> — plus the <code>‖rms‖</code> column — recomputes live, showing one block's write propagating down the highway. Hover any depth cell for <code>depth &quot;&lt;block&gt;&quot; dim d = value</code>, the rms column for how the magnitude grew from the previous depth, or a flow box for what that step does.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D heatmap + magnitude column + a flow diagram).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>tokens N</code>, <code>features D</code>, <code>seed</code>, <code>pre/post</code>) + a per-token <code>Transport</code> (auto-plays + loops), drawn with <code>render.heatmap</code>/<code>cell</code> + <code>ctx</code> and <code>tensor.seededRandn</code>; <code>onPointer</code> hit-tests the depth×D heatmap for hover + drag. <code>?step</code>/<code>?prenorm</code>/<code>?play</code>/<code>?hover=x,y</code>/<code>?drag=row,col,val</code> headless hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@
 <title>prefix-routing | viz</title>
 <meta name="description" content="The load balancer that knows which replica already holds your prefix. Follow the cache too strictly and every request piles onto one machine while the others sit idle.">
 <link rel="canonical" href="https://viz.math.gaema.ai/prefix-routing/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: routing a request to the replica that ALREADY holds its
@@ -15,6 +16,35 @@
      (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/prefix-routing/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>prefix-routing -- the load balancer that knows which replica holds your prefix</h1>
+<p class="vz-about-plain">A busy service runs many identical copies of a model, and something has to decide which copy answers you. The obvious choice is whichever is least busy, but each copy separately remembers work it has already done, so a request whose long standing instructions were already read by copy 2 gets sent to copy 3 and pays to read them all over again. A router that instead sends you where most of your text is already known avoids that — until it becomes a trap: everyone sharing one popular set of instructions is sent to the single machine holding them, which forms a queue while the others sit idle. What beats both is a router willing to abandon the shortcut when a machine gets busy.</p>
+<p>Interactive page: how a serving runtime picks <strong>which replica</strong> serves a request when several replicas of one model each keep their own prefix cache -- and why a router that only follows the cache is worse than round-robin.</p>
+<p><strong>Anchor</strong>: A4 KV cache / runtime shape (Family J, serving time).</p>
+<h2>The layer this page sits on</h2>
+<p><a href="../radix-attention/">radix-attention</a> shows prefix reuse <strong>inside one replica</strong>: two requests that begin with the same tokens share one KV path in a radix tree, so the second one prefills only its suffix. This page is the layer <strong>above</strong> it -- reuse <strong>across replicas</strong>, where the router has to choose.</p>
+<p>The reuse radix-attention buys is per replica, so it only exists if the request arrives at the replica that already holds the prefix. Round-robin does not know that: a request whose long system prompt is already computed on replica 2 lands on replica 3 and recomputes every block of it, and the tree on replica 2 ages out unused. A prefix-aware router hashes the prompt's leading blocks and sends the request where the matched prefix is longest. Same mechanism, one level up.</p>
+<h2>What it shows</h2>
+<p>A seeded stream of requests arriving at N replicas. Each request is a run of fixed-size blocks: the leading blocks are a shared <strong>system prompt</strong> drawn from a skewed popularity distribution, the trailing blocks are that request's own text and are shared with nobody. Each replica has a FIFO queue and an LRU block cache. Three panels:</p>
+<ul><li><strong>Replica cards</strong> -- live queue depth, utilisation, and which system-prompt prefixes that replica currently holds (one bar per prompt, height = how many of its blocks are cached).</li><li><strong>Arrival lanes</strong> -- one lane per replica, one dot per request in arrival order, coloured by system prompt. Fill = the fraction of the shared prefix that was served from cache; an orange ring means nothing was reused and the whole prompt was prefilled.</li><li><strong>The trade-off chart</strong> -- the same arrival stream re-simulated at 21 router weights, from pure load balance to pure cache affinity. Cache hit rate (green) and load balance (violet) cross; mean time-to-first-token relative to round-robin (dashed) bottoms out near the crossing, with a ★ on the best weight in the sweep.</li></ul>
+<h2>The failure, which is the point</h2>
+<p>The routing score is</p>
+<pre><code>score(replica) = w · matched-prefix-fraction − (1 − w) · relative-backlog</code></pre>
+<p>and <code>w</code> is a knob the reader drags. Both ends are reachable and both are bad:</p>
+<ul><li><strong>w = 0, pure load balance.</strong> Requests scatter, so every replica sees every system prompt, and with a finite cache they evict each other's prefixes. Balance is excellent, hit rate collapses, and the prefill nobody avoided shows up in latency.</li><li><strong>w = 1, pure cache affinity.</strong> This is a <em>pinning</em> function. Every request that shares one popular system prompt scores highest on the single replica that cached it, so they all queue there while the siblings sit idle. Hit rate is the best on the page and throughput is the worst on the page -- at a high popularity skew a replica can end the run having served <strong>nothing</strong>.</li><li><strong>In between</strong>, a router that will break affinity for a busy replica beats both, by a wide margin.</li></ul>
+<p>The <strong>popularity skew</strong> is the second draggable, and it is what decides whether affinity is worth anything at all: with many equally popular distinct prompts there is no hot prefix to follow, the green curve flattens, and affinity only costs balance. With one dominant prompt affinity pays the most <em>and</em> pins the hardest.</p>
+<p>Every number -- hit rate, mean TTFT, tail (p95) TTFT, throughput, per-replica utilisation -- comes out of the simulated run and is recomputed from scratch whenever a control moves. Ratios are reported as a percent of the <strong>round-robin baseline</strong>, which is the same arrival stream routed <code>k mod N</code> ("TTFT 71% of round-robin", lower is better; "throughput 103% of round-robin", higher is better). Nothing on the page is annotated.</p>
+<h2>Sources for the mechanism</h2>
+<p>Both public:</p>
+<ul><li><strong>SGLang</strong> -- <em>SGLang: Efficient Execution of Structured Language Model Programs</em>, &lt;https://arxiv.org/abs/2312.07104&gt;, for <strong>RadixAttention</strong> — KV reuse <em>inside one worker</em>. The cross-worker cache-aware balancer this page is actually about is a later, separate component: the <strong>SGLang Router</strong> (<code>sgl-router</code>), shipped in v0.4 — &lt;https://lmsys.org/blog/2024-12-04-sglang-v0-4/&gt;. The paper does not contain it, so citing the paper alone left this card's own subject unsourced.</li><li><strong>vLLM production-stack</strong> -- the KV-cache-aware routing logic in its router: &lt;https://docs.vllm.ai/projects/production-stack/en/latest/&gt;</li></ul>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D throughout -- the lesson is a scheduling decision, not pixel scale).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>replicas</code>, <code>w</code>, <code>skew</code>, <code>prompts</code>, <code>capacity</code>, <code>arrivals</code>, <code>seed</code>) + a one-step-per-arrival <code>Transport</code> (autoplay, loop), <code>onPointer</code> drag on the ◆ weight marker and the ▲ skew handle, hover-to-inspect on replica cards / arrival dots / the chart / the popularity histogram, three challenges, and an A/B compare over <code>w = 0</code> against <code>w = 1</code>. URL hooks: every control (<code>?w</code>, <code>?skew</code>, <code>?replicas</code>, <code>?prompts</code>, <code>?capacity</code>, <code>?arrivals</code>, <code>?seed</code>) plus <code>?step=N</code>, <code>?hover=x,y</code>, <code>?play=1</code> -- seeded, so one URL replays exactly one arrival stream at exactly one router setting. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

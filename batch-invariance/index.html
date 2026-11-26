@@ -6,6 +6,7 @@
 <title>batch-invariance | viz</title>
 <meta name="description" content="Adding numbers in a different order gives a different answer, and a GPU picks its order from the batch shape. Same prompt, same seed, different reply — because of who else was served.">
 <link rel="canonical" href="https://viz.math.gaema.ai/batch-invariance/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: batch invariance -- why a reduction's answer depends on the
@@ -15,6 +16,38 @@
      normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/batch-invariance/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>batch-invariance — your reply depends on who else was batched with you</h1>
+<p class="vz-about-plain">Ask a service the same question twice, with everything set to be repeatable, and you can still get two different answers. Adding up a long list of numbers gives a very slightly different result depending on the order you add them in, because every addition is rounded off. A chip splits that list across however many parallel workers the job's shape calls for, and the shape depends on how many other people's requests are in flight — so the last digits move with the traffic. When the top two candidate words are nearly tied, those digits pick the winner, and the two replies part company completely from there. Pinning the order fixes it and leaves part of the chip idle.</p>
+<p>An interactive page about one uncomfortable fact: a language-model server can give you a different answer to the <em>same</em> prompt, with the <em>same</em> weights, the <em>same</em> seed and greedy decoding, because of <strong>who else's requests were in flight at the same time</strong>. That is not a bug in the sampler and not hidden randomness. It is floating-point arithmetic doing exactly what it is specified to do.</p>
+<p>Open <code>index.html</code> over a static server (ES modules are blocked on <code>file://</code>):</p>
+<pre><code>python3 -m http.server 8099
+# then open http://localhost:8099/batch-invariance/</code></pre>
+<h2>The mechanism</h2>
+<p>Floating-point addition is <strong>not associative</strong>. <code>(a + b) + c</code> and <code>a + (b + c)</code> are different numbers in general, because each <code>+</code> rounds its result to the nearest representable value, and rounding twice in a different order does not land in the same place.</p>
+<p>A GPU does not add a row left to right. A reduction kernel splits the row across some number of parallel lanes, sums each lane, and then combines the lane totals in a tree. <strong>How many lanes it picks is a function of the launch shape</strong> — the launch shape depends on how many requests are being served at once. More requests in flight means fewer lanes per row, which means a different chunking, which means a different addition order, which means different last bits.</p>
+<p>Then something downstream <em>thresholds</em> on those bits. Greedy decoding is exactly such a threshold: take the largest logit. When the top two logits are close — in a real vocabulary they very often are — the winner is decided by the bits the reduction order moved. One token changes, and from there the two continuations diverge completely.</p>
+<p>So the chain is: batch size → launch shape → reduction split → addition order → last bits of the logit → argmax → a different reply.</p>
+<h2>Everything on this page is computed, not stored</h2>
+<p>There is no recorded "difference" anywhere in the source. JavaScript numbers are IEEE-754 binary64, and <code>Math.fround</code> rounds to binary32 after each operation, so the accumulators carry exactly the bits a float32 kernel would carry. The page builds one real row of float32 values and sums it <strong>twice</strong>:</p>
+<ul><li><strong>sequential</strong> — one accumulator, left to right, rounding after every add;</li><li><strong>split</strong> — contiguous chunks summed per lane, then combined pairwise up a tree, with the number of lanes derived from the batch size.</li></ul>
+<p>The bit strips are read straight out of the same <code>Float32Array</code>/<code>Uint32Array</code> pair that holds the values, so a displayed bit pattern cannot disagree with the number above it. The first differing bit is <code>Math.clz32(bitsA ^ bitsB)</code>, the distance is the difference of the two bit patterns read as integers, and the token flip is a real <code>argmax</code> over a real softmax.</p>
+<p>Because it is computed, it is also allowed to come out <strong>negative</strong>: the "all ones" preset gives bit-identical sums at every batch size, and some batch sizes on the other presets happen to re-round back onto the sequential answer. A page that could only ever show a difference would be showing a rigged example, not arithmetic.</p>
+<h2>The three views</h2>
+<table><thead><tr><th>View</th><th>What it shows</th></tr></thead><tbody><tr><td><strong>the reduction (bits)</strong></td><td>The row, the lane split, the combine tree, the two sums, and their 32 bit cells side by side with the differing bits marked.</td></tr><tr><td><strong>greedy argmax (the flip)</strong></td><td>Four candidate logits under both orders, their softmax probabilities, and which token greedy decoding actually picks.</td></tr><tr><td><strong>the cost of invariance</strong></td><td>The batch sweep: what each batch size makes the kernel answer, and how much of the lane pool a fixed split leaves idle.</td></tr></tbody></table>
+<h2>Things to try</h2>
+<ul><li><strong>Press play.</strong> The transport walks the reduction: each lane accumulating, then each combine. The sequential accumulator advances on the same element counter, so both orders are visible at once and you can watch them separate.</li><li><strong>Drag the batch strip.</strong> The tree re-shapes as the lane count changes, and the bits at the bottom move with it.</li><li><strong>Drag a value cell up or down.</strong> The drag is exponential, so one gesture can span decades — make one element huge and another tiny and watch the small ones get absorbed in one order but not the other. The <code>i:v</code> text field takes exact values if you would rather type them.</li><li><strong>Switch presets.</strong> "catastrophic cancellation" (±1024 plus crumbs) pushes the disagreement thousands of steps and up into the exponent; "all ones" shows a row with nothing to lose.</li><li><strong>Hover anything.</strong> Every node reports its partial sum, its exact bit pattern, and which elements it is made of.</li><li><strong>Turn on the batch-invariant kernel.</strong> The split pins to a fixed width and the answer stops moving with the batch. Note what it does <em>not</em> do: it does not become the sequential answer. It becomes <strong>one</strong> answer.</li></ul>
+<p>Deep links: <code>?view=</code>, <code>?batch=</code>, <code>?n=</code>, <code>?preset=</code>, <code>?invariant=1</code>, <code>?rival=</code>, <code>?edit=3:900,7:0.0001</code>, <code>?step=N</code>, <code>?theme=</code>, <code>?compare=1</code>, <code>?ch=N</code>.</p>
+<h2>The trade</h2>
+<p>Batch invariance is not free. A kernel that must reduce in the same order at every batch size cannot pick the split that suits the launch it actually got, so at small batches it leaves parallelism on the table. The page shows that part <em>arithmetically</em> — the idle-lane fraction comes from the same lane counts the reduction really used.</p>
+<p>What the page <strong>cannot</strong> do is measure a real kernel's slowdown; nothing about a browser canvas can. The source below reports it as a real but workable cost from batch-invariant attention and matmul kernels, and that is a citation here, never a number this page produced.</p>
+<h2>Source</h2>
+<p>Thinking Machines, <strong>"Defeating Nondeterminism in LLM Inference"</strong> (2025-09) — identifies batch-size-dependent reduction order as the cause of run-to-run nondeterminism in servers that are otherwise fully deterministic, and proposes batch-invariant kernels as the fix: &lt;https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/&gt;</p>
+<p>The lane-split rule on this page (a fixed pool of lanes shared across the rows in flight) is the smallest honest model of shape-driven split selection. It is a teaching model of the mechanism, not a transcription of any particular vendor's reduction kernel.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

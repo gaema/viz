@@ -6,6 +6,7 @@
 <title>paged-attention | viz</title>
 <meta name="description" content="The cache in fixed-size blocks with a per-sequence table, instead of one reserved slab. Watch the reserved-but-unused tails vanish, and two requests share one prompt’s blocks.">
 <link rel="canonical" href="https://viz.math.gaema.ai/paged-attention/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: paged KV cache -- fixed-size blocks + a per-sequence block
@@ -14,6 +15,25 @@
      (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/paged-attention/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>paged-attention -- a KV cache in blocks, not slabs</h1>
+<p class="vz-about-plain">A chat service has to keep, for every conversation it is holding open, the notes the model made while reading everything said so far. Give each conversation one solid stretch of memory big enough for the longest reply it might write and most of that stretch sits empty, while the leftovers between conversations are too small for anyone else to use. Handing out small fixed-size chunks instead means only the last chunk of a conversation is part-empty, and two people whose conversations opened with the same instructions can point at the very same chunks until their wording diverges. What it costs is bookkeeping: a lookup table per conversation saying where its chunks actually are.</p>
+<p>Interactive page: why a serving runtime stores the KV cache in fixed-size <strong>blocks</strong> with a per-sequence <strong>block table</strong>, instead of one contiguous slab per sequence -- and how two sequences that start with the same prompt end up pointing at the same physical blocks. <strong>Anchor</strong>: J1 serving-time KV-cache memory management (the paged-attention / block-table idea popularized by vLLM), sitting on top of the <a href="../kv-cache/"><code>kv-cache</code></a> page's per-token cache math.</p>
+<h2>What it shows</h2>
+<p>Two strips over the <strong>same 96-cell memory pool</strong>, so the counter under each is directly comparable.</p>
+<ul><li><strong>Contiguous.</strong> Every sequence reserves one slab the size of the longest answer it might produce. Cells past its current length are hatched: reserved and dead. The leftover at the end of the pool is hatched too when it is smaller than one reservation -- it cannot host another sequence, which is fragmentation you can point at. A sequence that outgrows its slab is flagged: a full slab has nowhere to grow.</li><li><strong>Paged.</strong> The same sequences in fixed-size blocks handed out from a free list, so they are <strong>not adjacent</strong>, and only the <strong>last</strong> block of each sequence is partly empty. Below, one <strong>block table</strong> per sequence maps logical block → physical block, with an arrow into the block it names.</li><li><strong>Shared blocks.</strong> Two of the sequences are answers to the same prompt, so their first block-table entries point at the <strong>same</strong> physical blocks (marked <code>⇄</code>, with both arrows converging). Only whole blocks can be shared; the block where the two sequences first diverge is private to each -- copy-on-write.</li><li>The counter that matters, live under each strip: <strong>wasted cells / total cells</strong>, split into reserved-but-unused vs fragmented tail on the contiguous side, and last-block slack on the paged side, plus how many cells prefix sharing stored once instead of twice.</li></ul>
+<h2>Interactions</h2>
+<table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><strong>Transport</strong></td><td>Auto-plays + loops a decode. Each step appends one token to one sequence; a new physical block is allocated <strong>only when the current one fills</strong>, and the step label says which.</td></tr><tr><td><strong>Direct manipulation</strong></td><td>Drag the <code>◂▸</code> grip on the <strong>block-size</strong> bar (2 → 8 tokens) and drag a <strong>reservation boundary</strong> in the contiguous strip. The allocation, the block tables, the arrows and both waste counters recompute under your hand.</td></tr><tr><td><strong>Hover</strong></td><td>Any pool cell → which sequence and logical position it holds, or "reserved by S*i*, empty", or free / fragmented tail. Any paged block → its owner, logical block and slot, its slack, or "free -- any sequence can take it". Any block-table entry → the physical block it points at and whether that block is shared.</td></tr><tr><td><strong>Resize the problem</strong></td><td>Sequence count (2-4), block size, reservation size, prefix sharing on/off.</td></tr><tr><td><strong>A/B compare</strong></td><td>Coarse 8-token blocks vs fine 2-token blocks, side by side.</td></tr><tr><td><strong>Challenges</strong></td><td>Drive paged waste to ≤ 3 cells; get 2+ shared blocks.</td></tr></tbody></table>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D). The lesson is allocation topology, not pixel throughput -- a few hundred cells and a fan of arrows, so the floor tier teaches it and nothing is gained by reaching higher.</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>blocksize</code>, <code>seqs</code>, <code>reserve</code>, <code>share</code>) + a step <code>Transport</code> whose <code>compute</code> simulates prefill and decode and snapshots the allocation after every token (<code>lens[i]</code>, <code>alloc[i][L] = physical block</code>). Everything drawn with <code>render.label</code>/<code>arrow</code> + <code>ctx</code>, coloured with <code>theme.js</code> tokens only (<code>categorical</code> per sequence, <code>T.violet</code> for shared, <code>T.bad</code> hatching for waste), so it reads in light and dark. Headless hooks mirroring the drag state: <code>?blocksize=8&amp;seqs=3&amp;reserve=20&amp;share=0</code>, plus <code>?step=N</code>, <code>?hover=x,y</code>, <code>?play=1</code>. Source: <a href="page.js"><code>page.js</code></a>.</p>
+<h2>Data</h2>
+<p>None fetched -- the allocation is simulated in-page from a fixed pool of 96 token slots, a deterministic free list, and per-sequence prompt lengths. Same numbers on every reload, no download, no weights.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

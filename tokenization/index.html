@@ -6,6 +6,7 @@
 <title>tokenization | viz</title>
 <meta name="description" content="Byte-pair encoding builds a vocabulary by repeatedly merging the commonest adjacent pair. Watch text become token ids, and see why an unusual word costs several of them.">
 <link rel="canonical" href="https://viz.math.gaema.ai/tokenization/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: Byte-Pair Encoding (BPE) tokenization -- merging the most
@@ -14,6 +15,23 @@
      over http (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/tokenization/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>tokenization -- Byte-Pair Encoding builds the vocab</h1>
+<p class="vz-about-plain">A model does not read letters. Before anything else your text is cut into tokens, a fixed list of somewhere between fifty thousand and a quarter of a million whole words and word fragments, each with a number of its own. That list is built by starting from single characters and repeatedly gluing together whichever pair of neighbours turns up most often across a large pile of text, so common words end up as one token while rare ones get chopped into several. It is why you are billed per token rather than per word, and why an unusual name, or a language the list was not built around, costs several times more to send than ordinary English.</p>
+<p>Interactive page: <strong>Byte-Pair Encoding (BPE)</strong> -- the step that turns text into the integer token IDs a model consumes, the step <em>before</em> <a href="../embedding/"><code>embedding</code></a>. <strong>Anchor</strong>: C (transformer block input). Family C.</p>
+<h2>What it shows</h2>
+<p>BPE starts from raw <strong>characters</strong> and repeatedly does one thing: find the most frequent <strong>adjacent pair</strong> of symbols across the whole corpus (weighted by each word's frequency), <strong>merge</strong> that pair into a single new symbol, and record a <strong>merge rule</strong>. Frequent letter sequences (<code>&quot;e&quot;+&quot;s&quot;→&quot;es&quot;</code>, <code>&quot;es&quot;+&quot;t&quot;→&quot;est&quot;</code>) thus become single tokens — the <strong>vocabulary grows</strong> and the <strong>token count shrinks</strong>.</p>
+<ul><li>left: each corpus word as its current sequence of symbol boxes (the just-merged symbol highlighted), with a draggable <code>×freq</code>;</li><li>right-top: the <strong>pair-frequency table</strong> at this step, the winner (next/just merged) highlighted;</li><li>right-bottom: the <strong>merge rules</strong> learned so far, in order;</li><li>bottom: the <strong>vocab size</strong>, the <strong>token count</strong> (vs the original character count), and the compression.</li></ul>
+<p>This is the BPE <strong>training</strong> loop itself — but not, exactly, the alphabet the production tokenizers run it over. GPT-2/3/4 and Llama-3 train <strong>byte-level</strong> BPE: the base alphabet is the 256 bytes, after a pre-tokenization regex split, not the characters shown here; Llama-1/2 use SentencePiece BPE with a <code>▁</code> word-start marker rather than this page's trailing <code>_</code>. The merge rule is identical; the starting vocabulary, and therefore the merges actually learned, are not. At inference the learned merge rules are simply <strong>replayed</strong> on new text. The trailing <code>_</code> marks a word boundary (so a merge can't cross between words).</p>
+<p><strong>Step / play</strong> the transport to watch the merges form; <strong>drag</strong> a word's <code>×freq</code> ↕ to change which pairs win (make <code>lowest</code> frequent and watch <code>est</code> merge sooner); pick a <strong>corpus</strong>; hover a pair for its count.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D: the symbol-segmentation rows + the pair-frequency bars + the merge-rule list + counts).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + a <code>transport</code> over the merge steps + a <code>corpus</code> select <code>onPointer</code> drag-the-frequency + hover. <code>?corpus</code> / <code>?step</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

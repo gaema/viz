@@ -6,6 +6,7 @@
 <title>hybrid-by-layer | viz</title>
 <meta name="description" content="Mostly recurrent layers with full attention every so often. Only the attention layers need a cache, so the memory cost falls in proportion to how few of them there are.">
 <link rel="canonical" href="https://viz.math.gaema.ai/hybrid-by-layer/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: hybrid-by-layer -- interleaved SSM layers + periodic full
@@ -13,6 +14,22 @@
      are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/hybrid-by-layer/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>hybrid-by-layer -- interleaved SSM + periodic full attention</h1>
+<p class="vz-about-plain">A model is a stack of dozens of near-identical layers, and they do not all have to work the same way. Newer models make most of them the cheap kind that keeps a small fixed running summary, and place a full attention layer — the kind that stores notes on every past word and re-reads them — only every fourth or eighth position. Nearly all the memory a long conversation eats is those stored notes, so cutting how many layers keep any cuts the memory bill by about the same fraction. What is given up is exact recall: the summary layers work only from what they compressed, so the few attention layers carry the model's ability to quote the past precisely.</p>
+<p>Interactive page: how <strong>hybrid</strong> models (Jamba, Zamba, Qwen3-Next, …) stack cheap <strong>SSM / linear-attention</strong> layers and sprinkle in <strong>full-attention</strong> layers every so often -- and exactly <strong>where the KV cache lives and where it doesn't</strong>. <strong>Anchor</strong>: N3 hybrid sequence architecture (Family E). Builds on <a href="../ssm-scan/">ssm-scan</a> / <a href="../gated-deltanet/">gated-deltanet</a> (the SSM layers) and <a href="../kv-cache/">kv-cache</a> (the attention layers).</p>
+<h2>What it shows</h2>
+<p>A stack of <code>N</code> layers. Most are <strong>SSM</strong> layers (recurrent constant-size state, <code>O(L)</code> per token, <strong>no KV cache</strong>); every <code>P</code>-th layer is a <strong>full-attention</strong> layer (<code>O(L²)</code>, a <strong>KV cache</strong> <code>[L × 2·d]</code>). The interleave pattern -- e.g. one attention every 4th layer (Qwen3-Next and Kimi Linear both ship 3:1) to every 8th (Jamba's <code>a:m = 1:7</code>) -- is the whole design knob.</p>
+<ul><li><strong>Where KV exists</strong>: only the attention rows hold a KV cache (shown as a cache strip); the SSM rows carry just a small recurrent state (a flowing line). A forward-pass pulse rises through the stack.</li><li><strong>The memory win</strong>: total KV cache = <code>#attn · L · 2·d</code>, a fraction <code>#attn / N</code> of an all-attention model. The rollup shows the KV total, the saving vs full attention, and the SSM/attention compute mix.</li><li><strong>The trade-off</strong>: more attention layers ⇒ better exact long-range recall but more KV memory + <code>O(L²)</code> compute; fewer ⇒ cheaper but the model leans on the SSM state to summarise the past.</li></ul>
+<p><strong>Drag</strong> the attention-period slider to steer the pattern (and the KV memory) live; <strong>click</strong> any layer to flip it SSM↔attention by hand; <strong>hover</strong> any layer to inspect its type, KV size, and cost.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D: the layer stack, the per-layer SSM-state lines / attention KV-cache strips, the forward-pass pulse, and the memory rollup).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>N</code>, <code>P</code>, <code>L</code>, <code>d</code>) + <code>animate</code> (the forward-pass pulse) + <code>onPointer</code> layer click-to-toggle + the period slider (drag-to-steer) hover. <code>?p</code> / <code>?toggle</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

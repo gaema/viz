@@ -6,6 +6,7 @@
 <title>activations | viz</title>
 <meta name="description" content="GeLU, SiLU, Mish and their cheap approximations on one axis. They differ mostly near zero, and that small difference is what decides how gradients flow through a deep stack.">
 <link rel="canonical" href="https://viz.math.gaema.ai/activations/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: activation functions (GELU erf/tanh, SiLU, Mish). Wires the
@@ -13,6 +14,22 @@
      module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/activations/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>activations -- GELU (erf / tanh) vs SiLU/Swish vs Mish</h1>
+<p class="vz-about-plain">Between the multiplying steps of a layer sits a small bend: a function that takes each number on its own and passes it through a curve. Without it the whole stack collapses, because multiplying by one grid of numbers and then by another is the same as multiplying by a single combined grid, so a hundred layers would be worth exactly one. The curves actually in use are all much the same shape — near zero for negative inputs, near unchanged for large positive ones, with a shallow dip in between — and that is the honest finding here: which of them you pick makes very little difference.</p>
+<p>Interactive page: the smooth activation functions used in transformer MLPs, plotted side by side. <strong>Anchor</strong>: A7 activation in MLP (Family C3).</p>
+<h2>What it shows</h2>
+<p>Four activations on one axis:</p>
+<ul><li><strong>GELU (erf, exact)</strong> — <code>0.5·x·(1 + erf(x/√2))</code>.</li><li><strong>GELU (tanh approx)</strong> — <code>0.5·x·(1 + tanh(√(2/π)·(x + 0.044715·x³)))</code>; the cheaper form most GGUF/llama.cpp models use (<code>gelu_pytorch_tanh</code>).</li><li><strong>SiLU / Swish</strong> — <code>x·σ(x)</code>; the gate in SwiGLU.</li><li><strong>Mish</strong> — <code>x·tanh(softplus(x))</code>.</li></ul>
+<p>All four are smooth, non-monotonic (a small negative dip), <code>≈ x</code> for large positive <code>x</code> and <code>≈ 0</code> for large negative <code>x</code> — which is why they're nearly interchangeable. Drag the <strong>x-marker</strong> horizontally (or hover the plot) to read all four values at a point you control — a vertical guide + a dot on each curve + a value tooltip track the cursor; on load the marker <strong>sweeps on its own</strong> freezes the moment you grab it. Scrub the transport to highlight each (its curve bolds and its formula shows); toggle <strong>zoom near 0</strong>, because the differences only show up around the dip (GELU's is shallowest ≈ −0.17, Mish's deepest ≈ −0.31).</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D line plot + axes).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount({animate:true, onPointer})</code> + a <code>zoom</code> toggle + a per-activation <code>Transport</code>, drawn with <code>ctx</code> and <code>tensor.silu</code>/<code>gelu</code> (Mish computed inline). The x-marker is dragged via <code>onPointer</code> (horizontal) and read back through the <code>pixel↔x</code> map captured in <code>draw</code>; the ambient sweep uses <code>api.t</code> and freezes on drag/hover. Headless hooks: <code>?x=VALUE</code> (set marker x, freeze sweep), <code>?hover=x,y</code> (fake cursor for the tooltip + guide), plus the existing <code>?step=N</code>/<code>?play=1</code>/ <code>?zoom</code>. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

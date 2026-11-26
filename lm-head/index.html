@@ -6,6 +6,7 @@
 <title>lm-head | viz</title>
 <meta name="description" content="The final projection turns one hidden vector into a score for every vocabulary entry. It is frequently the same matrix as the embedding table, read the other way round.">
 <link rel="canonical" href="https://viz.math.gaema.ai/lm-head/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: lm_head (hidden -> vocab logits; tied/soft-cap/slice). Wires
@@ -13,6 +14,23 @@
      (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/lm-head/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>lm-head -- hidden state → vocab logits</h1>
+<p class="vz-about-plain">When the model has finished thinking about your prompt it holds one long list of numbers, and it still has to turn that into an actual word. This is the step that does it: the model compares its final state against every word it knows — a fixed list of perhaps 50,000 to 250,000 entries — and gives each one a score, and the highest scorer is usually what you see appear. It is also one of the largest single parts of a model, because it needs a row of numbers for every word in the language. That is why many models reuse the very same table they used to read your prompt. A few also squash the scores into a fixed range before choosing, so that no single one can run away from the rest.</p>
+<p>Interactive page: the output projection that turns a hidden state into a logit per vocabulary token, plus the three tricks around it — tied weights, logit soft-capping, and decode-time logit slicing. <strong>Anchor</strong>: A9 lm_head structure / A10 vocab (Family C6).</p>
+<h2>What it shows</h2>
+<p>The last hidden state <code>h</code> (a <code>D</code>-vector) is projected against every row of the unembedding matrix <code>W_lm</code> (<code>[V × D]</code>): <code>logit[v] = h · W_lm[v]</code>. Scrub the transport across the vocabulary to fill the logit per token (each = a dot product with that token's row). The argmax is the predicted next token.</p>
+<p>Toggles:</p>
+<ul><li><strong>tie weights</strong> — <code>W_lm = E</code> (reuse the embedding table) vs a separate matrix. Tying saves <code>V·D</code> parameters (huge at real vocab sizes); the <code>W_lm</code> heatmap then equals the embedding table.</li><li><strong>soft-cap</strong> — <code>logit ← cap · tanh(logit / cap)</code>, which bounds logits to <code>±cap</code> (Gemma 2 caps the final logits at 30). The bars show raw vs capped the <code>±cap</code> lines; large logits get squashed toward the cap.</li><li><strong>slice last token</strong> — in <strong>decode</strong> you only need the next-token distribution, so you slice the hidden states to the <strong>last</strong> position compute <code>[1 × V]</code>, not the full <code>[N × V]</code>. The annotation shows the compute saved (<code>N×</code> fewer logit rows).</li></ul>
+<p>The hidden states <code>H [N×D]</code> are shown with the sliced row highlighted.</p>
+<h2>Render tier</h2>
+<p>T2 (WebGL2 heatmaps for <code>H</code> and <code>W_lm</code>; Canvas2D for the logit bars + cap lines).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>seed</code>, <code>tie</code>, <code>soft-cap</code>, <code>cap</code>, <code>slice</code>) + a per-vocab <code>Transport</code> (auto-plays + loops), drawn with <code>render.heatmap</code>/<code>cell</code> <code>ctx</code> and <code>tensor.seededRandn</code>. <strong>Interactive</strong> (2026-06-13 contract): drag any <code>h</code> cell ↕ to steer the hidden state and watch every logit + the argmax recompute live; hover a logit bar for its full derivation (<code>h · W_lm[v] = Σ_d h[d]·W[v,d]</code>), an <code>h</code> or <code>W_lm</code> cell for its value. <code>?step</code>/<code>?tie</code>/<code>?cap0</code>/<code>?slice0</code>/<code>?play</code> headless hooks, plus <code>?hover=x,y</code> (fake cursor) and <code>?drag=d,val</code> (set <code>h[d]</code>, e.g. <code>?drag=2,2.5</code>). Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

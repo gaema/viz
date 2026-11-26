@@ -6,6 +6,7 @@
 <title>gated-deltanet | viz</title>
 <meta name="description" content="Memory as a fixed-size matrix rather than a growing cache: a decay gate fades what is already stored, and a delta rule writes the new key-value pair over the top of it.">
 <link rel="canonical" href="https://viz.math.gaema.ai/gated-deltanet/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: GatedDeltaNet -- the linear-attention delta-rule state update
@@ -13,6 +14,24 @@
      over http (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/gated-deltanet/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>gated-deltanet -- the linear-attention delta-rule state update</h1>
+<p class="vz-about-plain">Attention remembers every past word and re-reads them all. This is the alternative: a fixed-size table of associations — this cue goes with that content — which never grows, however long the conversation runs. The trick that makes it usable is what happens when a cue already on file comes back: the model first erases what was stored under it, then writes the new content in its place, so a repeat updates the entry instead of stacking a second copy on top until the table turns to mush. Everything also fades slightly each step, so old entries eventually disappear. Fixed size is the whole point and the whole cost — the table holds only so much.</p>
+<p>Interactive page: the <strong>GatedDeltaNet</strong> recurrence -- a linear-attention variant that carries a <strong>matrix</strong> state (an associative key→value memory) and updates it with a <strong>gated delta rule</strong> (Qwen3-Next / Gated DeltaNet hybrids). <strong>Anchor</strong>: N1 sequence mixer (linear attention; constant-size matrix state instead of a KV cache); Family E, companion to <a href="../ssm-scan/">ssm-scan</a> <a href="../mamba-block/">mamba-block</a>. See.</p>
+<h2>What it shows</h2>
+<p>Instead of attention's <code>softmax(QKᵀ)V</code> (which re-reads the whole KV cache), linear attention keeps a fixed <code>[d×d]</code> state matrix <code>S</code> -- a sum of key→value associations -- and reads it with the query: <code>oₜ = Sₜ qₜ</code>. <strong>GatedDeltaNet</strong>'s update rule:</p>
+<p>Sₜ = αₜ · Sₜ₋₁ · (I − βₜ kₜ kₜᵀ) + βₜ vₜ kₜᵀ</p>
+<ul><li><strong>αₜ (gate / decay)</strong>: shrinks the whole memory each step (forgetting) -- the "gated" part.</li><li><strong>delta rule (βₜ)</strong>: <code>(I − βₜ kₜ kₜᵀ)</code> first <strong>erases</strong> the value currently stored at key <code>kₜ</code> (the term <code>−βₜ (Sₜ₋₁ kₜ) kₜᵀ</code>), then <code>+ βₜ vₜ kₜᵀ</code> <strong>writes</strong> the new value <code>vₜ</code> there. So a repeated key <strong>overwrites</strong> instead of piling up -- the memory doesn't saturate (vs plain linear attention <code>Sₜ = Sₜ₋₁ + vₜ kₜᵀ</code>).</li></ul>
+<p>The state matrix <code>S [d×d]</code> is the centrepiece; it evolves as you step the sequence. Each step shows the token's <code>k / v / q</code>, the gate <code>α</code> and write <code>β</code>, the written association <code>βvkᵀ</code>, and the output <code>o = S q</code>. Toggle the delta rule off to watch the memory saturate.</p>
+<p><strong>Drag</strong> a <code>v</code> (value) component to change what gets written and watch <code>S</code> + the output re-run; <strong>hover</strong> any state cell, k/v/q, or output. The scan auto-plays loops.</p>
+<h2>Render tier</h2>
+<p>T2 (WebGL2 heatmaps for the <code>[d×d]</code> state + written-association matrices; Canvas2D for the k/v/q/o bars and the formula).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>L</code>, <code>d</code>, <code>alpha</code>, <code>beta</code>, <code>delta</code>, <code>seed</code>) + an <code>L</code>-step <code>Transport</code> (the state evolves over the sequence) + <code>onPointer</code> value drag + hover. <code>?step</code> / <code>?drag</code> / <code>?delta</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

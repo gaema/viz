@@ -6,6 +6,7 @@
 <title>multimodal-inject | viz</title>
 <meta name="description" content="An encoder turns an image into vectors, a small projector reshapes them to token size, and they are spliced into the text sequence as though they had been typed.">
 <link rel="canonical" href="https://viz.math.gaema.ai/multimodal-inject/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: multimodal injection -- a vision (ViT) or audio encoder +
@@ -15,6 +16,24 @@
      file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/multimodal-inject/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>multimodal-inject -- vision/audio tokens in the text stream</h1>
+<p class="vz-about-plain">There is no separate picture input on a language model. An image goes through its own network, which turns each piece of it into a row of numbers; those rows pass through a small translation step that reshapes them into exactly the shape a word becomes; and they are then dropped into the sequence of words at the point where the image was attached. From there the model treats them like any other item in the list — it never learns which ones came from pixels. That is why an attached photo eats part of the same budget your text does, and why sound can be added the same way with nothing else about the model changing.</p>
+<p>Interactive page: <strong>multimodal injection</strong> -- how a vision-language / audio-language model feeds a non-text input into a text LLM. <strong>Anchor</strong>: G (multimodal / deployment); Family G.</p>
+<h2>What it shows</h2>
+<p>There is no separate "image input" to an LLM -- the image is turned into <strong>tokens</strong> that live in the <strong>same embedding space as words</strong>:</p>
+<ol><li><strong>Encode</strong> -- a ViT (image) or audio encoder turns the input into per-patch / per-frame feature vectors.</li><li><strong>Project</strong> -- a <strong>projector MLP</strong> (<code>D_enc → D</code>) maps those features into the LLM's token-embedding dimension <code>D</code>.</li><li><strong>Inject</strong> -- the resulting "soft" media tokens are <strong>spliced into the text token sequence</strong> at a <code>&lt;image&gt;</code> / <code>&lt;audio&gt;</code> placeholder.</li><li><strong>Attend</strong> -- the merged sequence (text embeddings + media tokens, every column the same <code>D</code>-dim vector) is run through ordinary <strong>self-attention</strong>, which attends across text and media <strong>uniformly</strong> -- the model never sees a "modality type", only token vectors.</li></ol>
+<p>This is exactly how LLaVA, Qwen2-VL, and audio-LMs work. The merged-sequence heatmap colour-codes each column by source (text = blue, image = orange, audio = green) brackets the injected media block.</p>
+<p>A <strong>causal self-attention grid</strong> below the LLM bar makes the "uniform attention" point concrete rather than asserted: row <code>i</code> attends to columns <code>j ≤ i</code>, coloured by weight, with source-coloured row/column ticks. A query-row readout breaks down how much of that row's attention lands on <strong>text vs image vs audio</strong> -- e.g. the final <code>?</code> / <code>.</code> token attends ~half to the image tokens (image mode), or splits three ways across text/image/audio (both mode). Hover any row to inspect it, or any cell for the exact <code>attn[i→j]</code> weight.</p>
+<p><strong>Drag</strong> the media block ↔ to move where it is injected; switch the <strong>modality</strong> (image / audio / both), the <strong>token count</strong>, and the <strong>prompt</strong>; hover a column to see its source and how it was produced; the injection connector animates.</p>
+<h2>Render tier</h2>
+<p>T2 (Canvas2D: the encoder/projector panel with a procedural image + waveform, the prompt boxes, the colour-coded merged-sequence heatmap feeding an LLM bar, and the causal self-attention grid with its per-modality query-row breakdown).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>modality</code>, <code>N</code>, <code>prompt</code>, <code>seed</code>) + <code>animate</code> (the injection flow dot) + <code>onPointer</code> drag-the-media-block + hover. <code>?modality</code> / <code>?N</code> / <code>?prompt</code> / <code>?seed</code> / <code>?inject</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

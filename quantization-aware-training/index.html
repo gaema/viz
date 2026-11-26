@@ -6,8 +6,18 @@
 <title>quantization-aware-training | viz</title>
 <meta name="description" content="The forward pass rounds a high-precision weight onto a code and multiplies by the scale. The backward pass updates that high-precision weight as if the rounding derivative were 1, so the forward code stays put until a bin boundary.">
 <link rel="canonical" href="https://viz.math.gaema.ai/quantization-aware-training/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>quantization-aware training — round in the forward, step the full weight</h1>
+<p class="vz-about-plain">The forward pass stores a high-precision weight, rounds it onto a code, and multiplies that code by the scale. The backward pass updates the high-precision weight by the full step, as if the rounding derivative were 1. Inside a flat bin the forward code stays put until the weight crosses a boundary. A scale of zero sends the forward value to zero, and the step still applies to the stored weight.</p>
+<p>The forward value is the high-precision weight after it is rounded onto a grid and scaled back. At weight 1.20 and scale 0.50 the code is 2 and the forward value is 1.00.</p>
+<p>The backward step treats that rounding as slope one, so the stored weight moves by the full step. A step of 0.05 takes 1.20 to 1.15, and 1.15 is still code 2. The forward value changes only when the weight crosses a rounding boundary.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

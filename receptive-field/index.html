@@ -6,6 +6,7 @@
 <title>receptive-field | viz</title>
 <meta name="description" content="Stack convolutions and each output sees a wider slice of the input. Dilation widens that view faster without adding weights — the dependency cone, drawn layer by layer.">
 <link rel="canonical" href="https://viz.math.gaema.ai/receptive-field/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: receptive field -- how stacking (and dilating) conv layers
@@ -13,6 +14,24 @@
      module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/receptive-field/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>receptive-field -- how stacked convs grow what each output sees</h1>
+<p class="vz-about-plain">A single image filter reads only three neighbouring positions, which is not enough to recognise anything. But the next layer's filter reads three outputs of the first, each of which already summarised its own three, so it indirectly depends on a wider stretch of the original picture — and that stretch widens by two more positions with every layer stacked. This page draws it along a single line for legibility; in a real image the same widening happens in both directions at once. That growing window is why a deep network built entirely from tiny filters can still respond to a whole face, and why depth buys reach rather than just more arithmetic. Spreading a filter's weights apart widens the window faster still, at the price of stepping over the pixels in between.</p>
+<p>Interactive page: the <strong>receptive field</strong> -- the patch of input that a single output unit depends on -- and how <strong>stacking</strong> convolution layers (and <strong>dilating</strong> them) grows it. <strong>Anchor</strong>: F (CNN / vision); Family F, companion to <a href="../convolution/">convolution</a>.</p>
+<h2>What it shows</h2>
+<p>A 1-D stack of conv layers (input at the bottom, output at the top). Each unit reads <code>k</code> units in the layer below (the conv), so its dependency <strong>cone</strong> widens downward. The receptive field is how wide that cone is when it reaches the input:</p>
+<p>RF = 1 + Σₗ (k − 1)·dₗ (stride-1; dₗ = dilation at layer l)</p>
+<ul><li><strong>stacking</strong> (depth <code>L</code>): each <code>3×3</code> layer adds <code>k−1 = 2</code> to the RF, so <code>L</code> layers of <code>3×3</code> see <code>2L + 1</code> inputs -- a deep stack of cheap small kernels reaches a wide RF (two 3×3 ≈ one 5×5, three ≈ one 7×7, but fewer params).</li><li><strong>dilation</strong>: spacing the taps apart grows the RF for the same <code>k</code>. With <strong>doubling</strong> dilation (<code>dₗ = 2^(l−1)</code>, WaveNet/TCN), the RF grows <strong>exponentially</strong>: <code>RF = 1 + (k−1)(2^L − 1)</code>.</li></ul>
+<p>The focus unit's cone is highlighted down to the input, where the RF interval is bracketed; the readout gives the RF size + the formula.</p>
+<p><strong>Drag</strong> the <em>conv layers</em> slider to stack more layers and watch the cone (and the RF) grow; <strong>hover</strong> any unit to focus its cone and inspect its RF; the focus unit sweeps the top layer (the RF shifts with position).</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D: the layered unit grid, the dependency cone, the input RF bracket).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>N</code>, <code>L</code>, <code>k</code>, <code>mode</code>, <code>dil</code>) + <code>animate</code> (the focus sweep) + hover-to-focus. <code>?L</code> / <code>?k</code> / <code>?mode</code> / <code>?dil</code> / <code>?focus</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

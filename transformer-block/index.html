@@ -6,6 +6,7 @@
 <title>transformer-block | viz</title>
 <meta name="description" content="The whole block assembled: normalise, attend, add, normalise, feed forward, add. Step it and watch one residual stream get transformed, then handed to an identical block.">
 <link rel="canonical" href="https://viz.math.gaema.ai/transformer-block/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: one full pre-norm transformer block (residual spine + the
@@ -13,6 +14,23 @@
      blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/transformer-block/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>transformer-block -- one full pre-norm block</h1>
+<p class="vz-about-plain">A language model is built by stacking one repeating unit, and this is that unit. A word's numbers are rescaled to a standard size, sent through attention so that words can pull information from each other, and the result is added back onto the running total; then rescaled again, sent through the small per-word network where the model's knowledge sits, and added back again. That is one whole layer. A modern language model is this same unit stacked several dozen times with different numbers in each copy, which is why models grow mostly by getting deeper rather than by acquiring new kinds of part.</p>
+<p>Interactive page: a whole transformer block end to end -- <code>x -&gt; RMSNorm -&gt; Attention -&gt; + -&gt; RMSNorm -&gt; MLP -&gt; + -&gt; out</code> -- showing the <strong>residual spine</strong> and the two sublayer branches that read it (via norm) and add back. <strong>Anchor</strong>: the block is the unit the per-attribute A1-A12 pages assemble into; Family C capstone.</p>
+<h2>What it shows</h2>
+<p>A token sequence <code>x [N×D]</code> flows along a residual spine. Two sublayers branch off it and add back:</p>
+<ul><li><strong>Attention</strong>: <code>a = Attn(RMSNorm(x))</code>, then <code>h1 = x + a</code>.</li><li><strong>MLP (SwiGLU)</strong>: <code>m = MLP(RMSNorm(h1))</code>, then <code>out = h1 + m</code>.</li></ul>
+<p>This is <strong>pre-norm</strong> (norm sits on the read branch; the spine itself is never normalized -- the identity highway from <a href="../residual-stream/">residual-stream</a>). Every tensor is really computed (Q/K/V, causal softmax, SwiGLU); the sublayer internals live in their own pages (<a href="../scaled-dot-attention/">scaled-dot-attention</a>, <a href="../mlp-gated/">mlp-gated</a>, <a href="../normalization/">normalization</a>).</p>
+<p>Step the transport through the six stages (norm1 -&gt; attn -&gt; add -&gt; norm2 -&gt; mlp -&gt; add); <strong>drag any x cell</strong> to steer the input and watch the whole block recompute; <strong>hover</strong> any cell for its value + stage.</p>
+<h2>Render tier</h2>
+<p>T2 (WebGL2 heatmaps for the spine + branch tensors; Canvas2D for the boxes, arrows, and residual arcs).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>N</code>, <code>D</code>, <code>seed</code>) + a 6-stage <code>Transport</code> <code>onPointer</code> drag on <code>x</code> + hover tooltips. <code>?step</code> / <code>?drag</code> / <code>?hover</code> headless hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

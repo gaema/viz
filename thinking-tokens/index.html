@@ -6,6 +6,7 @@
 <title>thinking-tokens | viz</title>
 <meta name="description" content="Reasoning is ordinary generation between two literal tokens, so the decoder can steer it. Suppress the stop token and it keeps thinking; force it early and it must answer now.">
 <link rel="canonical" href="https://viz.math.gaema.ai/thinking-tokens/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- There is no reasoning ARCHITECTURE. A reasoning model emits its chain of
@@ -18,6 +19,34 @@
      on real logits, but ONLY on an explicit click. Serve:
        python3 -m http.server 8155 
        open http://localhost:8155/thinking-tokens/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>thinking-tokens -- the reasoning trace is a decoder setting</h1>
+<p class="vz-about-plain">When a model "thinks before answering", nothing new is happening inside it. It is writing, exactly as it always writes, and the only difference is a pair of markers around the part meant to be working-out. Because the closing marker is just another word it might write, the amount of thinking is a setting the surrounding software controls: hold that marker down and the model carries on, often catching its own mistake; force it out early and the model has to answer from an unfinished thought. Each extra word of thinking costs one more word of time, but the benefit stops arriving sooner than you would guess — past the natural stopping point you buy a re-check, then groundless doubt, then a repetition loop, and an answer worse than the one it already had.</p>
+<p>Interactive page: <strong>there is no reasoning ARCHITECTURE</strong>. A reasoning model emits its chain of thought between two <em>literal tokens</em>, <code>&lt;think&gt;</code> <code>&lt;/think&gt;</code>, and everything between them is ordinary autoregressive generation -- the same forward pass, the same softmax, the same sampler as any other token. The trace exists because of <strong>training</strong>, not because of a new block: a <strong>format reward</strong> (put the thinking inside the tags) beside an <strong>accuracy reward</strong> (<a href="https://arxiv.org/abs/2501.12948">DeepSeek-R1, arXiv 2501.12948</a>).</p>
+<p>Because the boundary is just a token, <strong>test-time compute is controllable from the decoder</strong>, with no retraining (<a href="https://arxiv.org/abs/2501.19393">s1 / budget forcing, arXiv 2501.19393</a>; reference implementation: <a href="https://github.com/simplescaling/s1">simplescaling/s1</a>):</p>
+<table><thead><tr><th>Lever</th><th>What the decoder does</th><th>What you see</th></tr></thead><tbody><tr><td>🟢 suppress + inject</td><td>clamp the boundary token's logit toward −∞ and append <code>Wait</code></td><td>generation carries on, and often <strong>self-corrects</strong></td></tr><tr><td>🟡 force early</td><td>emit the boundary token at a token budget</td><td>the model must <strong>answer now</strong> from a truncated thought</td></tr></tbody></table>
+<p>Both act on <strong>one logit and one comparison per step</strong>. Nothing else changes.</p>
+<h2>Honesty: which option this page took</h2>
+<p>The collection can run a real GPT-2 in the browser, and this page takes <strong>option (a) -- the real runtime, on a boundary token GPT-2 actually has.</strong></p>
+<p><strong>GPT-2 is not a reasoning model.</strong> It was never trained with a format reward it has <strong>no <code>&lt;think&gt;</code> / <code>&lt;/think&gt;</code> tokens</strong>, so the real mode does not pretend to show a reasoning trace. What it shows is the <strong>decoder mechanism itself</strong>: pick a boundary token GPT-2 really has (<code>&quot;.&quot;</code>, <code>&quot;\n&quot;</code>, or <code>&lt;|endoftext|&gt;</code>), clamp <em>that</em> token's real logit on real logits, inject a real <code> Wait</code>, and the real continuation changes under your hand. That is the same clamp and the same injection a reasoning model is <em>trained</em> to make useful -- only the boundary token differs. Reasoning models are trained to use this exact lever with a <code>&lt;think&gt;</code> boundary; the page says so on-canvas, in both modes.</p>
+<p>The default <strong>synthetic stand-in</strong> (no download) shows what the lever looks like on a model that <em>was</em> trained for it: a scripted trace of that shape, labelled as a stand-in in the banner.</p>
+<p><strong>The real model never downloads on open.</strong> The page opens synthetic and fetches weights only on the explicit, size-labelled <strong>"load real GPT-2 (~548 MB)"</strong> button (or <code>?real=1</code> / <code>?autoload=1</code> for tooling).</p>
+<h2>The trade, and why it is not a straight line</h2>
+<ul><li><strong>Cost is exactly linear.</strong> Every forced token is a token generated and a step of latency. The dashed line in the right panel is a straight line by construction.</li><li><strong>Benefit turns over.</strong> Past the natural stopping point you buy a redundant confirmation, then doubt with no evidence, then a repetition loop -- and the answer can end up <strong>worse</strong> than the one you already had. The stand-in walks exactly that arc: <code>$6</code> (a slip) → <code>$8</code> (self-corrected) → <code>$8</code> (re-checked, nothing gained) → <code>$12</code> (invented discount) → <code>$24</code> (degenerate).</li></ul>
+<p>⚠️ <strong>The accuracy curve is SCHEMATIC</strong> -- it draws the reported <em>shape</em> (rise, plateau, turnover), not measured numbers, and is labelled as such on the canvas. No measurement is claimed anywhere on this page.</p>
+<p>The bottom panel folds in the <strong>trained</strong> form of the same lever: instead of clamping at decode time, train the length in with a <strong>length penalty tied to difficulty</strong> -- <code>reward = accuracy − λ(difficulty) · length</code>, so easy problems get a short leash and hard ones a long one (<a href="https://arxiv.org/abs/2506.05256">arXiv 2506.05256</a>).</p>
+<h2>Interactions</h2>
+<table><thead><tr><th></th><th>Interaction</th></tr></thead><tbody><tr><td>1</td><td><strong>Transport</strong> -- step / play / scrub the generation, autoplay + loop; <code>?step=N</code></td></tr><tr><td>2</td><td><strong>Direct manipulation</strong> -- drag the stop-token logit bar to clamp it (down to −∞), and watch the trace extend under your hand</td></tr><tr><td>3</td><td><strong>Inject a continuation</strong> -- one click suppresses the boundary the model just reached and appends <code>Wait</code> there</td></tr><tr><td>4</td><td><strong>Hover any token</strong> -- the candidate logits, the bias arithmetic, and <code>p(stop) = exp(l_stop) / Σ exp(l_i)</code> for that step</td></tr><tr><td>5</td><td><strong>Forced length</strong> -- a hard token budget (stepper, or click/drag in the curve panel) that emits the boundary token mid-thought</td></tr><tr><td>6</td><td><strong>A/B compare</strong> -- bias 0 against bias −∞, same seed, side by side</td></tr><tr><td>7</td><td><strong>Challenges</strong> (<code>?ch=N</code>) -- self-correct; answer early; push past the turnover into a worse answer</td></tr></tbody></table>
+<h2>URL hooks (one URL replays one run)</h2>
+<p><code>?step=N</code> · <code>?bias=</code> · <code>?inj=</code> · <code>?force=</code> · <code>?seed=</code> · <code>?stopTok=period|newline|eot</code> · <code>?hover=x,y</code> · <code>?play=1</code> · <code>?compare=1</code> · <code>?prompt=</code> (real mode) · <code>?real=1</code> / <code>?autoload=1</code> (opt in to the download). Everything is seeded deterministic, so a link reproduces the exact frame.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D). The real mode's "compute tier" is the GPT-2 forward in JS, one full forward per generated token (no KV cache), reusing the verified forward in <a href="../real-attention/gpt2.js"><code>../real-attention/gpt2.js</code></a>.</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + <code>controls</code> (<code>bias</code> / <code>inj</code> / <code>force</code> / <code>seed</code> / <code>stopTok</code>, two action buttons, the load button) + <code>controls.transport({loop:true})</code>, <code>onPointer</code> for the two drag targets, <code>setTip</code> for hover, <code>probe</code> for the challenge checks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

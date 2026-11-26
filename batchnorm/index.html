@@ -6,6 +6,7 @@
 <title>batchnorm | viz</title>
 <meta name="description" content="Normalise each channel by its batch statistics, then scale and shift. Training uses the batch and inference uses a running average, and that mismatch is a classic source of bugs.">
 <link rel="canonical" href="https://viz.math.gaema.ai/batchnorm/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: Batch Normalization -- running mean/variance tracking (EMA)
@@ -14,6 +15,23 @@
      normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/batchnorm/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>batchnorm -- running mean/variance + train vs inference</h1>
+<p class="vz-about-plain">Numbers flowing through a deep network drift, one layer's outputs coming out ten times bigger than another's, and that makes training slow and fragile. This step fixes it by measuring, during training, the average and the spread of each channel — the picture one filter produces — across the current batch of images and dividing them out, so every channel arrives at the next layer on a comparable scale. Batches are small and noisy, so it also keeps a smoothed running estimate of those two numbers. That is the part that surprises people: once training is over there is no batch to measure, so the frozen estimate is used instead, and the network behaves slightly differently when you use it than it did while learning.</p>
+<p>Interactive page: <strong>Batch Normalization</strong> -- normalize each channel's activations, <strong>track</strong> a running mean/variance during training (an exponential moving average), and at <strong>inference</strong> use that tracked average instead of the batch's own statistics. <strong>Anchor</strong>: F (CNN / vision); Family F, builds on <a href="../convolution/">convolution</a>.</p>
+<h2>What it shows</h2>
+<p>For one channel of a feature map (the paintable input), BatchNorm computes <code>y = γ · (x − μ)/√(σ² + ε) + β</code> -- but <strong>which μ, σ it uses differs by mode</strong>:</p>
+<ul><li><strong>Training</strong>: use the <strong>current batch's</strong> mean/variance (so each batch is recentered to ~0 mean, unit variance), <em>and</em> update a <strong>running</strong> estimate: <code>running_μ ← (1−m)·running_μ + m·batch_μ</code> (same for variance). Real batches are noisy, so the running average <strong>smooths</strong> the jittery per-batch stats -- the page tracks <code>batch_μ</code> (jittery dots) vs <code>running_μ</code> (smooth line) converging to the true channel mean over steps.</li><li><strong>Inference</strong>: there's no batch, so BN uses the <strong>frozen running</strong> mean/variance it learned. The consequence: a test input that's <em>brighter than average</em> comes out <strong>brighter</strong> (measured against the learned population) -- it is <strong>not</strong> recentered to zero the way training would. Toggle train ↔ inference on a bright input to see the output shift.</li></ul>
+<p><code>γ</code> (scale) and <code>β</code> (shift) are learned per channel and let the network undo the normalization if it wants. BN does all of this <strong>independently per channel</strong>.</p>
+<p><strong>Drag (paint)</strong> the input to change its values and watch the running average drift to track it, and the normalized output respond; toggle <strong>train / inference</strong>; adjust <strong>momentum</strong> (EMA rate), <code>γ</code>, <code>β</code>. The training EMA animates.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D: the paintable input + normalized output grids, the running-statistics tracking chart).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>shape</code>, <code>mode</code>, <code>momentum</code>, <code>gamma</code>, <code>beta</code>, <code>seed</code>) + <code>animate</code> (the training EMA) + <code>onPointer</code> paint-the-input + hover. <code>?mode</code> / <code>?shape</code> / <code>?paint</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

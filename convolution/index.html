@@ -6,6 +6,7 @@
 <title>convolution | viz</title>
 <meta name="description" content="A kernel slides across the input and every output pixel is one sum of products. Stride, padding and dilation decide what it covers and how much the image shrinks.">
 <link rel="canonical" href="https://viz.math.gaema.ai/convolution/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: 2-D convolution -- a kernel sliding over a padded input with
@@ -13,6 +14,24 @@
      module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/convolution/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>convolution -- kernel sliding over input (stride / padding / dilation)</h1>
+<p class="vz-about-plain">An image is a grid of numbers, and this is how a vision model examines one. A small grid of weights — nine numbers, say — is laid over a patch of the picture, each weight is multiplied by the number underneath it, and the total becomes one number in a new grid. Slide the little grid one step and repeat, and you have swept the whole image with one detector: the weights decide what it responds to, an edge running one way, or a patch of a certain colour. Three settings change what comes out: how far it jumps between stops, whether a border of zeros is added so the result does not shrink, and whether the weights are spread apart to cover more ground without using more of them.</p>
+<p>Interactive page: 2-D convolution as a small kernel sliding across an input feature map, each output pixel a <strong>sum of products</strong> over the receptive field -- with the geometry knobs that set the output size: <strong>stride</strong>, <strong>padding</strong>, <strong>dilation</strong>. <strong>Anchor</strong>: F (CNN / vision); Family F.</p>
+<h2>What it shows</h2>
+<p>A <code>k×k</code> kernel <code>W</code> slides over the (zero-padded) input <code>X</code>. At each output position <code>(oy, ox)</code> it multiplies its weights with the input cells under it sums:</p>
+<p>out[oy, ox] = Σᵢⱼ W[i, j] · Xpad[oy·s + i·dil, ox·s + j·dil]</p>
+<ul><li><strong>stride <code>s</code></strong>: how far the kernel jumps between output pixels (bigger stride ⇒ smaller output, coarser sampling).</li><li><strong>padding <code>p</code></strong>: a border of zeros around <code>X</code> (keeps the output from shrinking; "same" padding).</li><li><strong>dilation <code>dil</code></strong>: gaps between the kernel taps (a larger receptive field for the same <code>k</code> weights -- atrous convolution).</li></ul>
+<p>Output size: <code>out = max(1, ⌊(n + 2p − dil·(k−1) − 1)/s⌋ + 1)</code>. The current receptive field is outlined on the input with the kernel weights overlaid; the output grid fills as the kernel slides (auto-plays + loops), and the readout shows the sum-of-products for the current pixel.</p>
+<p><strong>Drag</strong> any input cell to change its value and watch the affected outputs recompute; <strong>hover</strong> any input / kernel / output cell for its value (and an output cell's full Σ). Step to slide the kernel one position at a time.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D: the padded input grid + kernel overlay, the output grid, and the sum-of-products).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>n</code>, <code>k</code>, <code>stride</code>, <code>pad</code>, <code>dilation</code>, <code>seed</code>) + an output-position <code>Transport</code> (slide the kernel) + <code>onPointer</code> input-cell drag hover. <code>?step</code> / <code>?drag</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

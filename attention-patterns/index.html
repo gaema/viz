@@ -6,6 +6,7 @@
 <title>attention-patterns | viz</title>
 <meta name="description" content="Full, sliding-window, hybrid and sink patterns side by side: which past tokens each query may read, and how much of the sequence each choice quietly throws away.">
 <link rel="canonical" href="https://viz.math.gaema.ai/attention-patterns/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: attention masking patterns (full / sliding-window / hybrid /
@@ -14,6 +15,22 @@
      browser):
        python3 -m http.server 8099
        open http://localhost:8099/attention-patterns/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>attention-patterns -- full / sliding-window / hybrid / sink</h1>
+<p class="vz-about-plain">Letting every word compare itself against every earlier word gets expensive quickly: the work per word grows with how much text came before it, and the notes held in memory never stop growing. So real models restrict what each word is allowed to read. A sliding window lets a word see only the last few thousand; a mixed design keeps most layers local and lets a few see everything; and a sink scheme keeps the first handful of words permanently visible alongside the window. Each of these is cheaper, and each gives up the same thing, because a word outside the allowed set is not read at all.</p>
+<p>Interactive page: the masking schemes that decide which keys each query may read, and what they cost. <strong>Anchor</strong>: A3 attention pattern (Family B).</p>
+<h2>What it shows</h2>
+<p>An <code>N×N</code> grid (query rows × key cols) where attended cells are lit and masked cells dark. Scrub the transport through four patterns:</p>
+<ul><li><strong>Full (causal)</strong> — every query attends to all past keys (<code>j ≤ i</code>). Attended set grows with position → <code>O(i)</code> per query, unbounded KV cache.</li><li><strong>Sliding-window (SWA)</strong> — query attends only to the last <code>w</code> keys (<code>i−w &lt; j ≤ i</code>). Bounded <code>O(w)</code> per query / cache (Mistral).</li><li><strong>Hybrid by layer</strong> — a strip of per-layer grids, most <strong>local</strong> (SWA) and a few <strong>global</strong> (full): most layers cheap, a few see everything. The ratio is the model's choice, and the two Gemmas differ — Gemma 2 alternates <strong>1: 1</strong> with a 4096 window, Gemma 3 runs <strong>5 local: 1 global</strong> with a 1024 window. The strip is drawn at Gemma 3's ratio.</li><li><strong>Attention sink</strong> — sliding window <strong>plus</strong> the first <code>s</code> tokens always attended (the "sink"), which stabilizes very long / streaming contexts (StreamingLLM).</li></ul>
+<p>A <code>highlight query i</code> slider outlines one row and the readout reports its <strong>attended-key count</strong> under the current pattern — making the <code>O(i)</code> vs <code>O(w)</code> cost difference concrete. Sliders for window <code>w</code>, sink size <code>s</code>, and <code>N</code>.</p>
+<h2>Render tier</h2>
+<p>T2 (WebGL2-tier surface; the grids are drawn as Canvas2D cell overlays for the 3-way attended / current-row / masked coloring).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>N</code>, <code>window</code>, <code>sink</code>, <code>query i</code>) + a per-pattern <code>Transport</code>, drawn with <code>ctx</code> + <code>render.label</code>. Per the 2026-06-13 interactivity contract: hover any cell for whether it is attended <strong>and why</strong> for the current pattern; <strong>drag the <code>◀</code> current-query handle</strong> down the rows (the attended band follows live); <strong>drag the window edge</strong> on sliding/sink to resize <code>w</code>; the query <strong>auto-sweeps down + loops</strong> (generation) and the pattern transport loops. Headless hooks: <code>?step=N</code>/<code>?play=1</code>, <code>?hover=x,y</code> (attended-reason tooltip), <code>?q=N</code> (current query row), <code>?win=N</code> (window size). Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

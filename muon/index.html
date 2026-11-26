@@ -6,8 +6,17 @@
 <title>muon | viz</title>
 <meta name="description" content="A matrix gradient is orthogonalised so its singular values move toward one. Embeddings, the output head, and per-channel gains stay on a second optimizer.">
 <link rel="canonical" href="https://viz.math.gaema.ai/muon/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>muon — orthogonalise the matrix update</h1>
+<p class="vz-about-plain">Most optimizers scale each number on its own. Muon treats a two-dimensional gradient as a matrix and pulls its singular values toward one, so every direction of the update has the same strength. The iteration does not apply to an embedding table, the output head, or a per-channel gain, so a real recipe runs this update beside a second optimizer.</p>
+<p>A matrix gradient is passed through Newton–Schulz. Drag the step count and the singular values move toward 1. Embeddings, the output head, and gains are marked as staying on a second optimizer.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

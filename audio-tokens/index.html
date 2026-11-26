@@ -6,6 +6,7 @@
 <title>audio tokens | viz</title>
 <meta name="description" content="A waveform becomes a stack of codes: the first codebook carries the gist and each later one corrects what the previous missed. Drop the deepest and quality degrades instead of breaking.">
 <link rel="canonical" href="https://viz.math.gaema.ai/audio-tokens/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: how a waveform becomes something a language model can predict.
@@ -16,6 +17,44 @@
      are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/audio-tokens/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>audio-tokens -- a waveform becomes a code stack (RVQ)</h1>
+<p class="vz-about-plain">A model produces one item at a time from a fixed list of possibilities, and sound is not that: it is a wave, tens of thousands of measurements a second. So it is converted twice over. First the wave is summarised into a few dozen snapshots per second; then each snapshot is described by a rough code picked from a fixed set, plus a second code for what the first one got wrong, plus a third for what those two still missed, and so on. Because every code only corrects the ones before it, dropping the last few coarsens the sound gently instead of ruining it. The cost is length: a minute of audio can run to tens of thousands of items, where the same budget holds hours of text.</p>
+<p>Interactive page: <strong>residual vector quantization</strong> -- how a continuous waveform becomes a short sequence of integers a language model can predict, and what the two knobs (bitrate, sequence length) actually trade. <strong>Anchor</strong>: G (quantization / deployment); Family G.</p>
+<h2>The mechanism</h2>
+<p>A neural audio codec closes the gap between "tens of thousands of floating-point samples per second" and "integers a model predicts" in two moves.</p>
+<table><thead><tr><th>Move</th><th>What happens</th></tr></thead><tbody><tr><td><strong>encode</strong></td><td>a strided encoder downsamples the waveform to a low <strong>frame rate</strong> -- one <em>D</em>-dimensional vector per frame instead of thousands of samples</td></tr><tr><td><strong>residual-quantize</strong></td><td>codebook 1 replaces the frame vector with its nearest codeword; the <strong>residual</strong> (what codebook 1 got wrong) is quantized by codebook 2; <em>that</em> residual by codebook 3, and so on</td></tr><tr><td><strong>decode</strong></td><td>sum the chosen codewords, run synthesis, get audio back</td></tr></tbody></table>
+<p>So one frame becomes a small <strong>stack of integer codes, coarse to fine</strong>. Because each stage only ever refines what the earlier stages missed, dropping the deepest codebooks degrades quality <strong>gracefully</strong> instead of destroying it -- that is the whole point of the <em>residual</em> structure, and it is what the transport shows: press play and the reconstruction climbs onto the waveform one codebook at a time.</p>
+<pre><code>lat[f] = encoder(frame f) one vector per frame
+r ← lat[f]
+for s in 1..Q: code[s][f] = argmin_j ‖r − C_s[j]‖ nearest codeword in codebook s
+ r ← r − C_s[code[s][f]] quantize the RESIDUAL next
+recon[f] = Σ_s C_s[code[s][f]] sum of the chosen codewords</code></pre>
+<h2>The trade, computed live</h2>
+<pre><code>bitrate = frames/sec × codebooks × log2(codebook size)</code></pre>
+<p>All three are draggable, and the <strong>staircase</strong> plot is the consequence: each added codebook steps <strong>right by a constant</strong> <code>fps × log2(K)</code> bits/s and <strong>down by a shrinking amount</strong> of error. Measured on the page at its default view (two-tone source, seed 3, 75 fps, 64-entry codebooks, 0.8 s clip):</p>
+<table><thead><tr><th>codebooks</th><th>RMSE</th><th>bitrate</th></tr></thead><tbody><tr><td>1</td><td>0.0825</td><td>0.45 kbit/s</td></tr><tr><td>2</td><td>0.0303</td><td>0.90 kbit/s</td></tr><tr><td>4</td><td>0.0073</td><td>1.80 kbit/s</td></tr><tr><td>8</td><td>0.0031</td><td>3.60 kbit/s</td></tr></tbody></table>
+<p>Eight codebooks cost 8× the bits of one and buy 27× less error -- and the last four of them, half the entire bitrate, move the error only 0.0073 → 0.0031, because they are chasing an <strong>encoder floor</strong> of 0.0029 that no depth reaches past. That floor is drawn as a dashed asymptote.</p>
+<p>The second trade is <strong>frame rate against sequence length</strong>. Every frame is a token position a model has to predict, so <code>fps × 60 × codebooks</code> tokens buy one minute of audio: 36,000 at 75 fps × 8, against a 32,768-token context that holds roughly 2.7 hours of English text. A minute of audio does not fit where hours of text do. That gap is the entire reason low-frame-rate codecs exist, and the frame-rate control walks it -- 6,000 tokens/minute at 12.5 fps × 8.</p>
+<p>The frame-rate control also exposes the cost of going low, honestly: the encoder floor climbs from 0.0015 at 100 fps to 0.0852 at 12.5 fps, because this page's encoder is a <strong>box filter with linear synthesis, not a trained network</strong>. Pushing that floor back down at 12.5 frames per second is precisely the work a real low-frame-rate codec's learned encoder does.</p>
+<h2>What is real</h2>
+<p>Everything on screen is computed in <a href="page.js"><code>page.js</code></a> at draw time: the waveform (sine components under an envelope, or a chirp), the encoder, the codebooks, the code assignment, the reconstruction, and every error number. The codebooks are fit by a few Lloyd iterations on a <strong>synthetic corpus of other clips</strong>, never on the clip being coded -- fitting on the clip itself would let a codebook memorize it and collapse the error for reasons no real codec enjoys. No audio is played; the waveform and the residual are drawn.</p>
+<h2>How this differs from <code>quantization</code></h2>
+<p><a href="../quantization/"><code>quantization</code></a> is the same <em>shape</em> of picture -- error against bits -- driven by an entirely different mechanism, and reading the two together is the point:</p>
+<table><thead><tr><th></th><th><code>quantization</code></th><th><code>audio-tokens</code></th></tr></thead><tbody><tr><td>what is quantized</td><td>each <strong>scalar</strong> weight, independently</td><td>each frame's whole <strong>vector</strong>, jointly</td></tr><tr><td>the code</td><td>a position on a uniform grid: <code>q = round((x−min)/s)</code></td><td>an <strong>index into a learned codebook</strong> -- the codeword has no numeric order</td></tr><tr><td>how you spend more bits</td><td>widen the grid (more levels per weight)</td><td>add another <strong>stage</strong>, quantizing the previous stage's residual</td></tr><tr><td>the second knob</td><td>group size -- how many weights share one scale</td><td>frame rate -- how much time one code covers</td></tr><tr><td>what the output is for</td><td>dequantize back to a number a GEMM consumes</td><td>a <strong>token sequence a model predicts</strong>, so sequence length is a first-class cost</td></tr></tbody></table>
+<p>Scalar quantization has no residual structure to drop: take bits away and every weight coarsens at once. RVQ's stages are ordered, so a decoder that reads only the first <em>k</em> codebooks still gets a valid, coarser signal -- which is why a codec can stream at a bitrate chosen after encoding.</p>
+<h2>Interactions</h2>
+<table><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><strong>transport</strong></td><td>steps the codebook stages 0 → Q, autoplaying and looping, so the reconstruction visibly converges onto the waveform stage by stage</td></tr><tr><td><strong>drag the waveform</strong></td><td>drag ↕ anywhere on the waveform panel to push a bump into the audio -- the encoder, codes, reconstruction and every number recompute under your hand (<code>reset drags</code> clears them)</td></tr><tr><td><strong>drag the parameters</strong></td><td>codebooks (1–8), codebook size (8–256) and frame rate (12.5–100 fps) are live; the bitrate and the staircase follow</td></tr><tr><td><strong>hover a frame</strong></td><td>anywhere on the waveform strip or the code grid: its time span, its full <strong>code stack</strong> (which stages are in use), and that frame's residual RMSE</td></tr><tr><td><strong>A/B compare</strong></td><td>1 codebook against 8, side by side</td></tr><tr><td><strong>challenges</strong></td><td>hit an RMSE target under a bitrate cap; fit a minute of audio into a 32,768-token context</td></tr></tbody></table>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D: waveform + reconstruction, residual, code-stack grid, staircase).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>preset</code>, <code>fps</code>, <code>nq</code>, <code>K</code>, <code>seed</code>) + <code>transport</code> (the stage axis, <code>autoplay</code> + <code>loop</code>) + <code>onPointer</code> drag-the-waveform + hover. Deep links: <code>?preset</code> / <code>?fps</code> / <code>?nq</code> / <code>?K</code> / <code>?seed</code> / <code>?step</code> / <code>?bump</code> / <code>?hover</code> (and <code>?theme</code>). <code>?step=N</code> parks the transport rather than letting autoplay walk off it, so a captured frame is the one that was asked for. Source: <a href="page.js"><code>page.js</code></a>.</p>
+<h2>Sources</h2>
+<ul><li>SoundStream -- &lt;https://arxiv.org/abs/2107.03312&gt; (residual vector quantization in a neural codec)</li><li>EnCodec -- &lt;https://arxiv.org/abs/2210.13438&gt; (the RVQ codec used as an audio tokenizer)</li><li>Moshi / Mimi -- &lt;https://arxiv.org/abs/2410.00037&gt; (12.5 fps + semantic distillation)</li></ul>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

@@ -6,8 +6,18 @@
 <title>kv-fusion | viz</title>
 <meta name="description" content="A prefix tree reuses a chunk only when the request starts with it. Fusion keeps a later chunk and recomputes a fraction of its tokens, leaving a residual error on the rest.">
 <link rel="canonical" href="https://viz.math.gaema.ai/kv-fusion/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>kv fusion — reuse a chunk that is not a prefix</h1>
+<p class="vz-about-plain">A prefix cache only helps when the reused text is at the very start of the request. A retrieved document, a tool result, or a passage pasted into the middle does not qualify, so the server reads the whole thing again. Fusion keeps the stored reading of that passage and recomputes a fraction of its tokens. The leftover error is the share of the mismatch that was not recomputed. It is 0.00 when the mismatch is 0.00 or the fraction is 1.00. Put the passage back at the start and the prefix cache reuses the whole chunk. It pays fewer tokens than fusion when that fraction is above zero, and the two pay the same when the fraction is 0.00.</p>
+<p>A prefix cache reuses a stored chunk only when the request starts with it. The same chunk later in the request is recomputed in full.</p>
+<p>Fusion keeps that chunk. It recomputes <code>fraction × chunk</code> tokens and always recomputes the new header in front of the chunk. The residual error is <code>(1 − fraction) × mismatch</code>. On a true prefix the prefix cache pays nothing for the chunk, and fusion still pays its fraction.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

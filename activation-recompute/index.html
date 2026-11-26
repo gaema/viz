@@ -6,8 +6,17 @@
 <title>activation recompute | viz</title>
 <meta name="description" content="Store every activation and spend the memory, or store none and pay a second forward. The combined cost has a minimum at a segment length in between.">
 <link rel="canonical" href="https://viz.math.gaema.ai/activation-recompute/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>activation recompute — memory against a second forward</h1>
+<p class="vz-about-plain">A backward pass needs the activations the forward pass produced. Storing all of them uses one slot per layer and no extra forward. Storing only the input uses one slot and recomputes the stack. Checkpointing every few layers sits between those extremes, and the sum of memory and extra forward has a minimum there.</p>
+<p>Sixteen layers. Segment 1 stores every activation. Segment 16 stores the input and recomputes. The objective, memory plus extra forward, is lowest at a segment in between.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

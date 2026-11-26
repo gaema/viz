@@ -6,6 +6,7 @@
 <title>embedding | viz</title>
 <meta name="description" content="A token id is a row number, so the embedding table is looked up rather than multiplied. Tied and untied output weights are the same table read in two directions.">
 <link rel="canonical" href="https://viz.math.gaema.ai/embedding/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: token embedding (row lookup) + tied/untied lm_head. Wires the
@@ -13,6 +14,23 @@
      module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/embedding/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>embedding -- token-id → row lookup (and the tied lm_head)</h1>
+<p class="vz-about-plain">A computer can only do arithmetic, so the numbered token your text has been cut into has to become numbers the model can work with. It does that by plain lookup: a large table holds one row of numbers per entry in the token list, and the token's number is simply which row to fetch. Nothing is calculated here, which makes it the cheapest step in the model and also one of the bulkiest to store, since a list of a quarter of a million tokens needs a quarter of a million rows. Many models save that space by reusing the very same table at the end, to turn the finished numbers back into a word.</p>
+<p>Interactive page: how a token id becomes a vector (a row lookup in the embedding table), and how the same table is reused as the output projection when weights are tied. <strong>Anchor</strong>: A5 embedding shape (Family C1, the transformer block).</p>
+<h2>What it shows</h2>
+<p>An embedding table <code>E</code> of shape <code>[V × D]</code> (one row per vocabulary token). Each input token is just an <strong>id</strong> — an index — so "embedding" is a pure row lookup: <code>embed(id) = E[id]</code>. Scrub the transport through the input sequence; each step highlights the token's <strong>row</strong> in <code>E</code> and pulls out its <code>D</code>-dim vector. No arithmetic — just indexing.</p>
+<p>The <strong>lm_head</strong> (output projection, hidden state → vocab logits) is shown on the right with a <strong>tied / untied</strong> toggle:</p>
+<ul><li><strong>tied</strong> — <code>lm_head = Eᵀ</code>: the same <code>[V × D]</code> weights serve both the input lookup and the output logits. Costs <code>V·D</code> parameters total.</li><li><strong>untied</strong> — a separate <code>[V × D]</code> matrix. Costs <code>2·V·D</code> parameters.</li></ul>
+<p>For large vocabularies <code>V·D</code> is huge (e.g. 256k × 4096 ≈ 1B), so tying saves a lot — the page shows the parameter count for each.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D heatmaps for the tables + the pulled vector).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>dim D</code>, <code>seed</code>, <code>tie weights</code>) + a per-token <code>Transport</code>, drawn with <code>render.heatmap</code>/<code>cell</code> + <code>ctx</code> and <code>tensor.seededRandn</code>. Per the framework interaction contract: hover any cell for <code>E[token,dim]</code> (or the fetched-row value); click/drag a row of E (or the input-token strip) to pin which token id is looked up; the sweep auto-plays + loops. Headless hooks: <code>?step=N</code>/<code>?play=1</code>/<code>?tied=0|1</code> as on the other pages, plus <code>?hover=x,y</code> (fake cursor, pauses) and <code>?tok=N</code> (pin the looked-up token id to row N of E). Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

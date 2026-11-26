@@ -6,8 +6,18 @@
 <title>kv-fabric | viz</title>
 <meta name="description" content="A private cache hits only on the machine that stored the prefix. A shared pool hits when any machine has, so a repeat on a different machine is no longer a miss.">
 <link rel="canonical" href="https://viz.math.gaema.ai/kv-fabric/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
+<!-- about:start -->
+<article class="vz-about">
+<h1>kv fabric — one pool across machines</h1>
+<p class="vz-about-plain">Each machine can remember the prefixes it has already read, but a request only gets that memory if it is sent to the machine that holds it. Send the same opening to a different machine and the work is done again. A shared pool keeps one copy the whole cluster can see, so the second machine finds the prefix even though it never read it itself. One machine makes the two schemes identical. Several machines, and the same opening repeated on different ones, is where the shared pool pulls ahead.</p>
+<p>Each arrival of prefix <code>p</code> in wave <code>r</code> is assigned to machine <code>(p + r) mod machines</code>.</p>
+<p>A private cache hits only when that machine has already seen the prefix. A shared pool hits when any machine has. The percent on each bar is <code>100 × hits / requests</code> from the two counts printed beside it. One machine makes the two counts equal. A later wave on a different machine is a shared hit and a private miss.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

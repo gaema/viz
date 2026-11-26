@@ -6,6 +6,7 @@
 <title>flash-attention | viz</title>
 <meta name="description" content="Attention computed tile by tile with a running maximum and sum, so the full score matrix is never stored. Same answer, memory that grows with the tile instead of the sequence.">
 <link rel="canonical" href="https://viz.math.gaema.ai/flash-attention/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: FlashAttention (tiled online softmax). Wires the framework
@@ -13,6 +14,22 @@
      imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/flash-attention/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>flash-attention -- tiled online softmax (never materialize N×N)</h1>
+<p class="vz-about-plain">Comparing every word against every other word produces a table with one entry per pair, and for a long document that table is far too large to hold in the fast memory next to the chip. FlashAttention never builds it. It walks the earlier words in small tiles, keeping only a running total and a running largest-score per word, and rescaling what it has accumulated whenever a bigger score turns up, so only one tile exists at any moment. The answer comes out identical to building the whole table, which is the unusual part: this is not an approximation, and it is why long-context models are practical at all.</p>
+<p>Interactive page: how FlashAttention computes exact attention without ever storing the full <code>N×N</code> score matrix, by streaming K/V in tiles and keeping a running ("online") softmax. <strong>Anchor</strong>: A3 attention pattern (Family B9, the T3 capstone).</p>
+<h2>What it shows</h2>
+<p>A block of <code>Bq</code> query rows attends over <code>N</code> keys split into tiles of <code>Bk</code>. Scrub the transport through the tiles; for each tile the page shows the online-softmax update, per query row <code>i</code>:</p>
+<ul><li><code>mᵢ ← max(mᵢ, rowmax(Sⱼ))</code> — running max (for numerical stability)</li><li><code>rescale = exp(mᵢ_old − mᵢ_new)</code> — shrink the prior contributions when the max grows (shown when a new max appears)</li><li><code>lᵢ ← rescale·lᵢ + Σ exp(Sⱼ − mᵢ)</code> — running denominator</li><li><code>Oᵢ ← rescale·Oᵢ + Σ exp(Sⱼ − mᵢ)·Vⱼ</code> — running output accumulator</li></ul>
+<p>and at the last tile, <code>output = O / l</code>. The score matrix is drawn ghosted with <strong>only the current tile lit</strong> — that tile is all that exists in SRAM at once, so memory is <code>O(N)</code> instead of the <code>O(N²)</code> of materializing the whole matrix (the <a href="../scaled-dot-attention/"><code>../scaled-dot-attention/</code></a> view). The running <code>m</code>, <code>l</code>, and <code>O</code> panels update tile by tile.</p>
+<h2>Render tier</h2>
+<p>T3 (prefers WebGPU; negotiates down to WebGL2 heatmaps, then Canvas2D — the overlays/ghosting are Canvas2D regardless).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>keys N</code>, <code>tile size</code>, <code>seed</code>) + a per-tile <code>Transport</code> that runs the online-softmax algorithm in <code>page.js</code> (uses <code>tensor.seededRandn</code>), drawn with <code>render.heatmap</code> + <code>ctx</code>. Auto-plays + loops the tile sweep; hover a score tile cell for its value + the running stats (<code>m</code>, <code>l</code>, <code>rescale</code>) at that step, or an <code>O</code>/output cell for its partial value; DRAG the <code>◂▸</code> handle to scrub the sweep by hand. Headless hooks: <code>?pos=N</code>/<code>?step=N</code> set the tile, <code>?hover=x,y</code> sets the cursor (both pause the transport); <code>?play=1</code> resumes. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@
 <title>chunked-prefill | viz</title>
 <meta name="description" content="A long prompt’s prefill split into budgeted chunks and interleaved with everyone else’s decoding. One knob, and it moves two different latencies in opposite directions.">
 <link rel="canonical" href="https://viz.math.gaema.ai/chunked-prefill/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: chunked prefill -- splitting one long prompt's prefill into
@@ -15,6 +16,22 @@
      browser):
        python3 -m http.server 8099
        open http://localhost:8099/chunked-prefill/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>chunked-prefill -- splitting a prefill so it stops stalling everyone else</h1>
+<p class="vz-about-plain">Reading a prompt and writing a reply are different jobs, and a server does one round of work at a time. When someone pastes an enormous document, reading all of it in one round occupies the machine, and everybody else's reply stops mid-sentence until it is done. Cutting the reading into slices and putting one slice into each round, beside the next word for everyone else, keeps the other replies flowing. The cost lands on the person who pasted the document: their wait for a first word gets a little longer, because their reading is now spread over several rounds instead of taking one to itself.</p>
+<p>Interactive page: the <strong>scheduling</strong> consequence of the two inference regimes. A serving engine runs one batched step at a time, so a long prompt's prefill -- one big compute step -- blocks every other sequence's next token while it runs. <strong>Chunked prefill</strong> splits that prefill into pieces of at most a per-step token budget — a few hundred to a few thousand tokens in a real engine (vLLM's <code>max_num_batched_tokens</code>, tuned around 2048 for latency 8192+ for throughput); the toy budget on this page is far smaller so the packing is visible packs each piece into a step alongside the waiting sequences' decode tokens, up to a per-step <strong>token budget</strong>. <strong>Anchor</strong>: A4 KV cache / runtime shape (Family J, serving time). Companion to <a href="../prefill-vs-decode/">prefill-vs-decode</a>, which shows <em>why</em> the two regimes have different shapes; this page shows what a scheduler does about it.</p>
+<h2>What it shows</h2>
+<ul><li><strong>The stall.</strong> With one big prefill, the whole prompt is a single step and no decode slot exists inside it. The waiting sequences' token strips show one wide hole -- their inter-token latency spikes to the length of the entire prefill.</li><li><strong>Chunking.</strong> With a token budget, each scheduler step carries a <strong>mix</strong>: one prefill chunk of sequence A plus one decode token for each waiting sequence. The timeline bars stack exactly that way -- decodes at the bottom, the prefill chunk on top, the dashed budget line as the cap.</li><li><strong>The trade, stated honestly.</strong> Two live numbers, both lower-is-better both quoted as a percent of the one-big-prefill baseline: the long prompt's <strong>time to first token</strong> gets <em>worse</em> (its prefill is spread over more steps, each paying the fixed per-step overhead again) while the other sequences' <strong>worst gap between tokens</strong> gets much <em>better</em>. Neither is hidden.</li><li><strong>The budget is the knob.</strong> A budget sweep alongside the numbers plots both halves against the budget: shrink it and the gap curve falls while the time-to-first-token curve climbs, so there is a middle rather than a best. Push the budget below the number of waiting sequences and the page says so -- the scheduler still forces one prefill token through, and the step overruns.</li></ul>
+<p>The millisecond figures come from a deliberately simple illustrative cost model -- a fixed per-step overhead plus a per-token cost -- chosen so the <em>shape</em> of the trade is readable. They illustrate the mechanism; they are not a measurement of any particular engine or accelerator.</p>
+<p>Press play (or scrub) to walk the scheduler steps; <strong>drag</strong> the dashed budget line up and down to re-pack the timeline and watch the two numbers move in opposite directions; <strong>hover</strong> a step for exactly what it carried, or a gap in a token strip for what occupied the scheduler while that sequence waited.</p>
+<h2>Render tier</h2>
+<p>T1 (Canvas2D throughout: stacked step bars, arrival strips, budget sweep).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (prompt length, waiting sequences, token budget, scheduler mode) + a Transport over the scheduler steps (autoplay + loop) <code>onPointer</code> budget-line drag + hover-to-inspect + two challenges + an A/B compare across the two scheduler modes. URL hooks: every control is mirrored into the query string (<code>?P=</code> <code>?S=</code> <code>?budget=</code> <code>?mode=</code>), plus <code>?step=N</code>, <code>?hover=x,y</code> and <code>?play=1</code>. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

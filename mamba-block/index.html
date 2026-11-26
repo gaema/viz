@@ -6,6 +6,7 @@
 <title>mamba-block | viz</title>
 <meta name="description" content="The complete block: project in, short convolution, gate, selective scan, gate again, project out. The scan is the only part that carries information along the sequence.">
 <link rel="canonical" href="https://viz.math.gaema.ai/mamba-block/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: the full Mamba block (in_proj -> conv -> SiLU -> selective SSM,
@@ -13,6 +14,23 @@
      over http (ES module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/mamba-block/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>mamba-block -- the full Mamba block</h1>
+<p class="vz-about-plain">Instead of re-reading every past word, a model can carry one small fixed-size running summary and update it as it goes. This is the whole layer built around one. Each word's numbers are copied into two paths. The first blends the word with the two or three before it, then feeds the running summary that carries everything seen so far. The second turns into a set of volume knobs that multiply the first path, letting the layer turn parts of the result up or down, and what comes out is added onto the running total the rest of the model shares. Stack a few dozen of these and you have a language model that never builds a growing memory of past words.</p>
+<p>Interactive page: the whole Mamba block end to end -- the macro view that wraps the selective scan (<a href="../ssm-scan/">ssm-scan</a>) in a causal conv, a gated branch, and in/out projections, on a residual stream. The SSM analog of <a href="../transformer-block/">transformer-block</a>. <strong>Anchor</strong>: N1 sequence mixer / N2 recurrent state (Family E Mamba).</p>
+<h2>What it shows</h2>
+<p>The block, on a residual spine <code>x → RMSNorm → … → ⊕ → out</code>:</p>
+<ol><li><strong>in_proj</strong>: <code>RMSNorm(x)</code> is projected up and <strong>split</strong> into two branches, <code>u</code> and <code>gate</code> (each <code>E = expand·D</code> channels).</li><li><strong>main branch</strong>: <code>u →</code> <strong>causal Conv1d</strong> (a short depthwise conv that mixes a few neighbouring positions) <code>→</code> <strong>SiLU</strong> <code>→</code> <strong>selective SSM</strong> (the per-channel scan with input-dependent <code>Δ</code>) <code>→ y</code>.</li><li><strong>gate branch</strong>: <code>gate →</code> <strong>SiLU</strong> <code>→ g</code>.</li><li><strong>gate</strong>: <code>y ⊙ g</code> -- the SSM output is gated by the parallel branch (this is what replaces attention's value-mixing).</li><li><strong>out_proj</strong> back to <code>D</code>, then the <strong>residual</strong> add: <code>out = x + out_proj(y⊙g)</code>.</li></ol>
+<p>So Mamba mixes the sequence with <code>conv + selective SSM</code> (linear-time, a constant state) instead of attention, and gates it with a SiLU branch. Heatmaps show <code>x</code>, the SSM output <code>y</code>, the gate <code>g</code>, the gated product <code>y⊙g</code>, and <code>out</code>; boxes mark the ops; the SSM box breadcrumbs to <a href="../ssm-scan/">ssm-scan</a>.</p>
+<p>Step the transport through the <strong>sequence</strong>: the SSM state evolves token by token and every heatmap fills column by column (the future is veiled), so you watch the block process the stream one position at a time. <strong>Drag any x cell</strong> to steer the input and watch the whole block recompute; <strong>hover</strong> any cell.</p>
+<h2>Render tier</h2>
+<p>T2 (WebGL2 heatmaps for the branch tensors; Canvas2D for the boxes, arrows, gate ⊙, and the residual spine).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>L</code>, <code>D</code>, <code>expand</code>, <code>sel</code>, <code>seed</code>) + an <code>L</code>-step <code>Transport</code> (the scan over the sequence; the state + heatmaps fill column by column) + <code>onPointer</code> x-cell drag + hover. <code>?step</code> / <code>?drag</code> / <code>?hover</code> hooks. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

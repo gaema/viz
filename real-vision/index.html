@@ -6,6 +6,7 @@
 <title>real-vision | viz</title>
 <meta name="description" content="A real vision transformer classifying a real photograph in your browser: the image cut into patches, and the genuine top-five predictions that come back out of it.">
 <link rel="canonical" href="https://viz.math.gaema.ai/real-vision/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Real-model grounding: REAL vision — extends real grounding to the
@@ -15,6 +16,26 @@
      real top-5 class predictions. Verified vs PyTorch ViT. Needs network. Serve:
        python3 -m http.server 8099
        open http://localhost:8099/real-vision/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>real-vision -- a ViT classifying a real image</h1>
+<p class="vz-about-plain">The same machinery that reads text can be pointed at a picture, and this page runs a real image classifier in your browser to show it. The photo is cut into a grid of 196 small squares, each square is turned into numbers the way a word would be, and the model then treats them as if they were a sentence, ending with its top five guesses. The version it fetches is about 88 MB because the numbers inside it have been squeezed into a coarser format, which moves its confidence a little — around 90% on the cats photo where the full-size original gives 94% — without changing what it answers. It downloads only when you ask; before that you get a stand-in with the real grid.</p>
+<p>Interactive page: the <strong>vision entry</strong> to the real-* family. A real <strong>Vision Transformer</strong> (ViT-base) classifies a real photo in your browser. <strong>Anchor</strong>: <a href="../patch-embedding/"><code>patch-embedding</code></a> (ViT image→patches). One of the <strong>real-model grounding</strong> pages, which run a real trained model instead of synthetic weights.</p>
+<h2>What it shows</h2>
+<p>A ViT splits the image into 16×16 <strong>patches</strong> (14×14 = 196 of them), linearly embeds each into a token, and runs a transformer — the <em>same machinery</em> as a language model, on pixels instead of words. The page shows:</p>
+<ul><li>the real photo with the <strong>patch grid</strong> overlaid — the ViT "tokens", the image analog of the BPE tokens the curriculum started with (grounds the <code>patch-embedding</code> page);</li><li>the model's real <strong>top-5 class predictions</strong>.</li></ul>
+<p>It is the vision counterpart of <a href="../real-logits/"><code>real-logits</code></a> (real model <em>output</em>). Here <strong>transformers.js is the trusted engine</strong> — <code>image- classification</code> with <code>Xenova/vit-base-patch16-224</code> — so there's no hand-written vision forward; the page's job is to show the patches and the real predictions.</p>
+<h2>Verified against PyTorch</h2>
+<p>The top CLASS is checked against <code>ViTForImageClassification</code> (<code>google/vit-base-patch16-224</code>): on the sample images the page agrees with PyTorch — <strong>cats → "Egyptian cat"</strong>, <strong>tiger → "tiger"</strong> (reference <a href="vit-groundtruth.fixture.json"><code>vit-groundtruth.fixture.json</code></a>). Live-verified in a real browser by.</p>
+<p>The CONFIDENCE differs from that reference on purpose, and the page says the number it actually produces: transformers.js fetches the <strong>int8-quantized</strong> ONNX export (~88 MB, against ~347 MB unquantized), so the cats photo comes out around <strong>90%</strong> where the fp32 PyTorch reference gives ~94%. Same top-1 class, same top-5 — quantization moved the confidence, not the answer, which is the trade this tree's own <code>quantization</code> and <code>real-quant</code> pages are about.</p>
+<blockquote><p>Deeper future extension (noted in the plan): a hand-written ViT forward to show real <em>attention over patches</em> / feature maps — transformers.js can't emit intermediate activations (same ONNX limit as <code>real-attention</code>), so it needs the same hand-written-forward treatment GPT-2 got, plus image-preprocessing match.</p></blockquote>
+<h2>Render tier</h2>
+<p>T2 (Canvas2D image + patch grid + prediction bars).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + an <code>image</code> select + classify / "load real ViT" buttons. Uses transformers.js <code>image-classification</code>; async, degrades to a labelled synthetic stand-in (with the real patch grid) offline. Two <strong>challenges</strong> (<code>?ch=N</code>): load the real model, and classify the cats image to a cat. Headless hooks: <code>?image=</code>, <code>?real=0</code>. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>

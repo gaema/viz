@@ -6,6 +6,7 @@
 <title>scaled-dot-attention | viz</title>
 <meta name="description" content="The full single-head pipeline: compare every query to every key, scale by the square root of the dimension, mask, softmax, then mix the values. Every other page varies this.">
 <link rel="canonical" href="https://viz.math.gaema.ai/scaled-dot-attention/">
+<link rel="alternate" type="text/markdown" href="README.md">
 </head>
 <body>
 <!-- Concept page: scaled dot-product attention (single-head pipeline). Wires the
@@ -13,6 +14,22 @@
      module imports are blocked on file:// in a normal browser):
        python3 -m http.server 8099
        open http://localhost:8099/scaled-dot-attention/ -->
+<!-- about:start -->
+<article class="vz-about">
+<h1>scaled-dot-attention -- the single-head pipeline</h1>
+<p class="vz-about-plain">This is the step where words read each other. In "the cat sat on it", something has to work out that it means the cat: every word compares its question against every other word's offer, those comparisons are turned into percentages, and each word pulls in a blend of what the others carry, weighted by how well they matched. Two details do real work. Every score is divided by the same fixed number first so the percentages do not collapse onto a single winner, and a word may only look backwards, never forwards. Every other form of attention is a variation on this one formula.</p>
+<p>Interactive page: the full scaled dot-product attention computation over a sequence, stage by stage. <strong>Anchor</strong>: A3 attention pattern (Family B2).</p>
+<h2>What it shows</h2>
+<p><code>Attention(Q,K,V) = softmax(QKᵀ/√d + mask)·V</code>, with the N×N score matrix as the centerpiece. The pipeline auto-plays + loops; <strong>drag a Q (query) cell vertically</strong> to re-steer that query and watch its row of scores, the softmax weights, and the output recompute live; <strong>hover</strong> a score / weight / output cell for its derivation. Scrub the transport through the five stages:</p>
+<ol><li><strong>QKᵀ</strong> — each cell <code>[i,j]</code> is <code>qᵢ·kⱼ</code> (query i against key j).</li><li><strong>/ √d</strong> — scale, so the softmax doesn't saturate.</li><li><strong>causal mask</strong> — query <code>i</code> may only see keys <code>j ≤ i</code>; the upper triangle goes to −∞ (shown veiled).</li><li><strong>softmax (rows)</strong> — each row becomes a probability distribution over the visible keys (lower-triangular, rows sum to 1).</li><li><strong>× V → output</strong> — each output row is <code>Σⱼ wᵢⱼ·vⱼ</code>, the weighted sum of values.</li></ol>
+<p>Q, K, V are shown as input strips; the output <code>[N×d]</code> appears at the final stage. This is the <strong>prefill</strong> view (all positions at once) — the companion to <a href="../kv-cache/"><code>../kv-cache/</code></a>, which shows the decode view (one new query over a growing cache).</p>
+<h2>Render tier</h2>
+<p>T2 (WebGL2 heatmaps for the matrices; Canvas2D overlays for the causal veil, labels, and stage highlight).</p>
+<h2>Wiring</h2>
+<p><code>layout.mount</code> + controls (<code>tokens</code>, <code>head_dim</code>, <code>seed</code>) + a 5-stage <code>Transport</code> built in <code>page.js</code> (uses <code>tensor.dot</code>/<code>softmax</code>/<code>seededRandn</code>), drawn with <code>render.heatmap</code>/<code>cell</code> + <code>ctx</code>. Interactivity per the framework contract: <code>autoplay</code>+<code>loop</code> transport, <code>onPointer</code> Q-cell drag with <code>cellAt</code> hit-testing + <code>recompute</code>, <code>setTip</code> hover derivations. Headless hooks <code>?hover=x,y</code> / <code>?drag=i,c,val</code> / <code>?step=N</code> / <code>?play=1</code> (drag/hover pause + park on a deterministic stage) as on the dot-product + matmul pages. Source: <a href="page.js"><code>page.js</code></a>.</p>
+</article>
+<script>document.currentScript.previousElementSibling.hidden = true;</script>
+<!-- about:end -->
 <script type="module" src="./page.js"></script>
 </body>
 </html>
